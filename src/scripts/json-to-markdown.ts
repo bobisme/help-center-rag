@@ -267,70 +267,74 @@ async function main() {
         // Fix multiple blank lines (more than 2)
         .replace(/\n{3,}/g, '\n\n');
         
-      // Apply a line-by-line approach to fix formatting issues
+      // Improved approach to fix list formatting issues
+      // Process line by line with better handling of nested elements
       const lines = cleanedMarkdown.split('\n');
       const result = [];
-      let inNumberedList = false;
-      let prevIndent = 0;
+      let inList = false;
+      let inListItem = false;
+      let currentIndent = 0;
       
       for (let i = 0; i < lines.length; i++) {
         const line = lines[i];
         
-        // Check if this is a numbered list item
+        // Check for numbered list items
         const numMatch = line.match(/^(\s*)(\d+)\.(\s+)(.*)/);
         if (numMatch) {
-          // This is a numbered list item
+          inList = true;
+          inListItem = true;
           const [_, indent, num, space, content] = numMatch;
-          inNumberedList = true;
-          prevIndent = indent.length;
+          currentIndent = indent.length;
           
-          // Add a blank line before starting a new list (if not at start of document)
-          if (i > 0 && !lines[i-1].trim().endsWith(':') && !/^\s*\d+\./.test(lines[i-1]) && lines[i-1].trim() !== '') {
-            if (result[result.length - 1] !== '') {
-              result.push('');
-            }
+          // Add blank line before list item if needed
+          if (result.length > 0 && result[result.length - 1] !== '') {
+            result.push('');
           }
           
-          // Add the numbered list item with consistent spacing
-          result.push(`${indent}${num}. ${content}`);
+          // Add the list item
+          result.push(`${num}. ${content}`);
         }
-        // Check if this is a bullet point
+        // Check for bullet points
         else if (line.match(/^\s*[-*]\s/)) {
-          const bulletMatch = line.match(/^(\s*)[-*](\s+)(.*)/);
-          if (bulletMatch) {
-            const [_, indent, space, content] = bulletMatch;
-            
-            // If we're in a numbered list, indent the bullet points properly
-            if (inNumberedList) {
-              // Ensure bullet points are indented 4 spaces from the number
-              result.push(`${' '.repeat(prevIndent + 4)}- ${content}`);
-            } else {
-              // Not in a numbered list, keep original indentation
-              result.push(`${indent}- ${content}`);
-            }
+          // If within a list, indent properly
+          if (inList) {
+            const bulletContent = line.trim().substring(1).trim();
+            result.push(`    - ${bulletContent}`);
           } else {
-            // No match, keep the line as is
             result.push(line);
           }
         }
-        // Empty line
+        // Handle text continuation
         else if (line.trim() === '') {
           result.push('');
-          // End numbered list if we encounter an empty line
-          inNumberedList = false;
+          // Don't reset list status on empty lines
         }
-        // Regular line
         else {
-          result.push(line);
+          // Normal text - could be continuation of list item
+          if (inList && inListItem) {
+            // Indent continuation text
+            result.push(`    ${line.trim()}`);
+          } else {
+            result.push(line);
+            
+            // If this doesn't look like a list continuation,
+            // and it's not indented, end the list mode
+            if (!line.startsWith(' ')) {
+              inList = false;
+              inListItem = false;
+            }
+          }
         }
       }
       
       cleanedMarkdown = result.join('\n');
       
-      // Final pass to fix any remaining issues
+      // Final cleanup
       cleanedMarkdown = cleanedMarkdown
         // Remove triple or more newlines
-        .replace(/\n{3,}/g, '\n\n');
+        .replace(/\n{3,}/g, '\n\n')
+        // Fix any inconsistent bullet spacing
+        .replace(/^(\s*)[-*]\s{2,}/gm, '$1- ');
 
       markdown += cleanedMarkdown;
       markdown += '\n\n---\n\n';
