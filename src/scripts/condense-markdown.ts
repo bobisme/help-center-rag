@@ -44,15 +44,17 @@ function removeRepetitiveHeaders(content: string): string {
  */
 function removeAccessDeniedBlocks(content: string): string {
   // Multiple patterns to capture different variations of access denied blocks
-  return content
-    // Pattern 1: Full access denied sections with heading
-    .replace(/^# Access Denied[\s\S]*?The page you requested is restricted\.[\s\S]*?\n\n/gm, '')
-    // Pattern 2: Access denied without heading format
-    .replace(/^Access Denied[\s\S]*?The page you requested is restricted\.[\s\S]*?\n\n/gm, '')
-    // Pattern 3: Lines mentioning restricted access
-    .replace(/^.*[Rr]estricted [Aa]ccess.*$/gm, '')
-    // Pattern 4: Unauthorized access messages
-    .replace(/^.*[Uu]nauthorized [Aa]ccess.*$/gm, '');
+  return (
+    content
+      // Pattern 1: Full access denied sections with heading
+      .replace(/^# Access Denied[\s\S]*?The page you requested is restricted\.[\s\S]*?\n\n/gm, '')
+      // Pattern 2: Access denied without heading format
+      .replace(/^Access Denied[\s\S]*?The page you requested is restricted\.[\s\S]*?\n\n/gm, '')
+      // Pattern 3: Lines mentioning restricted access
+      .replace(/^.*[Rr]estricted [Aa]ccess.*$/gm, '')
+      // Pattern 4: Unauthorized access messages
+      .replace(/^.*[Uu]nauthorized [Aa]ccess.*$/gm, '')
+  );
 }
 
 /**
@@ -61,25 +63,25 @@ function removeAccessDeniedBlocks(content: string): string {
 function fixLoneExclamationMarks(content: string): string {
   // Find any lines that contain just a single "!" character and remove them
   // Proper markdown images should be in the format ![alt text](image-url)
-  
+
   // First, let's try to rebuild broken image syntax that spans multiple lines
   // Pattern: "!" on its own line, followed by [text] on next line, followed by (url) on next line
-  let lines = content.split('\n');
-  let fixedLines = [];
+  const lines = content.split('\n');
+  const fixedLines = [];
   let i = 0;
-  
+
   while (i < lines.length) {
     const currentLine = lines[i];
-    
+
     // Check if this line is just an exclamation mark
     if (/^\s*!\s*$/.test(currentLine) && i < lines.length - 2) {
       const nextLine = lines[i + 1];
       const nextNextLine = lines[i + 2];
-      
+
       // Check if next line contains an image alt text [text] and the line after contains (url)
       const altTextMatch = nextLine.match(/^\s*\[(.*?)\]\s*$/);
       const urlMatch = nextNextLine.match(/^\s*\((.*?)\)\s*$/);
-      
+
       if (altTextMatch && urlMatch) {
         // Rebuild the proper image syntax
         fixedLines.push(`![${altTextMatch[1]}](${urlMatch[1]})`);
@@ -87,17 +89,17 @@ function fixLoneExclamationMarks(content: string): string {
         continue;
       }
     }
-    
+
     // If not part of a broken image pattern, keep the line as is
     fixedLines.push(currentLine);
     i++;
   }
-  
+
   let result = fixedLines.join('\n');
-  
+
   // Finally, remove any remaining standalone exclamation marks
   result = result.replace(/^\s*!\s*$/gm, '');
-  
+
   return result;
 }
 
@@ -108,27 +110,27 @@ function fixNumberedListFormatting(content: string): string {
   // Process line by line to handle complex nesting cases
   const lines = content.split('\n');
   const result: string[] = [];
-  
+
   // Track state
-  let inList = false;         // Are we inside a numbered list?
-  let currentNumber = 0;      // Current list item number
+  let inList = false; // Are we inside a numbered list?
+  let currentNumber = 0; // Current list item number
   let continuationText = false; // Is this line a continuation of previous list item?
   let prevLineWasBullet = false; // Was the previous line a bullet point?
-  
+
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
-    
+
     // Check if this is a numbered list item
     const numMatch = line.match(/^(\d+)\.(\s+)(.*)/);
     if (numMatch) {
-      const [_, num, space, lineContent] = numMatch;
+      const [, num, , lineContent] = numMatch;
       const numValue = parseInt(num, 10);
-      
+
       // Special case: Check if this is the start of a nested sequence
       if (numValue === 1 && inList && currentNumber === 1) {
         // This is likely "1. ... \n 1. - ..." pattern - handle specially
         // Continue with the current list and don't create a new numbered item
-        
+
         // Check if the content starts with a bullet point
         if (lineContent.trim().startsWith('-')) {
           const bulletContent = lineContent.trim().substring(1).trim();
@@ -139,17 +141,17 @@ function fixNumberedListFormatting(content: string): string {
           continue;
         }
       }
-      
+
       // Normal numbered list item processing
       inList = true;
       currentNumber = numValue;
       continuationText = false;
-      
+
       // Add blank line before list items if needed
-      if (i > 0 && !lines[i-1].trim().endsWith(':') && result[result.length - 1] !== '') {
+      if (i > 0 && !lines[i - 1].trim().endsWith(':') && result[result.length - 1] !== '') {
         result.push('');
       }
-      
+
       // Add the list item
       result.push(`${num}.${space}${lineContent}`);
       prevLineWasBullet = false;
@@ -158,8 +160,8 @@ function fixNumberedListFormatting(content: string): string {
     else if (line.match(/^\s*[-*]\s/)) {
       const bulletMatch = line.match(/^(\s*)[-*](\s+)(.*)/);
       if (bulletMatch) {
-        const [_, indent, space, bulletContent] = bulletMatch;
-        
+        const [, , , bulletContent] = bulletMatch;
+
         // If in a numbered list, standardize the indentation
         if (inList) {
           result.push(`    - ${bulletContent}`);
@@ -188,14 +190,18 @@ function fixNumberedListFormatting(content: string): string {
     else {
       // Special case: look for lines that should be continuations of list items
       if (inList) {
-        if (prevLineWasBullet || continuationText || line.trim().startsWith('From any other area')) {
+        if (
+          prevLineWasBullet ||
+          continuationText ||
+          line.trim().startsWith('From any other area')
+        ) {
           // This is a continuation that should be indented
           result.push(`    ${line.trim()}`);
           continuationText = true;
         } else {
           // Regular line, not a list continuation
           result.push(line);
-          
+
           // End list mode if this is clearly not part of the list
           if (!line.startsWith(' ') && !line.trim().endsWith(':')) {
             inList = false;
@@ -209,42 +215,47 @@ function fixNumberedListFormatting(content: string): string {
       prevLineWasBullet = false;
     }
   }
-  
+
   // Final processing to fix specific patterns
   let processed = result.join('\n');
-  
+
   // Look for the pattern where we have multiple numbered list items with incorrect format
-  processed = processed.replace(/^1\.\s+(.*?)(?:\n\n(\d+)\.\s+-\s+)/gms, (match, firstContent, nextNum) => {
-    // If nextNum is 2, this is likely a single list with nested items
-    if (nextNum === '2') {
-      return `1. ${firstContent}\n\n    - `;
-    }
-    return match;
-  });
-  
+  processed = processed.replace(
+    /^1\.\s+(.*?)(?:\n\n(\d+)\.\s+-\s+)/gms,
+    (match, firstContent, nextNum) => {
+      // If nextNum is 2, this is likely a single list with nested items
+      if (nextNum === '2') {
+        return `1. ${firstContent}\n\n    - `;
+      }
+      return match;
+    },
+  );
+
   // Look for the specific pattern in the Commission/Premium Calculations section
-  processed = processed.replace(/^(1\. From the Home screen, do one of the following:)\n\n1\. -/gm, 
-    '$1\n\n    -');
-  
+  processed = processed.replace(
+    /^(1\. From the Home screen, do one of the following:)\n\n1\. -/gm,
+    '$1\n\n    -',
+  );
+
   // Look for "From any other area of the program" text that should be indented
   processed = processed.replace(
-    /(\n\s+- .*?menubar\.\n)From any other area of the program/g, 
-    '$1    From any other area of the program'
+    /(\n\s+- .*?menubar\.\n)From any other area of the program/g,
+    '$1    From any other area of the program',
   );
-  
+
   // Ultra-specific fix for the Commission/Premium Calculations section
   processed = processed.replace(
-    "- Click Areas > Configure on the menubar.\nFrom any other area of the program",
-    "- Click Areas > Configure on the menubar.\n    From any other area of the program"
+    '- Click Areas > Configure on the menubar.\nFrom any other area of the program',
+    '- Click Areas > Configure on the menubar.\n    From any other area of the program',
   );
-  
+
   // Fix any remaining spacing issues
   processed = processed
     // Ensure consistent bullet point spacing
     .replace(/^(\s*)[-*]\s{2,}/gm, '$1- ')
     // Fix multiple consecutive empty lines
     .replace(/\n{3,}/g, '\n\n');
-  
+
   return processed;
 }
 

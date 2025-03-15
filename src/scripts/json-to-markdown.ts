@@ -68,7 +68,7 @@ async function main() {
         return '\n\n' + content + '\n\n';
       },
     });
-    
+
     // Let's use a simpler approach to fix nested lists
     // Instead of completely overriding the list processors, we'll post-process the markdown
 
@@ -266,31 +266,31 @@ async function main() {
         .replace(/[ ]{2,}/g, ' ')
         // Fix multiple blank lines (more than 2)
         .replace(/\n{3,}/g, '\n\n');
-        
+
       // Improved approach to fix list formatting issues
       // Process line by line with better handling of nested elements
       const lines = cleanedMarkdown.split('\n');
       const result = [];
       let inList = false;
       let inListItem = false;
-      let currentIndent = 0;
-      
+      // Track current indentation level (not currently used but preserved for future needs)
+      // let currentIndent = 0;
+
       for (let i = 0; i < lines.length; i++) {
         const line = lines[i];
-        
+
         // Check for numbered list items
         const numMatch = line.match(/^(\s*)(\d+)\.(\s+)(.*)/);
         if (numMatch) {
           inList = true;
           inListItem = true;
-          const [_, indent, num, space, content] = numMatch;
-          currentIndent = indent.length;
-          
+          const [, , num, , content] = numMatch;
+
           // Add blank line before list item if needed
           if (result.length > 0 && result[result.length - 1] !== '') {
             result.push('');
           }
-          
+
           // Add the list item
           result.push(`${num}. ${content}`);
         }
@@ -308,15 +308,14 @@ async function main() {
         else if (line.trim() === '') {
           result.push('');
           // Don't reset list status on empty lines
-        }
-        else {
+        } else {
           // Normal text - could be continuation of list item
           if (inList && inListItem) {
             // Indent continuation text
             result.push(`    ${line.trim()}`);
           } else {
             result.push(line);
-            
+
             // If this doesn't look like a list continuation,
             // and it's not indented, end the list mode
             if (!line.startsWith(' ')) {
@@ -326,9 +325,9 @@ async function main() {
           }
         }
       }
-      
+
       cleanedMarkdown = result.join('\n');
-      
+
       // Final cleanup
       cleanedMarkdown = cleanedMarkdown
         // Remove triple or more newlines
