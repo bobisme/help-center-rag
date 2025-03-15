@@ -7,20 +7,24 @@
 - Run Markdown condenser: `bun run src/scripts/condense-markdown.ts input.md output.md`
 - Run token counter: `bun run src/scripts/count-tokens.ts input.md`
 - Run parallel crawler: `bun run src/scripts/parallel-json-crawler.ts`
+  - With images: `bun run src/scripts/parallel-json-crawler.ts --images-dir output/images`
+  - All images: `bun run src/scripts/parallel-json-crawler.ts --images-dir output/images --all-images`
+  - No images: `bun run src/scripts/parallel-json-crawler.ts --no-images`
 - Typecheck: `bun x tsc --noEmit`
 - Format: `bun x prettier --write "**/*.{ts,js,json}"`
+- Python dependencies: `uv add html2text markdownify beautifulsoup4 markdown-it-py`
 
 ## Project Structure
 - **src/index.ts**: Main entry point that shows available scripts
 - **src/scripts/**: Contains individual tools for the documentation processing pipeline
-  - **parallel-json-crawler.ts**: Scrapes Epic docs website and outputs to JSON
-  - **json-to-markdown.ts**: Converts scraped JSON to markdown format
+  - **parallel-json-crawler.ts**: Scrapes Epic docs website and outputs to JSON with images
+  - **json-to-markdown.ts**: Converts scraped JSON to markdown format with local image references
   - **condense-markdown.ts**: Reduces markdown content to fit within context windows
   - **count-tokens.ts**: Estimates token counts for LLM context windows
 
 ## Processing Pipeline
-1. **Crawl**: Use parallel-json-crawler to scrape the Epic docs (outputs epic-docs.json)
-2. **Convert**: Use json-to-markdown to convert HTML to markdown (outputs epic-docs.md)
+1. **Crawl**: Use parallel-json-crawler to scrape the Epic docs and download images (outputs epic-docs.json and images directory)
+2. **Convert**: Use json-to-markdown to convert HTML to markdown with local image references (outputs epic-docs.md)
 3. **Condense**: Use condense-markdown to reduce content size (outputs epic-docs-condensed.md)
 4. **Count**: Use count-tokens to verify it fits in target context window
 
