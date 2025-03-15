@@ -2,6 +2,7 @@
 
 import argparse
 import json
+import os
 import sys
 from bs4 import BeautifulSoup
 from markdownify import markdownify as md
@@ -38,6 +39,39 @@ def preprocess_html(html):
             # Preserve the inner text
             link_text = link.get_text(strip=True)
             link.replace_with(link_text)
+    
+    # Update image sources to point to local files
+    for img in soup.find_all("img"):
+        src = img.get("src", "")
+        if src and not src.startswith("data:"):
+            # Skip the logo.png which we removed above
+            if "logo.png" in src:
+                continue
+                
+            # Extract the filename from the URL
+            filename = os.path.basename(src)
+            
+            # Look for the file in the output/images directory
+            # The files in output/images have base64-encoded prefixes
+            # Find a matching file based on the end of the filename
+            for img_file in os.listdir("output/images"):
+                if img_file.endswith(filename) or filename in img_file:
+                    # Update the src to point to the local file
+                    img["src"] = f"output/images/{img_file}"
+                    break
+            else:
+                # If not found directly, look for a file that might match based on content
+                found = False
+                for img_file in os.listdir("output/images"):
+                    if any(part in img_file.lower() for part in filename.lower().split(".")):
+                        img["src"] = f"output/images/{img_file}"
+                        found = True
+                        break
+                
+                # If still not found, consider removing the image
+                if not found and not src.startswith("http"):
+                    # For non-http sources that we can't resolve, we'll remove the image
+                    img.decompose()
 
     return str(soup)
 
