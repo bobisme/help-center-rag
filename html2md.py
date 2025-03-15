@@ -12,7 +12,7 @@ def preprocess_html(html):
     soup = BeautifulSoup(html, "html.parser")
 
     # Remove logo image
-    for img in soup.find_all("img", src=lambda src: src and "logo.png" in src):
+    for img in soup.find_all("img", src=lambda src: bool(src) and "logo.png" in src):
         img.decompose()
 
     # Remove "Applied Epic July 2023 Help File" text
@@ -22,7 +22,7 @@ def preprocess_html(html):
 
     # Remove "Click here to see this page in full context" text
     for element in soup.find_all(
-        string=lambda text: text
+        string=lambda text: bool(text)
         and "Click here to see this page in full context" in text
     ):
         if element.parent:
@@ -65,7 +65,7 @@ def main():
         processed_html = preprocess_html(raw_html)
 
         # Convert to markdown
-        markdown = md(processed_html, heading_style="ATX")
+        markdown = md(processed_html, heading_style="ATX", wrap=True)
         print(markdown)
 
     except FileNotFoundError:
