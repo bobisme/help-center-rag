@@ -1,6 +1,7 @@
 # Development Guidelines for scrape-epic-docs
 
 ## Commands
+
 - Install: `bun install`
 - Run: `bun run index.ts`
 - Run HTML to Markdown converter: `bun run src/scripts/json-to-markdown.ts`
@@ -12,9 +13,11 @@
   - No images: `bun run src/scripts/parallel-json-crawler.ts --no-images`
 - Typecheck: `bun x tsc --noEmit`
 - Format: `bun x prettier --write "**/*.{ts,js,json}"`
-- Python dependencies: `uv add html2text markdownify beautifulsoup4 markdown-it-py`
+- Python Format: `black`
+- Python dependencies: `uv add ...`
 
 ## Project Structure
+
 - **src/index.ts**: Main entry point that shows available scripts
 - **src/scripts/**: Contains individual tools for the documentation processing pipeline
   - **parallel-json-crawler.ts**: Scrapes Epic docs website and outputs to JSON with images
@@ -23,12 +26,14 @@
   - **count-tokens.ts**: Estimates token counts for LLM context windows
 
 ## Processing Pipeline
+
 1. **Crawl**: Use parallel-json-crawler to scrape the Epic docs and download images (outputs epic-docs.json and images directory)
 2. **Convert**: Use json-to-markdown to convert HTML to markdown with local image references (outputs epic-docs.md)
 3. **Condense**: Use condense-markdown to reduce content size (outputs epic-docs-condensed.md)
 4. **Count**: Use count-tokens to verify it fits in target context window
 
 ## Code Style
+
 - **TypeScript**: Use strict mode with ESNext features
 - **Imports**: Use ESM format (import/export)
 - **Formatting**: 2-space indentation, trailing commas
@@ -41,6 +46,8 @@
 - **Bun APIs**: Utilize Bun-specific APIs for performance when appropriate
 
 ## Notes on HTML to Markdown Conversion
+
 - The project uses TurndownService with custom rules for handling complex HTML
 - Special handling has been added for nested lists (bullet points within numbered lists)
 - Additional post-processing is applied to ensure proper markdown formatting
+

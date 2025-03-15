@@ -3,7 +3,32 @@
 import argparse
 import json
 import sys
+from bs4 import BeautifulSoup
 from markdownify import markdownify as md
+
+
+def preprocess_html(html):
+    """Remove header elements and other unnecessary content from the HTML."""
+    soup = BeautifulSoup(html, "html.parser")
+
+    # Remove logo image
+    for img in soup.find_all("img", src=lambda src: src and "logo.png" in src):
+        img.decompose()
+
+    # Remove "Applied Epic July 2023 Help File" text
+    for text in soup.find_all(string="Applied Epic July 2023 Help File"):
+        if text.parent:
+            text.parent.decompose()
+
+    # Remove "Click here to see this page in full context" text
+    for element in soup.find_all(
+        string=lambda text: text
+        and "Click here to see this page in full context" in text
+    ):
+        if element.parent:
+            element.parent.decompose()
+
+    return str(soup)
 
 
 def main():
@@ -36,7 +61,11 @@ def main():
             sys.stderr.write(f"Error: No HTML content found at index {args.index}\n")
             sys.exit(1)
 
-        markdown = md(raw_html, heading_style="ATX", wrap=True)
+        # Preprocess the HTML to remove unwanted elements
+        processed_html = preprocess_html(raw_html)
+
+        # Convert to markdown
+        markdown = md(processed_html, heading_style="ATX")
         print(markdown)
 
     except FileNotFoundError:
@@ -52,4 +81,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
