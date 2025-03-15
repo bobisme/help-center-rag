@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+maxdim=64
+find output/images -type f -print0 |
+  xargs -0 identify -format "output/images/%f %w %h\n" |
+  awk '$2 <= '$maxdim' && $3 <= '$maxdim' {print $1}'
