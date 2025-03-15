@@ -4,16 +4,27 @@ import fs from 'node:fs/promises';
 /**
  * A more accurate token counter for different LLM models
  */
-async function main() {
+export async function main(args: string[] = []): Promise<void> {
   console.log('Token Counter for LLM Models');
   console.log('===========================');
 
-  // Parse command line args
-  const args = process.argv.slice(2);
+  // If args are empty, use process.argv (command line args)
   if (args.length === 0) {
-    console.log('Usage: bun run count-tokens.ts <file-path>');
-    console.log('Example: bun run count-tokens.ts output/epic-docs.md');
-    process.exit(1);
+    args = process.argv.slice(2);
+  }
+
+  // Check for help flag
+  if (args.includes('--help') || args.includes('-h')) {
+    console.log('Usage: epic-help count <file-path>');
+    console.log('Example: epic-help count output/epic-docs.md');
+    return;
+  }
+
+  // Check for required arguments
+  if (args.length === 0) {
+    console.log('Error: Missing file path');
+    console.log('Usage: epic-help count <file-path>');
+    throw new Error('Missing file path');
   }
 
   const filePath = args[0];
@@ -177,9 +188,14 @@ async function main() {
     }
   } catch (error) {
     console.error('Error:', error);
-    process.exit(1);
+    throw error;
   }
 }
 
-// Run the counter
-main().catch(console.error);
+// If run directly, execute the main function
+if (require.main === module) {
+  main().catch((error) => {
+    console.error('Error:', error);
+    process.exit(1);
+  });
+}

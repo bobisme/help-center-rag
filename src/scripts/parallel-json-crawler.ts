@@ -43,10 +43,60 @@ interface QueueItem {
   path?: string[];
 }
 
-// Parallel crawler with JSON output
-async function main() {
+// Local types to avoid circular references
+interface CrawlerConfig {
+  baseUrl: string;
+  outputJsonFile: string;
+  concurrency: number;
+  maxDepth: number;
+  maxPages: number;
+  pageTimeout: number;
+  waitTime: number;
+  requestInterval: number;
+}
+
+/**
+ * Parallel crawler with JSON output
+ */
+export async function main(args: string[] = []): Promise<void> {
   console.log('Epic Documentation Parallel JSON Crawler');
   console.log('=======================================');
+
+  // Parse command line args for custom configuration
+  let crawlerConfig: CrawlerConfig = { ...CONFIG };
+  
+  for (let i = 0; i < args.length; i++) {
+    const arg = args[i];
+    if (arg === '--url' || arg === '-u') {
+      crawlerConfig.baseUrl = args[++i];
+    } else if (arg === '--output' || arg === '-o') {
+      crawlerConfig.outputJsonFile = path.resolve(process.cwd(), args[++i]);
+    } else if (arg === '--concurrency' || arg === '-c') {
+      crawlerConfig.concurrency = parseInt(args[++i], 10);
+    } else if (arg === '--depth' || arg === '-d') {
+      crawlerConfig.maxDepth = parseInt(args[++i], 10);
+    } else if (arg === '--max' || arg === '-m') {
+      crawlerConfig.maxPages = parseInt(args[++i], 10);
+    } else if (arg === '--timeout' || arg === '-t') {
+      crawlerConfig.pageTimeout = parseInt(args[++i], 10);
+    } else if (arg === '--wait' || arg === '-w') {
+      crawlerConfig.waitTime = parseInt(args[++i], 10);
+    } else if (arg === '--interval' || arg === '-i') {
+      crawlerConfig.requestInterval = parseInt(args[++i], 10);
+    } else if (arg === '--help' || arg === '-h') {
+      console.log('Usage: epic-help crawl [options]');
+      console.log('Options:');
+      console.log('  --url, -u <url>           Base URL to crawl');
+      console.log('  --output, -o <file>       Output JSON file path');
+      console.log('  --concurrency, -c <num>   Number of parallel workers');
+      console.log('  --depth, -d <num>         Maximum crawl depth');
+      console.log('  --max, -m <num>           Maximum pages to process');
+      console.log('  --timeout, -t <ms>        Page load timeout in milliseconds');
+      console.log('  --wait, -w <ms>           Wait time for dynamic content in milliseconds');
+      console.log('  --interval, -i <ms>       Delay between requests in milliseconds');
+      return;
+    }
+  }
 
   // Create shared data structures
   const visitedUrls = new Set<string>();
@@ -74,7 +124,7 @@ async function main() {
 
     // Save partial results if we have any
     if (pageContents.length > 0) {
-      await saveResults(pageContents, CONFIG.outputJsonFile);
+      await saveResults(pageContents, crawlerConfig.outputJsonFile, crawlerConfig);
     }
 
     process.exit(0);
@@ -97,7 +147,7 @@ async function main() {
 
     // Add initial URLs to queue
     for (const topic of initialTopics) {
-      const url = CONFIG.baseUrl + topic.path;
+      const url = crawlerConfig.baseUrl + topic.path;
       urlQueue.push({
         url,
         title: topic.name,
@@ -109,13 +159,13 @@ async function main() {
 
     totalFound = urlQueue.length;
     console.log(
-      `Starting with ${urlQueue.length} initial pages, using ${CONFIG.concurrency} workers`,
+      `Starting with ${urlQueue.length} initial pages, using ${crawlerConfig.concurrency} workers`,
     );
 
     // Create workers
     const workers: Promise<void>[] = [];
-    for (let i = 0; i < CONFIG.concurrency; i++) {
-      workers.push(createWorker(i, urlQueue, visitedUrls, seenUrls, pageContents));
+    for (let i = 0; i < crawlerConfig.concurrency; i++) {
+      workers.push(createWorker(i, urlQueue, visitedUrls, seenUrls, pageContents, crawlerConfig));
     }
 
     // Monitor and report progress while workers are running
@@ -124,7 +174,7 @@ async function main() {
       console.log(`Progress: ${processed}/${totalFound} pages processed, ${queueSize} in queue`);
 
       // Check if we're done or reached limits
-      if (queueSize === 0 || processed >= CONFIG.maxPages || !isRunning) {
+      if (queueSize === 0 || processed >= crawlerConfig.maxPages || !isRunning) {
         clearInterval(progressInterval);
         isRunning = false;
       }
@@ -139,7 +189,7 @@ async function main() {
     );
 
     // Save results
-    await saveResults(pageContents, CONFIG.outputJsonFile);
+    await saveResults(pageContents, crawlerConfig.outputJsonFile, crawlerConfig);
 
     console.log('Crawling completed successfully!');
   } catch (error) {
@@ -147,8 +197,10 @@ async function main() {
 
     // Try to save partial results
     if (pageContents.length > 0) {
-      await saveResults(pageContents, CONFIG.outputJsonFile);
+      await saveResults(pageContents, crawlerConfig.outputJsonFile, crawlerConfig);
     }
+    
+    throw error;
   }
 
   // Helper function to create a worker
@@ -158,6 +210,7 @@ async function main() {
     visited: Set<string>,
     seen: Set<string>,
     results: PageContent[],
+    config: CrawlerConfig,
   ): Promise<void> {
     console.log(`Starting worker ${id}`);
 
@@ -171,7 +224,7 @@ async function main() {
     });
 
     const page = await context.newPage();
-    page.setDefaultTimeout(CONFIG.pageTimeout);
+    page.setDefaultTimeout(config.pageTimeout);
 
     try {
       // Process URLs from the queue while running
@@ -185,7 +238,7 @@ async function main() {
         }
 
         // If queue is empty or we've reached max pages, exit
-        if (!currentItem || processed >= CONFIG.maxPages) {
+        if (!currentItem || processed >= config.maxPages) {
           break;
         }
 
@@ -204,12 +257,12 @@ async function main() {
           console.log(`[Worker ${id}][${processed}/${totalFound}] Processing: ${title} (${url})`);
 
           // Load the page
-          await page.goto(url, { timeout: CONFIG.pageTimeout }).catch((e) => {
+          await page.goto(url, { timeout: config.pageTimeout }).catch((e) => {
             throw new Error(`Navigation failed: ${e.message}`);
           });
 
           // Wait for dynamic content
-          await page.waitForTimeout(CONFIG.waitTime);
+          await page.waitForTimeout(config.waitTime);
 
           // Extract page information
           const pageInfo = await page.evaluate(() => {
@@ -238,7 +291,7 @@ async function main() {
             // Determine if it's an internal or external link
             const isInternal =
               !fullUrl.includes('://') ||
-              (fullUrl.includes('://') && fullUrl.includes(CONFIG.baseUrl));
+              (fullUrl.includes('://') && fullUrl.includes(config.baseUrl));
 
             // Make relative URLs absolute
             if (!fullUrl.includes('://')) {
@@ -270,7 +323,7 @@ async function main() {
           });
 
           // Add new links to the queue if not at max depth
-          if (depth < CONFIG.maxDepth) {
+          if (depth < config.maxDepth) {
             for (const link of processedLinks) {
               // Only add internal links that we haven't seen
               if (link.isInternal && link.url.includes('.htm') && !seen.has(link.url)) {
@@ -300,7 +353,7 @@ async function main() {
         }
 
         // Delay between requests
-        await new Promise((resolve) => setTimeout(resolve, CONFIG.requestInterval));
+        await new Promise((resolve) => setTimeout(resolve, config.requestInterval));
       }
     } finally {
       // Clean up
@@ -311,7 +364,11 @@ async function main() {
   }
 
   // Save results to a JSON file
-  async function saveResults(results: PageContent[], outputFile: string): Promise<void> {
+  async function saveResults(
+    results: PageContent[], 
+    outputFile: string, 
+    config: CrawlerConfig
+  ): Promise<void> {
     // Create output directory if needed
     await fs.mkdir(path.dirname(outputFile), { recursive: true });
 
@@ -319,9 +376,9 @@ async function main() {
     const outputData = {
       metadata: {
         crawlDate: new Date().toISOString(),
-        baseUrl: CONFIG.baseUrl,
+        baseUrl: config.baseUrl,
         totalPages: results.length,
-        maxDepth: CONFIG.maxDepth,
+        maxDepth: config.maxDepth,
       },
       pages: results,
     };
@@ -336,5 +393,10 @@ async function main() {
   }
 }
 
-// Start the crawler
-main().catch(console.error);
+// If run directly, execute the main function
+if (require.main === module) {
+  main().catch((error) => {
+    console.error('Error:', error);
+    process.exit(1);
+  });
+}

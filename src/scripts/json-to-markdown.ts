@@ -40,15 +40,33 @@ interface CrawlData {
   pages: PageContent[];
 }
 
-// Process JSON data into Markdown
-async function main() {
+/**
+ * Process JSON data into Markdown
+ */
+export async function main(args: string[] = []): Promise<void> {
   console.log('Converting JSON to Markdown');
   console.log('===========================');
 
+  // Parse command line args to allow custom input/output files
+  let inputJsonFile = CONFIG.inputJsonFile;
+  let outputMarkdownFile = CONFIG.outputMarkdownFile;
+  let outputMetadataFile = CONFIG.outputMetadataFile;
+
+  for (let i = 0; i < args.length; i++) {
+    const arg = args[i];
+    if (arg === '--input' || arg === '-i') {
+      inputJsonFile = path.resolve(process.cwd(), args[++i]);
+    } else if (arg === '--output' || arg === '-o') {
+      outputMarkdownFile = path.resolve(process.cwd(), args[++i]);
+    } else if (arg === '--metadata' || arg === '-m') {
+      outputMetadataFile = path.resolve(process.cwd(), args[++i]);
+    }
+  }
+
   try {
     // Read the JSON file
-    console.log(`Reading from ${CONFIG.inputJsonFile}`);
-    const jsonData = await fs.readFile(CONFIG.inputJsonFile, 'utf8');
+    console.log(`Reading from ${inputJsonFile}`);
+    const jsonData = await fs.readFile(inputJsonFile, 'utf8');
     const crawlData: CrawlData = JSON.parse(jsonData);
 
     console.log(`Processing ${crawlData.pages.length} pages`);
@@ -340,15 +358,15 @@ async function main() {
     }
 
     // Write the files
-    console.log(`Writing markdown to ${CONFIG.outputMarkdownFile}`);
-    await fs.mkdir(path.dirname(CONFIG.outputMarkdownFile), { recursive: true });
-    await fs.writeFile(CONFIG.outputMarkdownFile, markdown, 'utf8');
+    console.log(`Writing markdown to ${outputMarkdownFile}`);
+    await fs.mkdir(path.dirname(outputMarkdownFile), { recursive: true });
+    await fs.writeFile(outputMarkdownFile, markdown, 'utf8');
 
-    console.log(`Writing metadata to ${CONFIG.outputMetadataFile}`);
-    await fs.writeFile(CONFIG.outputMetadataFile, JSON.stringify(metadata, null, 2), 'utf8');
+    console.log(`Writing metadata to ${outputMetadataFile}`);
+    await fs.writeFile(outputMetadataFile, JSON.stringify(metadata, null, 2), 'utf8');
 
     // Calculate stats
-    const markdownStats = await fs.stat(CONFIG.outputMarkdownFile);
+    const markdownStats = await fs.stat(outputMarkdownFile);
     const markdownSizeMB = (markdownStats.size / (1024 * 1024)).toFixed(2);
 
     console.log(`Markdown file size: ${markdownSizeMB} MB`);
@@ -361,6 +379,7 @@ async function main() {
     console.log('Conversion completed successfully!');
   } catch (error) {
     console.error('Error during conversion:', error);
+    throw error;
   }
 }
 
@@ -373,5 +392,7 @@ function slugify(text: string): string {
     .replace(/^-+|-+$/g, '');
 }
 
-// Start the conversion
-main().catch(console.error);
+// If run directly, execute the main function
+if (require.main === module) {
+  main().catch(console.error);
+}

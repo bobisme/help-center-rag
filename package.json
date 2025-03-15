@@ -1,11 +1,16 @@
 {
-  "name": "scrape-epic-docs",
+  "name": "epic-help",
   "module": "src/index.ts",
   "type": "module",
+  "bin": {
+    "epic-help": "./src/index.ts"
+  },
   "scripts": {
+    "start": "bun src/index.ts",
     "lint": "eslint . --ext .ts,.tsx",
     "lint:fix": "eslint . --ext .ts,.tsx --fix",
-    "format": "prettier --write \"**/*.{ts,tsx,json,md}\""
+    "format": "prettier --write \"**/*.{ts,tsx,json,md}\"",
+    "install-global": "bun link"
   },
   "devDependencies": {
     "@types/bun": "latest",

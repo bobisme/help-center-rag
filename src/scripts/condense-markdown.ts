@@ -153,7 +153,7 @@ function fixNumberedListFormatting(content: string): string {
       }
 
       // Add the list item
-      result.push(`${num}.${space}${lineContent}`);
+      result.push(`${num}. ${lineContent}`);
       prevLineWasBullet = false;
     }
     // Check for bullet points
@@ -656,22 +656,45 @@ function condenseContent(content: string): {
 /**
  * Script to condense the Epic documentation to fit within a 2M token context window
  */
-async function main() {
+export async function main(args: string[] = []): Promise<void> {
   console.log('Condensing Epic Documentation');
   console.log('============================');
 
-  // Parse command line args
-  const args = process.argv.slice(2);
+  // If args are empty, use process.argv (command line args)
+  if (args.length === 0) {
+    args = process.argv.slice(2);
+  }
+
+  // Check for help flag
+  if (args.includes('--help') || args.includes('-h')) {
+    console.log('Usage: epic-help condense <input-file> <output-file> [options]');
+    console.log('Options:');
+    console.log('  --abbreviate         Enable abbreviations for greater reduction');
+    console.log('  --summarize          Enable aggressive content summarization');
+    console.log('');
+    console.log('Example: epic-help condense output/epic-docs.md output/epic-docs-condensed.md --abbreviate');
+    return;
+  }
+
+  // Check for required arguments
   if (args.length < 2) {
-    console.log('Usage: bun run condense-markdown.ts <input-file> <output-file>');
-    console.log(
-      'Example: bun run condense-markdown.ts output/epic-docs.md output/epic-docs-condensed.md',
-    );
-    process.exit(1);
+    console.log('Error: Missing required arguments');
+    console.log('Usage: epic-help condense <input-file> <output-file>');
+    console.log('Run "epic-help condense --help" for more information');
+    throw new Error('Missing required arguments');
   }
 
   const inputFile = args[0];
   const outputFile = args[1];
+
+  // Parse optional flags
+  if (args.includes('--abbreviate')) {
+    config.useAbbreviations = true;
+  }
+  
+  if (args.includes('--summarize')) {
+    config.enableContentSummarization = true;
+  }
 
   try {
     // Read the input file
@@ -726,9 +749,14 @@ async function main() {
     console.log(`\nCondensed content written to: ${outputFile}`);
   } catch (error) {
     console.error('Error:', error);
-    process.exit(1);
+    throw error;
   }
 }
 
-// Run the script
-main().catch(console.error);
+// If run directly, execute the main function
+if (require.main === module) {
+  main().catch((error) => {
+    console.error('Error:', error);
+    process.exit(1);
+  });
+}
