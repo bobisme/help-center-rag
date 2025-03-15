@@ -28,6 +28,14 @@ interface PageContent {
     url: string;
     isInternal: boolean;
   }[];
+  images?: {
+    originalUrl: string; // Original image URL
+    localPath: string;   // Local path where image is saved
+    alt: string;         // Alt text (if available)
+    width?: number;      // Image width
+    height?: number;     // Image height
+    isScreenshot: boolean; // Whether it's a screenshot or an icon
+  }[];
 }
 
 interface CrawlData {
@@ -250,7 +258,41 @@ export async function main(args: string[] = []): Promise<void> {
       // markdown += `_Source: <${page.url}>_\n\n`;
 
       // Clean the HTML to remove junk before conversion
-      const cleanedHtml = cleanHtml(page.rawHtml);
+      let cleanedHtml = cleanHtml(page.rawHtml);
+      
+      // Replace image URLs with local paths if available
+      if (page.images && page.images.length > 0) {
+        const dom = new JSDOM(cleanedHtml);
+        const { document } = dom.window;
+        
+        const imgElements = document.querySelectorAll('img');
+        imgElements.forEach(img => {
+          const src = img.getAttribute('src');
+          if (src) {
+            // Make the image URL absolute if it's relative
+            let absoluteSrc = src;
+            if (!src.includes('://')) {
+              const pageUrl = new URL(page.url);
+              const baseDir = pageUrl.href.substring(0, pageUrl.href.lastIndexOf('/') + 1);
+              absoluteSrc = new URL(src, baseDir).toString();
+            }
+            
+            // Find matching downloaded image
+            const matchingImage = page.images?.find(i => i.originalUrl === absoluteSrc);
+            if (matchingImage) {
+              // Replace with local path - use forward slashes for markdown compatibility
+              img.setAttribute('src', matchingImage.localPath.replace(/\\/g, '/'));
+              
+              // If the image doesn't have alt text, use the one we captured
+              if (!img.getAttribute('alt') && matchingImage.alt) {
+                img.setAttribute('alt', matchingImage.alt);
+              }
+            }
+          }
+        });
+        
+        cleanedHtml = dom.serialize();
+      }
 
       // Convert cleaned HTML to markdown
       const contentMarkdown = turndown.turndown(cleanedHtml);

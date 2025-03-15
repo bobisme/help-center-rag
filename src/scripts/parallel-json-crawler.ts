@@ -7,12 +7,16 @@ import path from 'node:path';
 const CONFIG = {
   baseUrl: 'https://help.appliedsystems.com/Help/Epic/2023.2en-US',
   outputJsonFile: path.join(process.cwd(), 'output', 'epic-docs.json'),
+  imagesDir: path.join(process.cwd(), 'output', 'images'),
   concurrency: 8, // Number of parallel workers
   maxDepth: 3, // Maximum crawl depth
   maxPages: 1_000, // Maximum pages to process
   pageTimeout: 5000, // Page load timeout (ms)
   waitTime: 500, // Wait time for dynamic content (ms)
   requestInterval: 200, // Delay between requests (ms)
+  downloadImages: true, // Whether to download images
+  screenshotsOnly: true, // Only download screenshots, not icons
+  autosaveInterval: 60_000, // Save partial results every minute
 };
 
 // Types for our data structures
@@ -32,6 +36,14 @@ interface PageContent {
     url: string;
     isInternal: boolean;
   }[];
+  images: {
+    originalUrl: string; // Original image URL
+    localPath: string;   // Local path where image is saved
+    alt: string;         // Alt text (if available)
+    width?: number;      // Image width
+    height?: number;     // Image height
+    isScreenshot: boolean; // Whether it's a screenshot or an icon
+  }[];
 }
 
 interface QueueItem {
@@ -47,12 +59,16 @@ interface QueueItem {
 interface CrawlerConfig {
   baseUrl: string;
   outputJsonFile: string;
+  imagesDir: string;
   concurrency: number;
   maxDepth: number;
   maxPages: number;
   pageTimeout: number;
   waitTime: number;
   requestInterval: number;
+  downloadImages: boolean;
+  screenshotsOnly: boolean;
+  autosaveInterval: number;
 }
 
 /**
@@ -83,6 +99,14 @@ export async function main(args: string[] = []): Promise<void> {
       crawlerConfig.waitTime = parseInt(args[++i], 10);
     } else if (arg === '--interval' || arg === '-i') {
       crawlerConfig.requestInterval = parseInt(args[++i], 10);
+    } else if (arg === '--images-dir') {
+      crawlerConfig.imagesDir = path.resolve(process.cwd(), args[++i]);
+    } else if (arg === '--no-images') {
+      crawlerConfig.downloadImages = false;
+    } else if (arg === '--all-images') {
+      crawlerConfig.screenshotsOnly = false;
+    } else if (arg === '--autosave') {
+      crawlerConfig.autosaveInterval = parseInt(args[++i], 10);
     } else if (arg === '--help' || arg === '-h') {
       console.log('Usage: epic-help crawl [options]');
       console.log('Options:');
@@ -94,6 +118,10 @@ export async function main(args: string[] = []): Promise<void> {
       console.log('  --timeout, -t <ms>        Page load timeout in milliseconds');
       console.log('  --wait, -w <ms>           Wait time for dynamic content in milliseconds');
       console.log('  --interval, -i <ms>       Delay between requests in milliseconds');
+      console.log('  --images-dir <dir>        Directory to save downloaded images');
+      console.log('  --no-images               Disable image downloading');
+      console.log('  --all-images              Download all images (not just screenshots)');
+      console.log('  --autosave <ms>           Interval in milliseconds to auto-save partial results');
       return;
     }
   }
@@ -103,6 +131,7 @@ export async function main(args: string[] = []): Promise<void> {
   const seenUrls = new Set<string>();
   const pageContents: PageContent[] = [];
   const urlQueue: QueueItem[] = [];
+  const downloadedImages = new Set<string>(); // Track downloaded images to avoid duplicates
 
   // Status tracking
   let processed = 0;
@@ -113,21 +142,55 @@ export async function main(args: string[] = []): Promise<void> {
   const browsers: Browser[] = [];
 
   // Handle process termination gracefully
+  let shutdownInProgress = false;
+  let progressInterval: NodeJS.Timer | null = null;
+  let autosaveInterval: NodeJS.Timer | null = null;
+  
   process.on('SIGINT', async () => {
+    if (shutdownInProgress) {
+      console.log('\nForced exit...');
+      process.exit(1);
+    }
+    
+    shutdownInProgress = true;
     console.log('\nCaught interrupt signal. Cleaning up...');
+    console.log('Please wait for resources to be released (or press Ctrl+C again to force exit)');
     isRunning = false;
 
-    // Close all browsers
-    for (const browser of browsers) {
-      await browser.close().catch(() => {});
-    }
+    try {
+      // Cancel any lingering timeouts and intervals
+      if (progressInterval) {
+        clearInterval(progressInterval);
+      }
+      
+      if (autosaveInterval) {
+        clearInterval(autosaveInterval);
+      }
+      
+      // Close all browsers
+      console.log(`Closing ${browsers.length} browser instances...`);
+      const closeBrowserPromises = browsers.map(browser => 
+        browser.close().catch(err => console.error('Error closing browser:', err))
+      );
+      
+      // Wait for all browsers to close with a timeout
+      await Promise.race([
+        Promise.all(closeBrowserPromises),
+        new Promise(resolve => setTimeout(resolve, 5000)) // 5 second timeout
+      ]);
 
-    // Save partial results if we have any
-    if (pageContents.length > 0) {
-      await saveResults(pageContents, crawlerConfig.outputJsonFile, crawlerConfig);
+      // Save partial results if we have any
+      if (pageContents.length > 0) {
+        console.log(`Saving partial results (${pageContents.length} pages)...`);
+        await saveResults(pageContents, crawlerConfig.outputJsonFile, crawlerConfig);
+      }
+      
+      console.log('Cleanup complete. Exiting...');
+    } catch (error) {
+      console.error('Error during shutdown:', error);
+    } finally {
+      process.exit(0);
     }
-
-    process.exit(0);
   });
 
   try {
@@ -165,23 +228,65 @@ export async function main(args: string[] = []): Promise<void> {
     // Create workers
     const workers: Promise<void>[] = [];
     for (let i = 0; i < crawlerConfig.concurrency; i++) {
-      workers.push(createWorker(i, urlQueue, visitedUrls, seenUrls, pageContents, crawlerConfig));
+      workers.push(createWorker(i, urlQueue, visitedUrls, seenUrls, pageContents, crawlerConfig, downloadedImages));
     }
 
     // Monitor and report progress while workers are running
-    const progressInterval = setInterval(() => {
+    progressInterval = setInterval(() => {
       const queueSize = urlQueue.length;
       console.log(`Progress: ${processed}/${totalFound} pages processed, ${queueSize} in queue`);
 
       // Check if we're done or reached limits
       if (queueSize === 0 || processed >= crawlerConfig.maxPages || !isRunning) {
-        clearInterval(progressInterval);
+        if (progressInterval) {
+          clearInterval(progressInterval);
+          progressInterval = null;
+        }
+        
+        console.log('Queue empty or processing limits reached. Stopping workers...');
         isRunning = false;
       }
     }, 5000);
+    
+    // Set up autosave timer if enabled
+    if (crawlerConfig.autosaveInterval > 0) {
+      console.log(`Auto-saving enabled: Saving results every ${crawlerConfig.autosaveInterval / 1000} seconds`);
+      
+      autosaveInterval = setInterval(async () => {
+        if (pageContents.length > 0) {
+          try {
+            const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+            const backupFilePath = crawlerConfig.outputJsonFile.replace('.json', `-backup-${timestamp}.json`);
+            console.log(`Auto-saving ${pageContents.length} pages to ${backupFilePath}`);
+            
+            await saveResults(pageContents, backupFilePath, crawlerConfig);
+          } catch (error) {
+            console.error('Error during auto-save:', error);
+          }
+        }
+      }, crawlerConfig.autosaveInterval);
+      
+      // Clean up autosave interval on process exit
+      process.on('beforeExit', () => {
+        if (autosaveInterval) {
+          clearInterval(autosaveInterval);
+        }
+      });
+    }
 
     // Wait for all workers to complete
     await Promise.all(workers);
+
+    // Clean up intervals
+    if (progressInterval) {
+      clearInterval(progressInterval);
+      progressInterval = null;
+    }
+    
+    if (autosaveInterval) {
+      clearInterval(autosaveInterval);
+      autosaveInterval = null;
+    }
 
     // Final progress report
     console.log(
@@ -192,15 +297,25 @@ export async function main(args: string[] = []): Promise<void> {
     await saveResults(pageContents, crawlerConfig.outputJsonFile, crawlerConfig);
 
     console.log('Crawling completed successfully!');
+    process.exit(0);
   } catch (error) {
     console.error('Fatal error during crawl:', error);
+
+    // Clean up intervals
+    if (progressInterval) {
+      clearInterval(progressInterval);
+    }
+    
+    if (autosaveInterval) {
+      clearInterval(autosaveInterval);
+    }
 
     // Try to save partial results
     if (pageContents.length > 0) {
       await saveResults(pageContents, crawlerConfig.outputJsonFile, crawlerConfig);
     }
     
-    throw error;
+    process.exit(1);
   }
 
   // Helper function to create a worker
@@ -211,6 +326,7 @@ export async function main(args: string[] = []): Promise<void> {
     seen: Set<string>,
     results: PageContent[],
     config: CrawlerConfig,
+    downloadedImageUrls: Set<string> = new Set<string>(), // Track downloaded images
   ): Promise<void> {
     console.log(`Starting worker ${id}`);
 
@@ -239,6 +355,8 @@ export async function main(args: string[] = []): Promise<void> {
 
         // If queue is empty or we've reached max pages, exit
         if (!currentItem || processed >= config.maxPages) {
+          // Stop worker, which will cause them all to exit when the queue is empty
+          console.log(`[Worker ${id}] No more work, exiting loop`);
           break;
         }
 
@@ -280,8 +398,42 @@ export async function main(args: string[] = []): Promise<void> {
                 href: a.getAttribute('href') || '',
               }))
               .filter((link) => link.href && !link.href.startsWith('javascript:'));
+              
+            // Extract images
+            const images = Array.from(document.querySelectorAll('img[src]'))
+              .map((img) => {
+                // Get dimensions
+                const width = (img as HTMLImageElement).width || undefined;
+                const height = (img as HTMLImageElement).height || undefined;
+                
+                // Determine if it's a screenshot based on size, filename, or class
+                const src = img.getAttribute('src') || '';
+                const alt = img.getAttribute('alt') || '';
+                const className = img.className || '';
+                
+                // Check if it's likely a screenshot (larger images, screenshot in name, etc.)
+                const isLargeImage = (width && width > 200) || (height && height > 200);
+                const hasScreenshotName = src.toLowerCase().includes('screen') || 
+                                         src.toLowerCase().includes('shot') || 
+                                         alt.toLowerCase().includes('screen');
+                const isNotIcon = !className.includes('icon') && 
+                                 !className.includes('button') && 
+                                 !src.toLowerCase().includes('icon') && 
+                                 !src.toLowerCase().includes('btn');
+                
+                const isScreenshot = isLargeImage || hasScreenshotName || isNotIcon;
+                
+                return {
+                  src,
+                  alt,
+                  width,
+                  height,
+                  isScreenshot,
+                };
+              })
+              .filter((img) => img.src && !img.src.startsWith('data:'));
 
-            return { pageTitle, content, links };
+            return { pageTitle, content, links, images };
           });
 
           // Process links
@@ -307,6 +459,89 @@ export async function main(args: string[] = []): Promise<void> {
             };
           });
 
+          // Process images
+          const processedImages = [];
+          
+          if (config.downloadImages && pageInfo.images && pageInfo.images.length > 0) {
+            // Create images directory if needed
+            await fs.mkdir(config.imagesDir, { recursive: true });
+            
+            // Filter and process images
+            for (const img of pageInfo.images) {
+              // Skip non-screenshots if screenshotsOnly is true
+              if (config.screenshotsOnly && !img.isScreenshot) continue;
+              
+              try {
+                // Make full URL
+                let imgUrl = img.src;
+                if (!imgUrl.includes('://')) {
+                  const urlObj = new URL(url);
+                  const baseDir = urlObj.href.substring(0, urlObj.href.lastIndexOf('/') + 1);
+                  imgUrl = new URL(imgUrl, baseDir).toString();
+                }
+                
+                // Generate a unique filename based on the original URL
+                const urlHash = Buffer.from(imgUrl).toString('base64url').substring(0, 8);
+                
+                // Extract the filename from the URL
+                const urlObj = new URL(imgUrl);
+                const pathnameParts = urlObj.pathname.split('/');
+                const originalFilename = pathnameParts[pathnameParts.length - 1];
+                
+                const imgFilename = urlHash + '_' + originalFilename;
+                const localImgPath = `${config.imagesDir}/${imgFilename}`;
+                
+                // Skip if we've already downloaded this image
+                if (downloadedImageUrls.has(imgUrl)) {
+                  console.log(`  [Worker ${id}] Skipping already downloaded image: ${imgUrl}`);
+                  
+                  // Still add to processed images list for this page
+                  processedImages.push({
+                    originalUrl: imgUrl,
+                    localPath: `output/images/${imgFilename}`,
+                    alt: img.alt || '',
+                    width: img.width,
+                    height: img.height,
+                    isScreenshot: img.isScreenshot
+                  });
+                  
+                  continue;
+                }
+                
+                // Download the image
+                const imgResponse = await page.goto(imgUrl, { waitUntil: 'networkidle' });
+                if (imgResponse && imgResponse.ok()) {
+                  const imgBuffer = await imgResponse.body();
+                  await fs.writeFile(localImgPath, imgBuffer);
+                  
+                  // Mark as downloaded
+                  downloadedImageUrls.add(imgUrl);
+                  
+                  // Add to processed images list
+                  processedImages.push({
+                    originalUrl: imgUrl,
+                    localPath: `output/images/${imgFilename}`,
+                    alt: img.alt || '',
+                    width: img.width,
+                    height: img.height,
+                    isScreenshot: img.isScreenshot
+                  });
+                  
+                  console.log(`  [Worker ${id}] Downloaded image: ${imgFilename}`);
+                }
+                
+                // Go back to the original page (with --js-disabled to avoid loading images again)
+                await page.context().clearCookies(); // Clear cookies to reduce memory usage
+                await page.goto(url, { 
+                  timeout: config.pageTimeout,
+                  waitUntil: 'domcontentloaded' // Don't wait for all resources, just the DOM
+                });
+              } catch (imgError) {
+                console.error(`  [Worker ${id}] Error downloading image: ${imgError}`);
+              }
+            }
+          }
+
           // Save content with metadata
           results.push({
             url,
@@ -320,6 +555,7 @@ export async function main(args: string[] = []): Promise<void> {
               parentTitle,
             },
             links: processedLinks,
+            images: processedImages,
           });
 
           // Add new links to the queue if not at max depth

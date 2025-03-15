@@ -23,12 +23,14 @@ interface Command {
 const commands: Record<string, Command> = {
   'crawl': {
     name: 'crawl',
-    description: 'Crawl the Epic docs website and output to JSON',
+    description: 'Crawl the Epic docs website and output to JSON with images',
     usage: 'epic-help crawl [options]',
     examples: [
       'epic-help crawl',
       'epic-help crawl --depth 3 --concurrency 4',
       'epic-help crawl --timeout 5000',
+      'epic-help crawl --no-images',
+      'epic-help crawl --all-images',
     ],
     handler: parallelJsonCrawler.main,
   },
