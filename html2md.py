@@ -27,6 +27,17 @@ def preprocess_html(html):
     ):
         if element.parent:
             element.parent.decompose()
+            
+    # Replace links with their text content
+    for link in soup.find_all("a"):
+        # If the link is javascript or a local file reference, replace it with just the text
+        href = link.get("href", "")
+        if (href.startswith("javascript:") or 
+            href.endswith(".htm") or 
+            href.startswith("../")):
+            # Preserve the inner text
+            link_text = link.get_text(strip=True)
+            link.replace_with(link_text)
 
     return str(soup)
 
