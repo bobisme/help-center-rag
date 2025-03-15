@@ -8,7 +8,7 @@ from bs4 import BeautifulSoup
 from markdownify import markdownify as md
 
 
-def preprocess_html(html):
+def preprocess_html(html, images_dir):
     """Remove header elements and other unnecessary content from the HTML."""
     soup = BeautifulSoup(html, "html.parser")
 
@@ -28,50 +28,61 @@ def preprocess_html(html):
     ):
         if element.parent:
             element.parent.decompose()
-            
+
     # Replace links with their text content
     for link in soup.find_all("a"):
         # If the link is javascript or a local file reference, replace it with just the text
         href = link.get("href", "")
-        if (href.startswith("javascript:") or 
-            href.endswith(".htm") or 
-            href.startswith("../")):
+        if (
+            href.startswith("javascript:")
+            or href.endswith(".htm")
+            or href.startswith("../")
+        ):
             # Preserve the inner text
             link_text = link.get_text(strip=True)
             link.replace_with(link_text)
-    
-    # Update image sources to point to local files
+
+    # Handle images
     for img in soup.find_all("img"):
         src = img.get("src", "")
         if src and not src.startswith("data:"):
             # Skip the logo.png which we removed above
             if "logo.png" in src:
                 continue
-                
+
+            # If no images directory specified, remove all images
+            if not images_dir:
+                img.decompose()
+                continue
+
             # Extract the filename from the URL
             filename = os.path.basename(src)
-            
-            # Look for the file in the output/images directory
-            # The files in output/images have base64-encoded prefixes
-            # Find a matching file based on the end of the filename
-            for img_file in os.listdir("output/images"):
-                if img_file.endswith(filename) or filename in img_file:
-                    # Update the src to point to the local file
-                    img["src"] = f"output/images/{img_file}"
-                    break
-            else:
-                # If not found directly, look for a file that might match based on content
-                found = False
-                for img_file in os.listdir("output/images"):
-                    if any(part in img_file.lower() for part in filename.lower().split(".")):
-                        img["src"] = f"output/images/{img_file}"
-                        found = True
+
+            # Look for the file in the images directory
+            if os.path.exists(images_dir):
+                # The files in images_dir have base64-encoded prefixes
+                # Find a matching file based on the end of the filename
+                for img_file in os.listdir(images_dir):
+                    if img_file.endswith(filename) or filename in img_file:
+                        # Update the src to point to the local file
+                        img["src"] = f"{images_dir}/{img_file}"
                         break
-                
-                # If still not found, consider removing the image
-                if not found and not src.startswith("http"):
-                    # For non-http sources that we can't resolve, we'll remove the image
-                    img.decompose()
+                else:
+                    # If not found directly, look for a file that might match based on content
+                    found = False
+                    for img_file in os.listdir(images_dir):
+                        if any(
+                            part in img_file.lower()
+                            for part in filename.lower().split(".")
+                        ):
+                            img["src"] = f"{images_dir}/{img_file}"
+                            found = True
+                            break
+
+                    # If still not found, consider removing the image
+                    if not found and not src.startswith("http"):
+                        # For non-http sources that we can't resolve, we'll remove the image
+                        img.decompose()
 
     return str(soup)
 
@@ -83,10 +94,22 @@ def main():
     parser.add_argument(
         "--index", type=int, default=0, help="Index of the page to convert (default: 0)"
     )
+    parser.add_argument(
+        "--images",
+        type=str,
+        default="output/images",
+        help="Directory containing images (default: output/images). Set to empty string to disable image processing.",
+    )
+    parser.add_argument(
+        "--input",
+        type=str,
+        default="output/epic-docs.json",
+        help="Path to the input JSON file (default: output/epic-docs.json)",
+    )
     args = parser.parse_args()
 
     try:
-        with open("output/epic-docs.json", "r") as f:
+        with open(args.input, "r") as f:
             data = json.load(f)
 
         if not data.get("pages") or not isinstance(data["pages"], list):
@@ -107,17 +130,25 @@ def main():
             sys.exit(1)
 
         # Preprocess the HTML to remove unwanted elements
-        processed_html = preprocess_html(raw_html)
+        images_dir = args.images if args.images else None
+
+        # Check if the images directory exists
+        if images_dir and not os.path.exists(images_dir):
+            sys.stderr.write(
+                f"Warning: Images directory '{images_dir}' not found. Image links may be broken.\n"
+            )
+
+        processed_html = preprocess_html(raw_html, images_dir)
 
         # Convert to markdown
         markdown = md(processed_html, heading_style="ATX", wrap=True)
         print(markdown)
 
     except FileNotFoundError:
-        sys.stderr.write("Error: File output/epic-docs.json not found\n")
+        sys.stderr.write(f"Error: File {args.input} not found\n")
         sys.exit(1)
     except json.JSONDecodeError:
-        sys.stderr.write("Error: Invalid JSON format in output/epic-docs.json\n")
+        sys.stderr.write(f"Error: Invalid JSON format in {args.input}\n")
         sys.exit(1)
     except Exception as e:
         sys.stderr.write(f"Error: {str(e)}\n")
