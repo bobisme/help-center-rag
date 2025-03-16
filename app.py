@@ -21,10 +21,11 @@ from html2md.loaders import load_from_html_file, load_from_json_file, get_page_c
 app = typer.Typer(
     help="Convert Epic documentation HTML to Markdown.",
     add_completion=False,
+    pretty_exceptions_enable=False,  # Disable pretty exceptions to avoid stdout pollution
 )
 
-# Create console for rich output
-console = Console()
+# Create console for rich output - send to stderr so it doesn't interfere with markdown output
+console = Console(stderr=True)
 
 
 @app.command("convert")
@@ -82,7 +83,7 @@ def convert(
 
     try:
         # Get HTML content
-        with Progress() as progress:
+        with Progress(console=console) as progress:
             task = progress.add_task("[green]Processing...", total=3)
             
             # Step 1: Load content
@@ -120,7 +121,10 @@ def convert(
                 f.write(markdown)
             console.print(f"Markdown saved to [cyan]{output_file}[/cyan]", style="green")
         else:
-            console.print("\n" + markdown)
+            # Print markdown directly to stdout, not through the console
+            # This ensures clean output for piping to files
+            sys.stdout.write(markdown)
+            sys.stdout.write("\n")
 
     except FileNotFoundError as e:
         console.print(f"[red]Error:[/red] File not found - {e}", style="bold red")
