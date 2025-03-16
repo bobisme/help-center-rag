@@ -4,7 +4,7 @@ import argparse
 import json
 import os
 import sys
-from typing import Optional, Dict, List, Any, cast
+from typing import Optional, Dict, Any
 from bs4 import BeautifulSoup, Tag
 from markdownify import markdownify as md
 
@@ -35,8 +35,9 @@ def preprocess_html(html: str, images_dir: Optional[str]) -> str:
         # Make sure we're dealing with a Tag, not NavigableString
         if not isinstance(link, Tag):
             continue
-            
-        # If the link is javascript or a local file reference, replace it with just the text
+
+        # If the link is javascript or a local file reference, replace it with
+        # just the text
         href = link.get("href", "")
         if isinstance(href, str) and (
             href.startswith("javascript:")
@@ -54,7 +55,7 @@ def preprocess_html(html: str, images_dir: Optional[str]) -> str:
         # Make sure we're dealing with a Tag, not NavigableString
         if not isinstance(img, Tag):
             continue
-            
+
         src = img.get("src", "")
         if isinstance(src, str) and src and not src.startswith("data:"):
             # Skip the logo.png which we removed above
@@ -79,7 +80,8 @@ def preprocess_html(html: str, images_dir: Optional[str]) -> str:
                         img["src"] = f"{images_dir}/{img_file}"
                         break
                 else:
-                    # If not found directly, look for a file that might match based on content
+                    # If not found directly, look for a file that might match
+                    # based on content
                     found = False
                     for img_file in os.listdir(images_dir):
                         if any(
@@ -91,8 +93,13 @@ def preprocess_html(html: str, images_dir: Optional[str]) -> str:
                             break
 
                     # If still not found, consider removing the image
-                    if not found and isinstance(src, str) and not src.startswith("http"):
-                        # For non-http sources that we can't resolve, we'll remove the image
+                    if (
+                        not found
+                        and isinstance(src, str)
+                        and not src.startswith("http")
+                    ):
+                        # For non-http sources that we can't resolve, we'll
+                        # remove the image
                         img.decompose()
 
     return str(soup)
@@ -109,7 +116,10 @@ def main() -> None:
         "--images",
         type=str,
         default="output/images",
-        help="Directory containing images (default: output/images). Set to empty string to disable image processing.",
+        help=(
+            "Directory containing images (default: output/images). "
+            "Set to empty string to disable image processing."
+        ),
     )
     parser.add_argument(
         "--input",
@@ -146,7 +156,8 @@ def main() -> None:
         # Check if the images directory exists
         if images_dir and not os.path.exists(images_dir):
             sys.stderr.write(
-                f"Warning: Images directory '{images_dir}' not found. Image links may be broken.\n"
+                f"Warning: Images directory '{images_dir}' not found. "
+                "Image links may be broken.\n"
             )
 
         processed_html = preprocess_html(raw_html, images_dir)
