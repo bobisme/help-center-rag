@@ -9,6 +9,9 @@ dependencies = [
     "html2text>=2024.2.26",
     "markdown-it-py>=3.0.0",
     "markdownify>=1.1.0",
+    "rich>=13.9.4",
+    "typer>=0.15.2",
+    "zenml[server]>=0.75.0",
 ]
 
 [dependency-groups]

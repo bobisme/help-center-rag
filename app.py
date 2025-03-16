@@ -2,151 +2,224 @@
 
 """CLI application for converting Epic documentation HTML to Markdown."""
 
-import argparse
 import os
 import sys
 import json
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
+
+import typer
+from rich.console import Console
+from rich.table import Table
+from rich.progress import Progress
+from rich import print as rprint
 
 from html2md import convert_html_to_markdown, preprocess_html
 from html2md.loaders import load_from_html_file, load_from_json_file, get_page_count
 
 
-def parse_args() -> argparse.Namespace:
-    """Parse command line arguments."""
-    parser = argparse.ArgumentParser(
-        description="Convert HTML to Markdown from epic-docs.json"
-    )
-    parser.add_argument(
-        "--index", type=int, default=0, help="Index of the page to convert (default: 0)"
-    )
-    parser.add_argument(
-        "--images",
-        type=str,
-        default="output/images",
-        help="Directory containing images (default: output/images). "
-        "Set to empty string to disable image processing.",
-    )
-    parser.add_argument(
-        "--input",
-        type=str,
-        default="output/epic-docs.json",
-        help="Path to the input JSON file (default: output/epic-docs.json)",
-    )
-    parser.add_argument(
-        "--html-file",
-        type=str,
-        help="Path to an HTML file to process directly instead of using JSON",
-    )
-    parser.add_argument(
-        "--save-html",
-        type=str,
-        help="Save the preprocessed HTML to this file path",
-    )
-    parser.add_argument(
-        "--output",
-        type=str,
-        help="Path to save the markdown output (default: print to stdout)",
-    )
-    parser.add_argument(
-        "--list-pages",
-        action="store_true",
-        help="List all available pages in the JSON file with their indices",
-    )
-    return parser.parse_args()
+# Create Typer app
+app = typer.Typer(
+    help="Convert Epic documentation HTML to Markdown.",
+    add_completion=False,
+)
+
+# Create console for rich output
+console = Console()
 
 
-def main() -> None:
-    """Run the HTML to Markdown conversion CLI application."""
-    args = parse_args()
-
+@app.command("convert")
+def convert(
+    index: int = typer.Option(0, "--index", "-i", help="Index of the page to convert"),
+    images_dir: str = typer.Option(
+        "output/images", 
+        "--images", 
+        "-img", 
+        help="Directory containing images. Set to empty string to disable image processing."
+    ),
+    input_file: str = typer.Option(
+        "output/epic-docs.json", 
+        "--input", 
+        "-in", 
+        help="Path to the input JSON file"
+    ),
+    html_file: Optional[str] = typer.Option(
+        None, 
+        "--html-file", 
+        "-html", 
+        help="Path to an HTML file to process directly instead of using JSON"
+    ),
+    save_html: Optional[str] = typer.Option(
+        None, 
+        "--save-html", 
+        "-sh", 
+        help="Save the preprocessed HTML to this file path"
+    ),
+    output_file: Optional[str] = typer.Option(
+        None, 
+        "--output", 
+        "-o", 
+        help="Path to save the markdown output (default: print to stdout)"
+    ),
+    heading_style: str = typer.Option(
+        "ATX", 
+        "--heading-style", 
+        "-hs", 
+        help="Heading style: ATX (#) or SETEXT (===)"
+    ),
+    wrap: bool = typer.Option(
+        True, 
+        "--wrap/--no-wrap", 
+        help="Whether to wrap long lines"
+    ),
+):
+    """Convert HTML to Markdown."""
     # Check images directory
-    images_dir = args.images if args.images else None
     if images_dir and not os.path.exists(images_dir):
-        sys.stderr.write(
-            f"Warning: Images directory '{images_dir}' not found. "
-            "Image links may be broken.\n"
+        console.print(
+            f"[yellow]Warning:[/yellow] Images directory '{images_dir}' not found. "
+            "Image links may be broken."
         )
 
     try:
-        # List pages if requested
-        if args.list_pages and not args.html_file:
-            list_pages(args.input)
-            return
-
         # Get HTML content
-        if args.html_file:
-            raw_html = load_from_html_file(args.html_file)
-            title = None
-        else:
-            raw_html, title, _ = load_from_json_file(args.input, args.index)
-            if title:
-                sys.stderr.write(f"Processing page: {title}\n")
-
-        # Process HTML and convert to markdown
-        processed_html = preprocess_html(raw_html, images_dir)
-
-        # Save preprocessed HTML if requested
-        if args.save_html:
-            with open(args.save_html, "w") as f:
-                f.write(processed_html)
-                sys.stderr.write(f"Preprocessed HTML saved to {args.save_html}\n")
-
-        # Convert to markdown
-        markdown = convert_html_to_markdown(
-            raw_html, images_dir=images_dir, heading_style="ATX", wrap=True
-        )
-
+        with Progress() as progress:
+            task = progress.add_task("[green]Processing...", total=3)
+            
+            # Step 1: Load content
+            if html_file:
+                raw_html = load_from_html_file(html_file)
+                title = os.path.basename(html_file)
+                console.print(f"Loading HTML from [cyan]{html_file}[/cyan]")
+            else:
+                raw_html, title, _ = load_from_json_file(input_file, index)
+                console.print(f"Processing page: [cyan]{title}[/cyan] (index: {index})")
+            
+            progress.update(task, advance=1, description="[green]Preprocessing HTML...")
+            
+            # Step 2: Preprocess HTML
+            processed_html = preprocess_html(raw_html, images_dir)
+            
+            # Save preprocessed HTML if requested
+            if save_html:
+                with open(save_html, "w") as f:
+                    f.write(processed_html)
+                console.print(f"Preprocessed HTML saved to [cyan]{save_html}[/cyan]")
+            
+            progress.update(task, advance=1, description="[green]Converting to Markdown...")
+            
+            # Step 3: Convert to markdown
+            markdown = convert_html_to_markdown(
+                raw_html, images_dir=images_dir, heading_style=heading_style, wrap=wrap
+            )
+            
+            progress.update(task, advance=1, description="[green]Conversion complete!")
+            
         # Output markdown
-        if args.output:
-            with open(args.output, "w") as f:
+        if output_file:
+            with open(output_file, "w") as f:
                 f.write(markdown)
-                sys.stderr.write(f"Markdown saved to {args.output}\n")
+            console.print(f"Markdown saved to [cyan]{output_file}[/cyan]", style="green")
         else:
-            print(markdown)
+            console.print("\n" + markdown)
 
-    except FileNotFoundError:
-        file_path = args.html_file if args.html_file else args.input
-        sys.stderr.write(f"Error: File {file_path} not found\n")
-        sys.exit(1)
+    except FileNotFoundError as e:
+        console.print(f"[red]Error:[/red] File not found - {e}", style="bold red")
+        raise typer.Exit(code=1)
     except json.JSONDecodeError:
-        sys.stderr.write(f"Error: Invalid JSON format in {args.input}\n")
-        sys.exit(1)
+        console.print(f"[red]Error:[/red] Invalid JSON format in {input_file}", style="bold red")
+        raise typer.Exit(code=1)
     except ValueError as e:
-        sys.stderr.write(f"Error: {str(e)}\n")
-        sys.exit(1)
+        console.print(f"[red]Error:[/red] {str(e)}", style="bold red")
+        raise typer.Exit(code=1)
     except Exception as e:
-        sys.stderr.write(f"Error: {str(e)}\n")
-        sys.exit(1)
+        console.print(f"[red]Error:[/red] {str(e)}", style="bold red")
+        raise typer.Exit(code=1)
 
 
-def list_pages(json_path: str) -> None:
+@app.command("list")
+def list_pages(
+    input_file: str = typer.Option(
+        "output/epic-docs.json", 
+        "--input", 
+        "-in", 
+        help="Path to the input JSON file"
+    ),
+    limit: int = typer.Option(
+        0, 
+        "--limit", 
+        "-l", 
+        help="Limit the number of pages shown (0 = show all)"
+    ),
+):
     """List all pages in the JSON file with their indices."""
     try:
-        with open(json_path, "r") as f:
+        with open(input_file, "r") as f:
             data: Dict[str, Any] = json.load(f)
 
         if not data.get("pages") or not isinstance(data["pages"], list):
-            sys.stderr.write(f"Error: Invalid JSON structure in {json_path}\n")
-            sys.exit(1)
+            console.print(f"[red]Error:[/red] Invalid JSON structure in {input_file}")
+            raise typer.Exit(code=1)
 
-        print(f"Available pages in {json_path}:")
-        print(f"Total pages: {len(data['pages'])}")
-        print("-" * 80)
-        print(f"{'INDEX':<8} {'TITLE'}")
-        print("-" * 80)
+        pages = data["pages"]
+        page_count = len(pages)
         
-        for i, page in enumerate(data["pages"]):
+        console.print(f"Available pages in [cyan]{input_file}[/cyan]:")
+        console.print(f"Total pages: [green]{page_count}[/green]")
+        
+        # Create a table
+        table = Table(show_header=True, header_style="bold")
+        table.add_column("INDEX", style="dim", width=8)
+        table.add_column("TITLE", style="cyan")
+        
+        # Decide how many pages to show
+        if limit <= 0 or limit > page_count:
+            display_pages = pages
+        else:
+            display_pages = pages[:limit]
+            
+        # Add rows to the table
+        for i, page in enumerate(display_pages):
             title = page.get("title", "Untitled")
-            print(f"{i:<8} {title}")
+            table.add_row(str(i), title)
+            
+        console.print(table)
+        
+        if limit > 0 and limit < page_count:
+            console.print(f"Showing {limit} of {page_count} pages. Use --limit 0 to see all.")
 
     except FileNotFoundError:
-        sys.stderr.write(f"Error: File {json_path} not found\n")
-        sys.exit(1)
+        console.print(f"[red]Error:[/red] File {input_file} not found")
+        raise typer.Exit(code=1)
     except json.JSONDecodeError:
-        sys.stderr.write(f"Error: Invalid JSON format in {json_path}\n")
-        sys.exit(1)
+        console.print(f"[red]Error:[/red] Invalid JSON format in {input_file}")
+        raise typer.Exit(code=1)
+
+
+@app.command("info")
+def show_info():
+    """Show information about the tool."""
+    console.print("[bold cyan]Epic HTML to Markdown Converter[/bold cyan]")
+    console.print("A tool for converting Epic documentation from HTML to Markdown.")
+    console.print("\n[bold]Features:[/bold]")
+    
+    features = [
+        "Convert HTML to clean, well-formatted Markdown",
+        "Process nested lists correctly",
+        "Convert inline styling to proper Markdown formatting",
+        "Handle images with local references",
+        "Clean up navigation and context elements",
+    ]
+    
+    for feature in features:
+        console.print(f"• [green]{feature}[/green]")
+    
+    console.print("\n[bold]Commands:[/bold]")
+    console.print("• [yellow]convert[/yellow]: Convert HTML to Markdown")
+    console.print("• [yellow]list[/yellow]: List available pages in the JSON file")
+    console.print("• [yellow]info[/yellow]: Show information about the tool")
+    
+    console.print("\nFor more details on each command, use: [cyan]app.py COMMAND --help[/cyan]")
 
 
 if __name__ == "__main__":
-    main()
+    app()
