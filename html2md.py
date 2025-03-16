@@ -4,9 +4,70 @@ import argparse
 import json
 import os
 import sys
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List, Tuple, cast
 from bs4 import BeautifulSoup, Tag
-from markdownify import markdownify as md
+from bs4.element import NavigableString
+from markdownify import markdownify
+
+
+def convert_inline_styles_to_semantic_tags(soup: BeautifulSoup) -> None:
+    """
+    Convert inline style attributes for bold and italic text to semantic <strong> and <em> tags.
+    This improves the markdown conversion for styled text.
+    """
+    # Process spans with font-weight: bold
+    for span in soup.find_all("span"):
+        if not isinstance(span, Tag):
+            continue
+
+        # Check if it has a style attribute with font-weight: bold
+        style = span.get("style", "")
+        if not isinstance(style, str) or "font-weight: bold" not in style:
+            continue
+
+        # Check if it's already wrapped in a strong tag
+        parent = span.parent
+        if parent and parent.name == "strong":
+            continue
+
+        # Create a new strong tag
+        strong_tag = soup.new_tag("strong")
+
+        # Move the contents to the strong tag
+        for content in list(span.contents):
+            strong_tag.append(content.extract())
+
+        # Replace the span with the strong tag
+        span.replace_with(strong_tag)
+
+    # Process spans with font-style: italic
+    for span in soup.find_all("span"):
+        if not isinstance(span, Tag):
+            continue
+
+        # Check if it has a style attribute with font-style: italic but not font-style: normal
+        style = span.get("style", "")
+        if not isinstance(style, str) or "font-style: italic" not in style:
+            continue
+
+        # Skip if the style also contains font-style: normal
+        if "font-style: normal" in style:
+            continue
+
+        # Check if it's already wrapped in an em tag
+        parent = span.parent
+        if parent and parent.name == "em":
+            continue
+
+        # Create a new em tag
+        em_tag = soup.new_tag("em")
+
+        # Move the contents to the em tag
+        for content in list(span.contents):
+            em_tag.append(content.extract())
+
+        # Replace the span with the em tag
+        span.replace_with(em_tag)
 
 
 def preprocess_html(html: str, images_dir: Optional[str]) -> str:
@@ -29,21 +90,21 @@ def preprocess_html(html: str, images_dir: Optional[str]) -> str:
     ):
         if element.parent:
             element.parent.decompose()
-            
+
     # Fix nested list structure that uses empty list items as containers
     for list_item in soup.find_all("li"):
         if not isinstance(list_item, Tag) or not list_item.get("style"):
             continue
-            
+
         # Check if this is a list item with style="list-style: none"
         if "list-style: none" not in list_item["style"]:
             continue
-            
+
         # Check if this is a list item containing a nested list
         inner_list = list_item.find(["ul", "ol"])
         if not inner_list or not isinstance(inner_list, Tag):
             continue
-            
+
         # Find the previous list item, which should be the parent for this nested list
         prev_li = list_item.find_previous_sibling("li")
         if prev_li and isinstance(prev_li, Tag):
@@ -52,6 +113,10 @@ def preprocess_html(html: str, images_dir: Optional[str]) -> str:
             prev_li.append(inner_list)  # Add to the previous list item
             # Remove the empty list item
             list_item.decompose()
+
+    # Convert inline styles for bold and italic to proper semantic tags
+    # This improves the markdown conversion for styled text
+    convert_inline_styles_to_semantic_tags(soup)
 
     # Replace links with their text content
     for link in soup.find_all("a"):
@@ -173,7 +238,9 @@ def main() -> None:
                 data: Dict[str, Any] = json.load(f)
 
             if not data.get("pages") or not isinstance(data["pages"], list):
-                sys.stderr.write("Error: Invalid JSON structure - 'pages' list not found\n")
+                sys.stderr.write(
+                    "Error: Invalid JSON structure - 'pages' list not found\n"
+                )
                 sys.exit(1)
 
             if args.index < 0 or args.index >= len(data["pages"]):
@@ -186,7 +253,9 @@ def main() -> None:
             raw_html = page.get("rawHtml", "")
 
             if not raw_html:
-                sys.stderr.write(f"Error: No HTML content found at index {args.index}\n")
+                sys.stderr.write(
+                    f"Error: No HTML content found at index {args.index}\n"
+                )
                 sys.exit(1)
 
         # Preprocess the HTML to remove unwanted elements
@@ -200,7 +269,7 @@ def main() -> None:
             )
 
         processed_html = preprocess_html(raw_html, images_dir)
-        
+
         # Save preprocessed HTML if requested
         if args.save_html:
             with open(args.save_html, "w") as f:
@@ -208,7 +277,7 @@ def main() -> None:
                 sys.stderr.write(f"Preprocessed HTML saved to {args.save_html}\n")
 
         # Convert to markdown
-        markdown = md(processed_html, heading_style="ATX", wrap=True)
+        markdown = markdownify(processed_html, heading_style="ATX", wrap=True)
         print(markdown)
 
     except FileNotFoundError as e:
