@@ -4,11 +4,12 @@ import argparse
 import json
 import os
 import sys
-from bs4 import BeautifulSoup
+from typing import Optional, Dict, List, Any, cast
+from bs4 import BeautifulSoup, Tag
 from markdownify import markdownify as md
 
 
-def preprocess_html(html, images_dir):
+def preprocess_html(html: str, images_dir: Optional[str]) -> str:
     """Remove header elements and other unnecessary content from the HTML."""
     soup = BeautifulSoup(html, "html.parser")
 
@@ -31,21 +32,31 @@ def preprocess_html(html, images_dir):
 
     # Replace links with their text content
     for link in soup.find_all("a"):
+        # Make sure we're dealing with a Tag, not NavigableString
+        if not isinstance(link, Tag):
+            continue
+            
         # If the link is javascript or a local file reference, replace it with just the text
         href = link.get("href", "")
-        if (
+        if isinstance(href, str) and (
             href.startswith("javascript:")
             or href.endswith(".htm")
             or href.startswith("../")
         ):
             # Preserve the inner text
             link_text = link.get_text(strip=True)
-            link.replace_with(link_text)
+            # Create a new string element to replace the link
+            new_element = soup.new_string(link_text)
+            link.replace_with(new_element)
 
     # Handle images
     for img in soup.find_all("img"):
+        # Make sure we're dealing with a Tag, not NavigableString
+        if not isinstance(img, Tag):
+            continue
+            
         src = img.get("src", "")
-        if src and not src.startswith("data:"):
+        if isinstance(src, str) and src and not src.startswith("data:"):
             # Skip the logo.png which we removed above
             if "logo.png" in src:
                 continue
@@ -80,14 +91,14 @@ def preprocess_html(html, images_dir):
                             break
 
                     # If still not found, consider removing the image
-                    if not found and not src.startswith("http"):
+                    if not found and isinstance(src, str) and not src.startswith("http"):
                         # For non-http sources that we can't resolve, we'll remove the image
                         img.decompose()
 
     return str(soup)
 
 
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser(
         description="Convert HTML to Markdown from epic-docs.json"
     )
@@ -110,7 +121,7 @@ def main():
 
     try:
         with open(args.input, "r") as f:
-            data = json.load(f)
+            data: Dict[str, Any] = json.load(f)
 
         if not data.get("pages") or not isinstance(data["pages"], list):
             sys.stderr.write("Error: Invalid JSON structure - 'pages' list not found\n")
