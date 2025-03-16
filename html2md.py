@@ -29,6 +29,29 @@ def preprocess_html(html: str, images_dir: Optional[str]) -> str:
     ):
         if element.parent:
             element.parent.decompose()
+            
+    # Fix nested list structure that uses empty list items as containers
+    for list_item in soup.find_all("li"):
+        if not isinstance(list_item, Tag) or not list_item.get("style"):
+            continue
+            
+        # Check if this is a list item with style="list-style: none"
+        if "list-style: none" not in list_item["style"]:
+            continue
+            
+        # Check if this is a list item containing a nested list
+        inner_list = list_item.find(["ul", "ol"])
+        if not inner_list or not isinstance(inner_list, Tag):
+            continue
+            
+        # Find the previous list item, which should be the parent for this nested list
+        prev_li = list_item.find_previous_sibling("li")
+        if prev_li and isinstance(prev_li, Tag):
+            # Move the inner list inside the previous list item
+            inner_list.extract()  # Remove from current position
+            prev_li.append(inner_list)  # Add to the previous list item
+            # Remove the empty list item
+            list_item.decompose()
 
     # Replace links with their text content
     for link in soup.find_all("a"):
@@ -127,28 +150,44 @@ def main() -> None:
         default="output/epic-docs.json",
         help="Path to the input JSON file (default: output/epic-docs.json)",
     )
+    parser.add_argument(
+        "--html-file",
+        type=str,
+        help="Path to an HTML file to process directly instead of using JSON",
+    )
+    parser.add_argument(
+        "--save-html",
+        type=str,
+        help="Save the preprocessed HTML to this file path",
+    )
     args = parser.parse_args()
 
     try:
-        with open(args.input, "r") as f:
-            data: Dict[str, Any] = json.load(f)
+        # Get HTML from file or JSON
+        raw_html = ""
+        if args.html_file:
+            with open(args.html_file, "r") as f:
+                raw_html = f.read()
+        else:
+            with open(args.input, "r") as f:
+                data: Dict[str, Any] = json.load(f)
 
-        if not data.get("pages") or not isinstance(data["pages"], list):
-            sys.stderr.write("Error: Invalid JSON structure - 'pages' list not found\n")
-            sys.exit(1)
+            if not data.get("pages") or not isinstance(data["pages"], list):
+                sys.stderr.write("Error: Invalid JSON structure - 'pages' list not found\n")
+                sys.exit(1)
 
-        if args.index < 0 or args.index >= len(data["pages"]):
-            sys.stderr.write(
-                f"Error: Index {args.index} out of range (0-{len(data['pages'])-1})\n"
-            )
-            sys.exit(1)
+            if args.index < 0 or args.index >= len(data["pages"]):
+                sys.stderr.write(
+                    f"Error: Index {args.index} out of range (0-{len(data['pages'])-1})\n"
+                )
+                sys.exit(1)
 
-        page = data["pages"][args.index]
-        raw_html = page.get("rawHtml", "")
+            page = data["pages"][args.index]
+            raw_html = page.get("rawHtml", "")
 
-        if not raw_html:
-            sys.stderr.write(f"Error: No HTML content found at index {args.index}\n")
-            sys.exit(1)
+            if not raw_html:
+                sys.stderr.write(f"Error: No HTML content found at index {args.index}\n")
+                sys.exit(1)
 
         # Preprocess the HTML to remove unwanted elements
         images_dir = args.images if args.images else None
@@ -161,13 +200,20 @@ def main() -> None:
             )
 
         processed_html = preprocess_html(raw_html, images_dir)
+        
+        # Save preprocessed HTML if requested
+        if args.save_html:
+            with open(args.save_html, "w") as f:
+                f.write(processed_html)
+                sys.stderr.write(f"Preprocessed HTML saved to {args.save_html}\n")
 
         # Convert to markdown
         markdown = md(processed_html, heading_style="ATX", wrap=True)
         print(markdown)
 
-    except FileNotFoundError:
-        sys.stderr.write(f"Error: File {args.input} not found\n")
+    except FileNotFoundError as e:
+        file_path = args.html_file if args.html_file else args.input
+        sys.stderr.write(f"Error: File {file_path} not found\n")
         sys.exit(1)
     except json.JSONDecodeError:
         sys.stderr.write(f"Error: Invalid JSON format in {args.input}\n")
