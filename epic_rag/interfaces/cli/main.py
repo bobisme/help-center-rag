@@ -2079,6 +2079,501 @@ def test_enrichment(
     asyncio.run(process_file())
 
 
+@app.command("evaluate-enrichment")
+def evaluate_enrichment(
+    document_path: str = typer.Argument(
+        ..., help="Path to the markdown document to evaluate"
+    ),
+    output_dir: str = typer.Option(
+        "data/evaluation",
+        "--output-dir",
+        "-o",
+        help="Directory to save evaluation results",
+    ),
+    generate_dataset: bool = typer.Option(
+        True,
+        "--generate-dataset/--use-existing",
+        help="Generate a new dataset or use existing one",
+    ),
+    num_queries: int = typer.Option(
+        10, "--num-queries", "-n", help="Number of queries to generate for evaluation"
+    ),
+    first_stage_k: int = typer.Option(
+        20, "--first-stage-k", "-k1", help="Number of results for first stage retrieval"
+    ),
+    second_stage_k: int = typer.Option(
+        5,
+        "--second-stage-k",
+        "-k2",
+        help="Number of results for second stage retrieval",
+    ),
+):
+    """Evaluate the impact of contextual enrichment on retrieval quality.
+
+    This command performs a comprehensive evaluation comparing retrieval performance
+    with and without contextual enrichment. It generates test queries, processes
+    a document with and without enrichment, and measures recall, precision, and other metrics.
+    """
+    import os
+    import asyncio
+    import json
+    from pathlib import Path
+    from datetime import datetime
+    from ...application.pipelines.evaluation.dataset_generator import (
+        generate_evaluation_dataset,
+    )
+    from ...application.pipelines.evaluation.contextual_enrichment_pipeline import (
+        load_evaluation_dataset,
+        prepare_document_variations,
+        evaluate_query,
+        analyze_evaluation_results,
+    )
+
+    # Create the output directory
+    os.makedirs(output_dir, exist_ok=True)
+
+    # Determine dataset path
+    dataset_path = os.path.join(output_dir, "evaluation_dataset.json")
+
+    async def run_evaluation():
+        # Step 1: Generate or load evaluation dataset
+        if generate_dataset or not os.path.exists(dataset_path):
+            with Progress(
+                TextColumn("[bold blue]{task.description}"),
+                BarColumn(),
+                TaskProgressColumn(),
+                console=console,
+            ) as progress:
+                task = progress.add_task("Generating evaluation dataset", total=100)
+                progress.update(task, advance=10)
+
+                # Generate dataset
+                dataset_path_result = await generate_evaluation_dataset(
+                    input_file_path=document_path,
+                    output_path=output_dir,
+                    num_queries=num_queries,
+                    num_relevant_per_query=3,
+                )
+
+                progress.update(task, completed=100)
+
+            if not os.path.exists(dataset_path):
+                console.print(
+                    f"[bold red]Error:[/bold red] Failed to generate dataset at {dataset_path}"
+                )
+                return
+
+        # Step 2: Load the dataset
+        console.print(f"Loading evaluation dataset from {dataset_path}")
+        with open(dataset_path, "r", encoding="utf-8") as f:
+            dataset_data = json.load(f)
+        dataset = {"queries": dataset_data}
+
+        # Step 3: Prepare document variations (with and without enrichment)
+        with Progress(
+            TextColumn("[bold blue]{task.description}"),
+            BarColumn(),
+            TaskProgressColumn(),
+            console=console,
+        ) as progress:
+            task = progress.add_task("Processing document", total=100)
+            progress.update(task, advance=10)
+
+            # Process the documents directly
+            import uuid
+            from pathlib import Path
+            from epic_rag.domain.models.document import Document
+
+            # Create output directory
+            os.makedirs(output_dir, exist_ok=True)
+
+            # Read document
+            with open(document_path, "r", encoding="utf-8") as f:
+                content = f.read()
+
+            # Create document objects with different IDs
+            base_document = Document(
+                title=Path(document_path).stem,
+                content=content,
+                created_at=datetime.now(),
+                updated_at=datetime.now(),
+                metadata={
+                    "source": "evaluation",
+                    "filename": os.path.basename(document_path),
+                    "enriched": False,
+                },
+            )
+
+            enriched_document = Document(
+                title=f"{Path(document_path).stem}_enriched",
+                content=content,
+                created_at=datetime.now(),
+                updated_at=datetime.now(),
+                metadata={
+                    "source": "evaluation",
+                    "filename": os.path.basename(document_path),
+                    "enriched": True,
+                },
+            )
+
+            # Get required services
+            document_repository = container.get("document_repository")
+            vector_repository = container.get("vector_repository")
+            chunking_service = container.get("chunking_service")
+            embedding_service = container.get("embedding_service")
+
+            # Try to get the contextual enrichment service
+            try:
+                enrichment_service = container.get("contextual_enrichment_service")
+                has_enrichment = True
+            except Exception:
+                print("Warning: Contextual enrichment service not found in container")
+                has_enrichment = False
+
+            # Create use case
+            ingest_use_case = IngestDocumentUseCase(
+                document_repository=document_repository,
+                vector_repository=vector_repository,
+                chunking_service=chunking_service,
+                embedding_service=embedding_service,
+            )
+
+            # Process base document
+            print("Processing base document...")
+            base_result = await ingest_use_case.execute(
+                document=base_document,
+                dynamic_chunking=True,
+                min_chunk_size=200,
+                max_chunk_size=500,
+                apply_contextual_enrichment=False,
+            )
+
+            # Process enriched document
+            print("Processing enriched document...")
+            if has_enrichment:
+                enriched_result = await ingest_use_case.execute(
+                    document=enriched_document,
+                    dynamic_chunking=True,
+                    min_chunk_size=200,
+                    max_chunk_size=500,
+                    apply_contextual_enrichment=True,
+                )
+            else:
+                print(
+                    "Warning: No enrichment service available, skipping enriched document"
+                )
+                enriched_result = base_result
+
+            doc_ids = {
+                "base_document_id": base_document.id,
+                "enriched_document_id": enriched_document.id,
+            }
+
+            print(f"Prepared documents for evaluation:")
+            print(f"  Base document ID: {base_document.id}")
+            print(f"  Enriched document ID: {enriched_document.id}")
+
+            progress.update(task, completed=100)
+
+        # Step 4: Run evaluation queries
+        console.print("\nEvaluating queries...")
+        results = []
+
+        with Progress(
+            TextColumn("[bold blue]{task.description}"),
+            BarColumn(),
+            TaskProgressColumn(),
+            console=console,
+        ) as progress:
+            evaluate_task = progress.add_task(
+                "Evaluating queries", total=len(dataset["queries"])
+            )
+
+            for i, query in enumerate(dataset["queries"]):
+                progress.update(
+                    evaluate_task,
+                    description=f"Evaluating query {i+1}/{len(dataset['queries'])}",
+                )
+
+                # Extract query data
+                query_text = query["query"]
+                relevant_chunk_ids = query.get("relevant_chunk_ids", [])
+
+                # Get services
+                embedding_service = container.get("embedding_service")
+                retrieval_service = container.get("retrieval_service")
+
+                # Create use case
+                retrieve_use_case = RetrieveContextUseCase(
+                    embedding_service=embedding_service,
+                    retrieval_service=retrieval_service,
+                )
+
+                # Process the query against the base document
+                base_result = await retrieve_use_case.execute(
+                    query_text=query_text,
+                    first_stage_k=first_stage_k,
+                    second_stage_k=second_stage_k,
+                    min_relevance_score=0.0,  # No filtering for evaluation
+                    use_query_transformation=False,  # Raw query
+                    merge_related_chunks=False,  # No merging for fair comparison
+                    document_filter={"id": doc_ids["base_document_id"]},
+                    max_results=100,
+                )
+
+                # Process the query against the enriched document
+                enriched_result = await retrieve_use_case.execute(
+                    query_text=query_text,
+                    first_stage_k=first_stage_k,
+                    second_stage_k=second_stage_k,
+                    min_relevance_score=0.0,  # No filtering for evaluation
+                    use_query_transformation=False,  # Raw query
+                    merge_related_chunks=False,  # No merging for fair comparison
+                    document_filter={"id": doc_ids["enriched_document_id"]},
+                    max_results=100,
+                )
+
+                # Extract retrieved chunks
+                base_retrieved_ids = [
+                    chunk.id for chunk in base_result.first_stage_results.chunks
+                ]
+                enriched_retrieved_ids = [
+                    chunk.id for chunk in enriched_result.first_stage_results.chunks
+                ]
+
+                # Calculate metrics
+                from epic_rag.application.pipelines.evaluation.metrics import (
+                    calculate_retrieval_metrics,
+                )
+
+                base_metrics = calculate_retrieval_metrics(
+                    retrieved_ids=base_retrieved_ids,
+                    relevant_ids=relevant_chunk_ids,
+                )
+
+                enriched_metrics = calculate_retrieval_metrics(
+                    retrieved_ids=enriched_retrieved_ids,
+                    relevant_ids=relevant_chunk_ids,
+                )
+
+                # Prepare result
+                result = {
+                    "query": query_text,
+                    "relevant_chunks": relevant_chunk_ids,
+                    "base_metrics": base_metrics.as_dict(),
+                    "enriched_metrics": enriched_metrics.as_dict(),
+                    "base_retrieved": base_retrieved_ids[
+                        :10
+                    ],  # Include first 10 for inspection
+                    "enriched_retrieved": enriched_retrieved_ids[
+                        :10
+                    ],  # Include first 10 for inspection
+                    "base_latency_ms": base_result.total_latency_ms,
+                    "enriched_latency_ms": enriched_result.total_latency_ms,
+                }
+
+                # Calculate improvement
+                if len(relevant_chunk_ids) > 0:
+                    base_recall_20 = base_metrics.recall_at_k.get(20, 0.0)
+                    enriched_recall_20 = enriched_metrics.recall_at_k.get(20, 0.0)
+
+                    # Anthropic's metric: failure rate reduction at 20
+                    # 1 - recall@20 = failure rate
+                    base_failure_rate = 1 - base_recall_20
+                    enriched_failure_rate = 1 - enriched_recall_20
+
+                    if base_failure_rate > 0:
+                        failure_rate_reduction = (
+                            base_failure_rate - enriched_failure_rate
+                        ) / base_failure_rate
+                    else:
+                        failure_rate_reduction = 0.0
+
+                    result["improvement"] = {
+                        "recall_at_20_absolute": enriched_recall_20 - base_recall_20,
+                        "recall_at_20_relative": (
+                            (enriched_recall_20 / base_recall_20) - 1
+                            if base_recall_20 > 0
+                            else float("inf")
+                        ),
+                        "failure_rate_reduction": failure_rate_reduction,
+                    }
+
+                results.append(result)
+                progress.update(evaluate_task, advance=1)
+
+        # Step 5: Analyze results
+        output_path = os.path.join(output_dir, "evaluation_results.json")
+        console.print("\nAnalyzing results...")
+
+        # Create output directory
+        os.makedirs(os.path.dirname(output_path), exist_ok=True)
+
+        # Convert individual metrics to RetrievalMetrics objects
+        from epic_rag.application.pipelines.evaluation.metrics import (
+            RetrievalMetrics,
+            calculate_aggregate_metrics,
+        )
+
+        base_metrics_list = []
+        enriched_metrics_list = []
+
+        for result in results:
+            # Base metrics
+            base_recall = result["base_metrics"]["recall_at_k"]
+            base_precision = result["base_metrics"]["precision_at_k"]
+            base_ndcg = result["base_metrics"]["ndcg_at_k"]
+            base_mrr = result["base_metrics"]["mean_reciprocal_rank"]
+
+            # Convert string keys to integers
+            base_recall = {int(k): v for k, v in base_recall.items()}
+            base_precision = {int(k): v for k, v in base_precision.items()}
+            base_ndcg = {int(k): v for k, v in base_ndcg.items()}
+
+            base_metrics = RetrievalMetrics(
+                recall_at_k=base_recall,
+                precision_at_k=base_precision,
+                ndcg_at_k=base_ndcg,
+                mean_reciprocal_rank=base_mrr,
+            )
+            base_metrics_list.append(base_metrics)
+
+            # Enriched metrics
+            enriched_recall = result["enriched_metrics"]["recall_at_k"]
+            enriched_precision = result["enriched_metrics"]["precision_at_k"]
+            enriched_ndcg = result["enriched_metrics"]["ndcg_at_k"]
+            enriched_mrr = result["enriched_metrics"]["mean_reciprocal_rank"]
+
+            # Convert string keys to integers
+            enriched_recall = {int(k): v for k, v in enriched_recall.items()}
+            enriched_precision = {int(k): v for k, v in enriched_precision.items()}
+            enriched_ndcg = {int(k): v for k, v in enriched_ndcg.items()}
+
+            enriched_metrics = RetrievalMetrics(
+                recall_at_k=enriched_recall,
+                precision_at_k=enriched_precision,
+                ndcg_at_k=enriched_ndcg,
+                mean_reciprocal_rank=enriched_mrr,
+            )
+            enriched_metrics_list.append(enriched_metrics)
+
+        # Calculate aggregate metrics
+        aggregate_base = calculate_aggregate_metrics(base_metrics_list)
+        aggregate_enriched = calculate_aggregate_metrics(enriched_metrics_list)
+
+        # Calculate improvement metrics
+        improvements = {}
+        for k in sorted(aggregate_base.recall_at_k.keys()):
+            base_val = aggregate_base.recall_at_k.get(k, 0.0)
+            enriched_val = aggregate_enriched.recall_at_k.get(k, 0.0)
+            abs_diff = enriched_val - base_val
+            rel_diff = (enriched_val / base_val) - 1 if base_val > 0 else float("inf")
+
+            improvements[f"recall@{k}"] = {
+                "base": base_val,
+                "enriched": enriched_val,
+                "absolute_improvement": abs_diff,
+                "relative_improvement": rel_diff,
+            }
+
+        # Calculate Anthropic's metric: failure rate reduction at 20
+        base_failure_rate = 1 - aggregate_base.recall_at_k.get(20, 0.0)
+        enriched_failure_rate = 1 - aggregate_enriched.recall_at_k.get(20, 0.0)
+
+        if base_failure_rate > 0:
+            failure_rate_reduction = (
+                base_failure_rate - enriched_failure_rate
+            ) / base_failure_rate
+        else:
+            failure_rate_reduction = 0.0
+
+        # Calculate average latency
+        avg_base_latency = (
+            sum(r["base_latency_ms"] for r in results) / len(results) if results else 0
+        )
+        avg_enriched_latency = (
+            sum(r["enriched_latency_ms"] for r in results) / len(results)
+            if results
+            else 0
+        )
+
+        # Prepare summary
+        summary = {
+            "total_queries": len(dataset["queries"]),
+            "base_metrics": aggregate_base.as_dict(),
+            "enriched_metrics": aggregate_enriched.as_dict(),
+            "improvements": improvements,
+            "anthropic_metric": {
+                "base_failure_rate": base_failure_rate,
+                "enriched_failure_rate": enriched_failure_rate,
+                "failure_rate_reduction": failure_rate_reduction,
+            },
+            "latency": {
+                "base_avg_ms": avg_base_latency,
+                "enriched_avg_ms": avg_enriched_latency,
+                "overhead_ms": avg_enriched_latency - avg_base_latency,
+                "overhead_percent": (
+                    ((avg_enriched_latency / avg_base_latency) - 1) * 100
+                    if avg_base_latency > 0
+                    else 0
+                ),
+            },
+        }
+
+        # Save detailed results
+        with open(output_path, "w", encoding="utf-8") as f:
+            json.dump(
+                {
+                    "summary": summary,
+                    "individual_results": results,
+                },
+                f,
+                indent=2,
+            )
+
+        print(f"Evaluation complete. Report saved to {output_path}")
+
+        # Step 6: Display results
+        base_recall_20 = summary["base_metrics"]["recall_at_k"]["20"]
+        enriched_recall_20 = summary["enriched_metrics"]["recall_at_k"]["20"]
+        failure_rate_reduction = summary["anthropic_metric"]["failure_rate_reduction"]
+
+        console.print()
+        console.print(
+            Panel(
+                f"[bold cyan]Base Recall@20:[/bold cyan] {base_recall_20:.4f}\n"
+                f"[bold green]Enriched Recall@20:[/bold green] {enriched_recall_20:.4f}\n"
+                f"[bold cyan]Base Failure Rate:[/bold cyan] {1 - base_recall_20:.4f}\n"
+                f"[bold green]Enriched Failure Rate:[/bold green] {1 - enriched_recall_20:.4f}\n"
+                f"[bold yellow]Failure Rate Reduction:[/bold yellow] {failure_rate_reduction:.2%}\n\n"
+                f"[bold]Anthropic's Key Metric:[/bold] Failure Rate Reduction\n"
+                f"Failure Rate = 1 - Recall@20\n"
+                f"Reduction = (Base Failure Rate - Enriched Failure Rate) / Base Failure Rate",
+                title="Evaluation Results",
+                border_style="green",
+            )
+        )
+
+        # Display latency impact
+        latency_overhead_ms = summary["latency"]["overhead_ms"]
+        latency_overhead_pct = summary["latency"]["overhead_percent"]
+
+        console.print(
+            Panel(
+                f"[bold cyan]Base Latency:[/bold cyan] {summary['latency']['base_avg_ms']:.2f}ms\n"
+                f"[bold green]Enriched Latency:[/bold green] {summary['latency']['enriched_avg_ms']:.2f}ms\n"
+                f"[bold yellow]Overhead:[/bold yellow] {latency_overhead_ms:.2f}ms (+{latency_overhead_pct:.1f}%)",
+                title="Performance Impact",
+                border_style="blue",
+            )
+        )
+
+        console.print(f"\nDetailed results saved to: [bold]{output_path}[/bold]")
+
+    # Run the evaluation
+    asyncio.run(run_evaluation())
+
+
 @app.command("info")
 def show_system_info():
     """Show system information and statistics."""

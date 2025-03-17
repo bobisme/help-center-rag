@@ -124,8 +124,16 @@ enrich-simple:
     python -m epic_rag.interfaces.cli.main test-enrichment test_sample.md
 
 # Test enrichment with custom file
-enrich file='test_sample.md' chunks=3:
-    python -m epic_rag.interfaces.cli.main test-enrichment {{file}} --max-chunks {{chunks}}
+enrich:
+    python -m epic_rag.interfaces.cli.main test-enrichment test_sample.md --max-chunks 3
+
+# Evaluate the impact of contextual enrichment on retrieval quality
+evaluate-enrichment:
+    python -m epic_rag.interfaces.cli.main evaluate-enrichment test_sample.md
+
+# Run evaluation of contextual enrichment impact
+evaluate:
+    python manual_evaluation.py
 
 # Stop ZenML server
 zenml-stop:

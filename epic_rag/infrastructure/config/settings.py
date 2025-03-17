@@ -85,7 +85,7 @@ class LLMSettings:
     """Settings for LLM service."""
 
     provider: str = "ollama"
-    model: str = "gemma3:27b"  # Using more powerful model for better transformations
+    model: str = "gemma3:12b"  # Using smaller model to avoid memory issues
     api_key: Optional[str] = None
     temperature: float = 0.0  # Keep deterministic for retrieval
     max_tokens: int = 1024
