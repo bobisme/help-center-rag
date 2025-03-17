@@ -41,6 +41,25 @@ transform-reactions:
 query q:
     python -m epic_rag.interfaces.cli.main query "{{q}}" --show-details
 
+# Test BM25 search
+bm25 q:
+    python -m epic_rag.interfaces.cli.main bm25 "{{q}}"
+
+# Test BM25 search with full content display
+bm25-full q:
+    python -m epic_rag.interfaces.cli.main bm25 "{{q}}" --full-content
+
+# Test hybrid search with both BM25 and vector search
+hybrid q:
+    python -m epic_rag.interfaces.cli.main hybrid-search "{{q}}"
+
+# Test hybrid search with detailed output
+hybrid-full q:
+    python -m epic_rag.interfaces.cli.main hybrid-search "{{q}}" --show-separate --full-content
+
+# Test hybrid search with custom weights
+hybrid-weights q b v:
+    python -m epic_rag.interfaces.cli.main hybrid-search "{{q}}" --bm25-weight {{b}} --vector-weight {{v}}
 
 # Show system information
 info:

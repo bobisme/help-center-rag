@@ -33,6 +33,7 @@ This project contains tools for working with Epic healthcare system documentatio
 - Domain-driven design with clean architecture
 - Dynamic document chunking optimized for context retrieval
 - Two-stage retrieval process for better query accuracy
+- Hybrid search combining BM25 (lexical) and vector (semantic) search with rank fusion
 - Query transformation using local LLMs (Ollama integration with gemma3:27b)
 - Multiple embedding providers (HuggingFace E5-large-v2, OpenAI, Google Gemini)
 - Efficient two-level embedding caching (memory + disk)
@@ -228,10 +229,11 @@ epic_rag/
 This system implements Anthropic's Contextual Retrieval approach, which improves upon standard RAG systems by:
 
 1. **Two-Stage Retrieval**: Initial broader retrieval followed by a more focused retrieval
-2. **Dynamic Chunk Sizing**: Intelligently determining chunk sizes based on content
-3. **Context-Aware Merging**: Combining retrieved chunks based on semantic relatedness
-4. **Relevance Filtering**: Using LLMs to filter retrieved chunks by relevance
-5. **Query Transformation**: Rewriting queries to better match document corpus semantics
+2. **BM25 + Vector Hybrid Search**: Combining lexical (exact keyword) and semantic (vector) search with rank fusion
+3. **Dynamic Chunk Sizing**: Intelligently determining chunk sizes based on content
+4. **Context-Aware Merging**: Combining retrieved chunks based on semantic relatedness
+5. **Relevance Filtering**: Using similarity scores to filter retrieved chunks by relevance
+6. **Query Transformation**: Rewriting queries to better match document corpus semantics using LLMs
 
 ### Basic Usage
 
@@ -282,6 +284,21 @@ epic-rag transform-query "How do I schedule a patient visit?"
 # Test query transformation with a specific model
 epic-rag transform-query "How do I modify patient allergies?" --model gemma3:27b
 
+# Test BM25 search (lexical/keyword search)
+epic-rag bm25 "patient allergies medication documentation"
+
+# Test BM25 search with full content display
+epic-rag bm25 "patient allergies medication documentation" --full-content
+
+# Test hybrid search combining BM25 and vector search
+epic-rag hybrid-search "How do I document patient allergies to medications?"
+
+# Test hybrid search with detailed output
+epic-rag hybrid-search "How do I document patient allergies to medications?" --show-separate
+
+# Test hybrid search with custom weights
+epic-rag hybrid-search "patient medication allergies" --bm25-weight 0.6 --vector-weight 0.4
+
 # Compare semantic similarity between texts using local model
 epic-rag test-embed "Epic is a healthcare software company" --compare "Epic Systems makes EHR software for hospitals"
 
@@ -328,6 +345,16 @@ EPIC_RAG_CACHE_ENABLED=true  # Enable caching of embeddings
 EPIC_RAG_CACHE_MEMORY_SIZE=1000  # Number of entries to keep in memory
 EPIC_RAG_CACHE_EXPIRATION_DAYS=30  # Embeddings expire after this many days
 EPIC_RAG_CACHE_CLEAR_ON_STARTUP=false  # Whether to clear expired entries on startup
+
+# Retrieval configuration
+EPIC_RAG_FIRST_STAGE_K=20  # Number of results in first stage
+EPIC_RAG_SECOND_STAGE_K=5  # Number of results in second stage
+EPIC_RAG_MIN_RELEVANCE_SCORE=0.7  # Minimum relevance score for filtering
+EPIC_RAG_ENABLE_BM25=true  # Enable BM25 search
+EPIC_RAG_BM25_WEIGHT=0.4  # Weight for BM25 results in hybrid search
+EPIC_RAG_VECTOR_WEIGHT=0.6  # Weight for vector results in hybrid search
+EPIC_RAG_ENABLE_QUERY_TRANSFORMATION=true  # Enable query transformation
+EPIC_RAG_ENABLE_CHUNK_MERGING=true  # Enable merging of related chunks
 
 # Qdrant configuration (optional for remote Qdrant)
 EPIC_RAG_QDRANT_URL=https://your-qdrant-instance.com

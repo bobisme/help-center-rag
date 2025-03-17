@@ -885,6 +885,305 @@ def transform_query(
         console.print(f"[bold red]Error:[/bold red] {str(e)}")
         console.print("Make sure Ollama is running with the specified model.")
 
+
+@app.command("bm25")
+def test_bm25(
+    query_text: str = typer.Argument(..., help="Query text to search"),
+    limit: int = typer.Option(
+        10, "--limit", "-l", help="Maximum number of results to return"
+    ),
+    show_full_content: bool = typer.Option(
+        False, "--full-content", "-f", help="Show full chunk content instead of preview"
+    ),
+):
+    """Test BM25 search functionality."""
+    from epic_rag.domain.models.retrieval import Query
+    
+    # Get BM25 service
+    bm25_service = container.get("bm25_search_service")
+    
+    # Create query
+    query = Query(
+        text=query_text,
+        metadata={"source": "cli"},
+    )
+    
+    # Run search
+    async def run_search():
+        with Progress(
+            TextColumn("[bold blue]{task.description}"),
+            BarColumn(),
+            console=console,
+        ) as progress:
+            task = progress.add_task("BM25 search", total=100)
+            
+            # First, ensure all documents are indexed
+            progress.update(task, advance=30, description="Indexing documents")
+            await bm25_service.reindex_all()
+            
+            # Run BM25 search
+            progress.update(task, advance=30, description="Searching")
+            result = await bm25_service.search(query, limit=limit)
+            
+            progress.update(task, completed=100, description="Complete")
+            return result
+    
+    # Run search
+    try:
+        result = asyncio.run(run_search())
+        
+        # Display results
+        console.print()
+        console.print(
+            Panel(
+                f"Found [bold]{len(result.chunks)}[/bold] matches",
+                title=f"BM25 Search Results for: {query_text}",
+                border_style="blue",
+            )
+        )
+        
+        # Show all results
+        if len(result.chunks) == 0:
+            console.print("[yellow]No results found.[/yellow]")
+        else:
+            for i, chunk in enumerate(result.chunks, 1):
+                # Prepare the content (full or preview)
+                if show_full_content:
+                    content = chunk.content
+                else:
+                    # Extract a preview (first 200 chars)
+                    content = chunk.content[:200] + ("..." if len(chunk.content) > 200 else "")
+                
+                # Show the result
+                console.print(
+                    Panel(
+                        f"[bold]Score:[/bold] {chunk.relevance_score:.4f}\n"
+                        f"[bold]Document:[/bold] {chunk.metadata.get('title', 'Untitled')}\n"
+                        f"[bold]Content:[/bold]\n{content}",
+                        title=f"Result {i}/{len(result.chunks)}",
+                        border_style="green" if i == 1 else "blue",
+                    )
+                )
+        
+        # Show timing information
+        console.print(f"Search completed in {result.latency_ms:.2f}ms")
+                
+    except Exception as e:
+        console.print(f"[bold red]Error:[/bold red] {str(e)}")
+
+
+@app.command("hybrid-search")
+def test_hybrid_search(
+    query_text: str = typer.Argument(..., help="Query text to search"),
+    limit: int = typer.Option(
+        10, "--limit", "-l", help="Maximum number of results to return"
+    ),
+    bm25_weight: float = typer.Option(
+        0.4, "--bm25-weight", help="Weight for BM25 results (0.0-1.0)"
+    ),
+    vector_weight: float = typer.Option(
+        0.6, "--vector-weight", help="Weight for vector results (0.0-1.0)"
+    ),
+    show_separate_results: bool = typer.Option(
+        False, "--show-separate", "-s", help="Show vector and BM25 results separately"
+    ),
+    show_full_content: bool = typer.Option(
+        False, "--full-content", "-f", help="Show full chunk content instead of preview"
+    ),
+):
+    """Test hybrid search with BM25 and vector search with rank fusion."""
+    from epic_rag.domain.models.retrieval import Query, RetrievalResult
+    
+    # Get required services
+    bm25_service = container.get("bm25_search_service")
+    embedding_service = container.get("embedding_service")
+    vector_repository = container.get("vector_repository")
+    document_repository = container.get("document_repository")
+    rank_fusion_service = container.get("rank_fusion_service")
+    
+    # Create query
+    query = Query(
+        text=query_text,
+        metadata={"source": "cli"},
+    )
+    
+    # Run search
+    async def run_search():
+        with Progress(
+            TextColumn("[bold blue]{task.description}"),
+            BarColumn(),
+            console=console,
+        ) as progress:
+            task = progress.add_task("Hybrid search", total=100)
+            
+            # Ensure all documents are indexed in BM25
+            progress.update(task, advance=20, description="Indexing documents")
+            await bm25_service.reindex_all()
+            
+            # Embed the query for vector search
+            progress.update(task, advance=20, description="Embedding query")
+            query_with_embedding = await embedding_service.embed_query(query)
+            
+            # Run BM25 search
+            progress.update(task, advance=20, description="BM25 search")
+            bm25_results = await bm25_service.search(query, limit=limit)
+            
+            # Run vector search
+            progress.update(task, advance=20, description="Vector search")
+            vector_chunks = await vector_repository.search_similar(
+                query=query_with_embedding, limit=limit
+            )
+            
+            # Create vector results
+            for chunk in vector_chunks:
+                # Get full chunk content from document repository
+                full_chunk = await document_repository.get_chunk(chunk.id)
+                if full_chunk:
+                    # Update the chunk content while keeping the relevance score
+                    chunk.content = full_chunk.content
+                    # Copy any missing metadata
+                    for key, value in full_chunk.metadata.items():
+                        if key not in chunk.metadata:
+                            chunk.metadata[key] = value
+                            
+            vector_results = RetrievalResult(
+                query_id=query.id,
+                chunks=vector_chunks,
+                latency_ms=0.0  # Initialize with 0
+            )
+            
+            # Fuse results
+            progress.update(task, advance=20, description="Fusing results")
+            fused_results = await rank_fusion_service.fuse_results(
+                vector_results=vector_results,
+                bm25_results=bm25_results,
+                bm25_weight=bm25_weight,
+                vector_weight=vector_weight,
+            )
+            
+            progress.update(task, completed=100, description="Complete")
+            return {
+                "vector": vector_results,
+                "bm25": bm25_results, 
+                "fused": fused_results
+            }
+    
+    # Run search
+    try:
+        results = asyncio.run(run_search())
+        
+        # Display results
+        console.print()
+        console.print(
+            Panel(
+                f"[bold]Query:[/bold] {query_text}\n"
+                f"[bold]BM25 Results:[/bold] {len(results['bm25'].chunks)}\n"
+                f"[bold]Vector Results:[/bold] {len(results['vector'].chunks)}\n"
+                f"[bold]Fused Results:[/bold] {len(results['fused'].chunks)}\n"
+                f"[bold]BM25 Weight:[/bold] {bm25_weight}\n"
+                f"[bold]Vector Weight:[/bold] {vector_weight}",
+                title="Hybrid Search Results",
+                border_style="blue",
+            )
+        )
+        
+        # Show separate results if requested
+        if show_separate_results:
+            # Show BM25 results
+            console.print()
+            console.print("[bold blue]BM25 Search Results:[/bold blue]")
+            for i, chunk in enumerate(results['bm25'].chunks[:5], 1):
+                # Prepare content
+                if show_full_content:
+                    content = chunk.content
+                else:
+                    content = chunk.content[:200] + ("..." if len(chunk.content) > 200 else "")
+                
+                console.print(
+                    Panel(
+                        f"[bold]Score:[/bold] {chunk.relevance_score:.4f}\n"
+                        f"[bold]Content Preview:[/bold]\n{content}",
+                        title=f"BM25 Result {i}",
+                        border_style="yellow",
+                    )
+                )
+            
+            # Show vector results
+            console.print()
+            console.print("[bold blue]Vector Search Results:[/bold blue]")
+            for i, chunk in enumerate(results['vector'].chunks[:5], 1):
+                # Prepare content
+                if show_full_content:
+                    content = chunk.content
+                else:
+                    content = chunk.content[:200] + ("..." if len(chunk.content) > 200 else "")
+                
+                console.print(
+                    Panel(
+                        f"[bold]Score:[/bold] {chunk.relevance_score:.4f}\n"
+                        f"[bold]Content Preview:[/bold]\n{content}",
+                        title=f"Vector Result {i}",
+                        border_style="cyan",
+                    )
+                )
+        
+        # Show fused results
+        console.print()
+        console.print("[bold blue]Fused Results:[/bold blue]")
+        for i, chunk in enumerate(results['fused'].chunks, 1):
+            # Prepare the content (full or preview)
+            if show_full_content:
+                content = chunk.content
+            else:
+                content = chunk.content[:200] + ("..." if len(chunk.content) > 200 else "")
+            
+            # Get original rankings
+            bm25_rank = "N/A"
+            for j, bm25_chunk in enumerate(results['bm25'].chunks, 1):
+                if bm25_chunk.id == chunk.id:
+                    bm25_rank = str(j)
+                    break
+                    
+            vector_rank = "N/A"
+            for j, vector_chunk in enumerate(results['vector'].chunks, 1):
+                if vector_chunk.id == chunk.id:
+                    vector_rank = str(j)
+                    break
+            
+            console.print(
+                Panel(
+                    f"[bold]Fused Score:[/bold] {chunk.relevance_score:.4f}\n"
+                    f"[bold]BM25 Rank:[/bold] {bm25_rank}\n"
+                    f"[bold]Vector Rank:[/bold] {vector_rank}\n"
+                    f"[bold]Document:[/bold] {chunk.metadata.get('title', 'Untitled')}\n"
+                    f"[bold]Content:[/bold]\n{content}",
+                    title=f"Result {i}/{len(results['fused'].chunks)}",
+                    border_style="green" if i <= 3 else "blue",
+                )
+            )
+        
+        # Show timing information
+        console.print()
+        if results['bm25'].latency_ms is not None:
+            console.print(f"BM25 latency: {results['bm25'].latency_ms:.2f}ms")
+        else:
+            console.print("BM25 latency: N/A")
+            
+        if results['vector'].latency_ms is not None:
+            console.print(f"Vector latency: {results['vector'].latency_ms:.2f}ms")
+        else:
+            console.print("Vector latency: N/A")
+            
+        if results['fused'].latency_ms is not None:
+            console.print(f"Total latency: {results['fused'].latency_ms:.2f}ms")
+        else:
+            console.print("Total latency: N/A")
+                
+    except Exception as e:
+        console.print(f"[bold red]Error:[/bold red] {str(e)}")
+        import traceback
+        console.print(traceback.format_exc())
+
 @app.command("info")
 def show_system_info():
     """Show system information and statistics."""

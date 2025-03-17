@@ -131,11 +131,29 @@ def setup_container():
     
     # Import LLM service
     from epic_rag.infrastructure.llm.ollama_llm_service import OllamaLLMService
+    
+    # Import BM25 search service
+    from epic_rag.infrastructure.search.bm25_search_service import BM25SearchService
+    
+    # Import Rank Fusion service
+    from epic_rag.infrastructure.search.rank_fusion_service import RecipRankFusionService
 
     # Register LLM service
     container.register_factory(
         "llm_service",
         lambda c: OllamaLLMService(settings=settings.llm),
+    )
+    
+    # Register BM25 search service
+    container.register_factory(
+        "bm25_search_service",
+        lambda c: BM25SearchService(document_repository=c.get("document_repository")),
+    )
+    
+    # Register Rank Fusion service
+    container.register_factory(
+        "rank_fusion_service",
+        lambda c: RecipRankFusionService(k=settings.retrieval.fusion_k),
     )
 
     # Register embedding service based on provider configuration
@@ -236,6 +254,8 @@ def setup_container():
             document_repository=c.get("document_repository"),
             vector_repository=c.get("vector_repository"),
             embedding_service=c.get("embedding_service"),
+            bm25_service=c.get("bm25_search_service") if settings.retrieval.enable_bm25 else None,
+            rank_fusion_service=c.get("rank_fusion_service") if settings.retrieval.enable_bm25 else None,
             llm_service=c.get("llm_service") if settings.retrieval.enable_query_transformation else None,
             settings=settings,
         ),

@@ -413,6 +413,47 @@ class SQLiteDocumentRepository(DocumentRepository):
 
                 return chunk
 
+    async def get_all_chunks(self, limit: int = 10000) -> List[DocumentChunk]:
+        """Get all chunks from all documents.
+        
+        Args:
+            limit: Maximum number of chunks to return
+
+        Returns:
+            List of all document chunks
+        """
+        async with aiosqlite.connect(self.db_path) as db:
+            # Get all chunks
+            chunks = []
+            async with db.execute(
+                """
+                SELECT id, document_id, content, metadata, chunk_index, previous_chunk_id, next_chunk_id, relevance_score, vector_id
+                FROM chunks
+                ORDER BY document_id, chunk_index
+                LIMIT ?
+                """,
+                (limit,),
+            ) as cursor:
+                async for row in cursor:
+                    # Parse chunk
+                    chunk = DocumentChunk(
+                        id=row[0],
+                        document_id=row[1],
+                        content=row[2],
+                        metadata=json.loads(row[3]) if row[3] else {},
+                        chunk_index=row[4],
+                        previous_chunk_id=row[5],
+                        next_chunk_id=row[6],
+                        relevance_score=row[7],
+                    )
+                    # Add vector_id if available
+                    if row[8]:
+                        chunk.vector_id = row[8]
+
+                    chunks.append(chunk)
+
+            return chunks
+
     async def get_statistics(self) -> Dict[str, Any]:
         """Get repository statistics."""
         async with aiosqlite.connect(self.db_path) as db:

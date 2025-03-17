@@ -60,6 +60,8 @@ The system implements Anthropic's Contextual Retrieval approach, which improves 
 - [x] Develop query transformation functionality using local LLM (Ollama)
 - [x] Build context-aware chunk merging logic
 - [x] Create relevance filtering using similarity scores
+- [x] Implement BM25 lexical search for exact keyword matching
+- [x] Create rank fusion to combine vector and BM25 search results
 - [x] Develop retrieval pipeline with Anthropic's methodology
 
 ### Phase 4: ZenML Pipeline Integration

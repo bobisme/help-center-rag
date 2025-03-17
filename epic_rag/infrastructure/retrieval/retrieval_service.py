@@ -15,13 +15,14 @@ from ...domain.models.retrieval import (
 from ...domain.repositories.document_repository import DocumentRepository
 from ...domain.repositories.vector_repository import VectorRepository
 from ...domain.services.embedding_service import EmbeddingService
+from ...domain.services.lexical_search_service import LexicalSearchService
+from ...domain.services.rank_fusion_service import RankFusionService
 from ...domain.services.retrieval_service import RetrievalService
+from ...domain.services.llm_service import LLMService
 from ...infrastructure.config.settings import Settings
 
 logger = logging.getLogger(__name__)
 
-
-from ...domain.services.llm_service import LLMService
 
 class ContextualRetrievalService(RetrievalService):
     """Implementation of the Contextual Retrieval methodology."""
@@ -31,6 +32,8 @@ class ContextualRetrievalService(RetrievalService):
         document_repository: DocumentRepository,
         vector_repository: VectorRepository,
         embedding_service: EmbeddingService,
+        bm25_service: Optional[LexicalSearchService] = None,
+        rank_fusion_service: Optional[RankFusionService] = None,
         llm_service: Optional[LLMService] = None,
         settings: Settings = None,
     ):
@@ -40,19 +43,99 @@ class ContextualRetrievalService(RetrievalService):
             document_repository: Repository for document storage
             vector_repository: Repository for vector operations
             embedding_service: Service for generating embeddings
+            bm25_service: Service for BM25 lexical search
+            rank_fusion_service: Service for combining vector and BM25 results
             llm_service: Optional service for LLM operations like query transformation
             settings: Application settings
         """
         self.document_repository = document_repository
         self.vector_repository = vector_repository
         self.embedding_service = embedding_service
+        self.bm25_service = bm25_service
+        self.rank_fusion_service = rank_fusion_service
         self.llm_service = llm_service
         self.settings = settings
 
     async def retrieve(
         self, query: Query, limit: int = 10, filters: Optional[Dict[str, Any]] = None
     ) -> RetrievalResult:
-        """Basic vector retrieval of documents based on query similarity.
+        """Retrieval of documents based on query similarity using both vector
+        and lexical search with rank fusion.
+
+        Args:
+            query: The query to search for
+            limit: Maximum number of results to return
+            filters: Optional metadata filters
+
+        Returns:
+            Retrieval result with matching chunks
+        """
+        # Start timing
+        start_time = time.time()
+
+        # Ensure query has an embedding for vector search
+        if not query.embedding:
+            query = await self.embedding_service.embed_query(query)
+
+        # Run vector search
+        vector_results = await self._vector_search(query, limit, filters)
+        
+        # If BM25 is enabled, run BM25 search and combine with vector results
+        if (
+            self.settings and 
+            self.settings.retrieval.enable_bm25 and 
+            self.bm25_service and 
+            self.rank_fusion_service
+        ):
+            # Run BM25 search
+            bm25_results = await self.bm25_service.search(query, limit, filters)
+            
+            # Fuse results
+            fused_results = await self.rank_fusion_service.fuse_results(
+                vector_results=vector_results,
+                bm25_results=bm25_results,
+                bm25_weight=self.settings.retrieval.bm25_weight,
+                vector_weight=self.settings.retrieval.vector_weight,
+            )
+            
+            # Log results
+            logger.info(
+                f"Hybrid search: Vector: {len(vector_results.chunks)} results, "
+                f"BM25: {len(bm25_results.chunks)} results, "
+                f"Fused: {len(fused_results.chunks)} results"
+            )
+            
+            # Use fused results
+            result = fused_results
+        else:
+            # Use vector results only
+            result = vector_results
+            
+            # Fetch full content for chunks (vector DB only stores IDs and metadata)
+            for chunk in result.chunks:
+                # Get full chunk content from document repository
+                full_chunk = await self.document_repository.get_chunk(chunk.id)
+                if full_chunk:
+                    # Update the chunk content while keeping the relevance score
+                    chunk.content = full_chunk.content
+                    # Copy any missing metadata
+                    for key, value in full_chunk.metadata.items():
+                        if key not in chunk.metadata:
+                            chunk.metadata[key] = value
+
+        # Calculate latency
+        end_time = time.time()
+        total_latency_ms = (end_time - start_time) * 1000
+        
+        # Update the latency in the result
+        result.latency_ms = total_latency_ms
+        
+        return result
+
+    async def _vector_search(
+        self, query: Query, limit: int = 10, filters: Optional[Dict[str, Any]] = None
+    ) -> RetrievalResult:
+        """Perform vector-based similarity search.
 
         Args:
             query: The query to search for
@@ -254,9 +337,9 @@ class ContextualRetrievalService(RetrievalService):
     ) -> ContextualRetrievalResult:
         """Perform full contextual retrieval following Anthropic's methodology.
 
-        This is the main entry point for the two-stage retrieval process:
-        1. Initial broad retrieval
-        2. Query context-based focused retrieval
+        This is the main entry point for the retrieval process:
+        1. Query transformation (if enabled)
+        2. Hybrid search (vector + BM25 with rank fusion)
         3. Relevance filtering
         4. Context-aware merging
 
@@ -279,7 +362,7 @@ class ContextualRetrievalService(RetrievalService):
             request.query = await self.transform_query(request.query)
             result.query = request.query
         
-        # Step 2: First-stage broad retrieval
+        # Step 2: Hybrid retrieval (vector + BM25 with rank fusion)
         first_stage_results = await self.retrieve(
             query=request.query,
             limit=request.first_stage_k,
