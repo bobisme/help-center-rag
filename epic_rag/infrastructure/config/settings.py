@@ -86,9 +86,14 @@ class LLMSettings:
 
     provider: str = "ollama"
     model: str = "gemma3:12b"  # Using smaller model to avoid memory issues
+    image_model: str = "gemma3:27b"  # Model for image description
     api_key: Optional[str] = None
     temperature: float = 0.0  # Keep deterministic for retrieval
     max_tokens: int = 1024
+
+    # Image description settings
+    min_image_size: int = 64  # Minimum pixel size to process images
+    enable_image_enrichment: bool = True  # Whether to enable image description
 
 
 @dataclass
@@ -149,6 +154,7 @@ class Settings:
     data_dir: str = "data"
     markdown_dir: str = "data/markdown"
     output_dir: str = "data/output"
+    images_dir: str = "output/images"  # Directory where images are stored
 
     # Component settings
     database: DatabaseSettings = field(default_factory=DatabaseSettings)

@@ -117,6 +117,34 @@ enrich-insurance:
 demo:
     python demo_enrichment.py
 
+# Test image description generation
+image-describe:
+    python image_description_demo.py --sample-limit 5
+
+# Test image description with a specific document
+image-describe-doc doc="test/samples/renew-a-certificate.md":
+    python image_description_demo.py --doc-path "{{doc}}"
+
+# Test image-enhanced contextual enrichment
+image-enrich doc="test/samples/renew-a-certificate.md":
+    python image_enrichment_demo.py "{{doc}}"
+
+# Test image enrichment with custom image size
+image-enrich-custom doc="test/samples/renew-a-certificate.md" size="128":
+    python image_enrichment_demo.py "{{doc}}" --min-image-size "{{size}}"
+
+# Show full enriched chunks for a document
+show-chunks doc="test/samples/renew-a-certificate.md":
+    python show_enriched_chunks.py "{{doc}}"
+
+# Show full enriched chunks with custom parameters
+show-chunks-custom doc="test/samples/renew-a-certificate.md" chunk_size="600" overlap="50":
+    python show_enriched_chunks.py "{{doc}}" --chunk-size "{{chunk_size}}" --chunk-overlap "{{overlap}}"
+
+# Run standalone image description demo
+image-standalone doc="test/samples/renew-a-certificate.md":
+    python image_description_standalone.py "{{doc}}"
+
 # Stop ZenML server
 zenml-stop:
     zenml logout --local

@@ -137,6 +137,12 @@ def setup_container():
     from epic_rag.infrastructure.llm.contextual_enrichment_service import (
         OllamaContextualEnrichmentService,
     )
+    from epic_rag.infrastructure.llm.ollama_image_description_service import (
+        OllamaImageDescriptionService,
+    )
+    from epic_rag.infrastructure.llm.image_enhanced_enrichment_service import (
+        ImageEnhancedEnrichmentService,
+    )
 
     # Import BM25 search services
     from epic_rag.infrastructure.search.bm25_search_service import BM25SearchService
@@ -153,11 +159,33 @@ def setup_container():
         lambda c: OllamaLLMService(settings=settings.llm),
     )
 
-    # Register contextual enrichment service
+    # Register image description service
     container.register_factory(
-        "contextual_enrichment_service",
-        lambda c: OllamaContextualEnrichmentService(llm_service=c.get("llm_service")),
+        "image_description_service",
+        lambda c: OllamaImageDescriptionService(
+            settings=settings.llm,
+            model=settings.llm.image_model,
+            min_image_size=settings.llm.min_image_size,
+        ),
     )
+
+    # Register contextual enrichment service based on configuration
+    if settings.llm.enable_image_enrichment:
+        container.register_factory(
+            "contextual_enrichment_service",
+            lambda c: ImageEnhancedEnrichmentService(
+                llm_service=c.get("llm_service"),
+                image_description_service=c.get("image_description_service"),
+                base_image_dir=settings.images_dir,
+            ),
+        )
+    else:
+        container.register_factory(
+            "contextual_enrichment_service",
+            lambda c: OllamaContextualEnrichmentService(
+                llm_service=c.get("llm_service")
+            ),
+        )
 
     # Register BM25 search service based on configuration
     if settings.retrieval.bm25_implementation.lower() == "bm25s":

@@ -16,50 +16,54 @@ from epic_rag.application.use_cases.ingest_document import IngestDocumentUseCase
 
 async def test_embedding(provider="huggingface"):
     """Test the embedding service.
-    
+
     Args:
         provider: The embedding provider to test ("huggingface", "openai", or "gemini")
     """
     # Backup original provider
     original_provider = settings.embedding.provider
-    
+
     try:
         # Set the provider for this test
         settings.embedding.provider = provider
-        
+
         # Re-setup container to use the specified provider
         setup_container()
-        
+
         print(f"Testing {provider.capitalize()} embedding service...")
         try:
             embedding_service = container.get("embedding_service")
         except KeyError:
             print(f"Error: {provider.capitalize()} embedding service not available.")
-            
+
             if provider.lower() == "huggingface":
                 print("Make sure PyTorch and transformers are installed.")
             else:
-                print(f"Make sure {provider.upper()}_API_KEY is set in environment variables.")
-                
+                print(
+                    f"Make sure {provider.upper()}_API_KEY is set in environment variables."
+                )
+
             return None
-        
+
         # Test embedding a simple text
         text = "Epic documentation is helpful for healthcare professionals."
         embedding = await embedding_service.embed_text(text)
-        
+
         print(f"Text: {text}")
         print(f"Embedding dimensions: {len(embedding)}")
         print(f"First 5 values: {embedding[:5]}")
-        
+
         # Test similarity
         text2 = "Healthcare workers find Epic documentation useful."
         embedding2 = await embedding_service.embed_text(text2)
-        
-        similarity = await embedding_service.get_embedding_similarity(embedding, embedding2)
+
+        similarity = await embedding_service.get_embedding_similarity(
+            embedding, embedding2
+        )
         print(f"Similarity between texts: {similarity:.4f}")
-        
+
         return embedding
-    
+
     finally:
         # Restore original provider
         settings.embedding.provider = original_provider
@@ -69,13 +73,13 @@ async def test_embedding(provider="huggingface"):
 async def test_document_ingestion():
     """Test document ingestion process."""
     print("\nTesting document ingestion...")
-    
+
     # Get services
     document_repository = container.get("document_repository")
     vector_repository = container.get("vector_repository")
     chunking_service = container.get("chunking_service")
     embedding_service = container.get("embedding_service")
-    
+
     # Create use case
     use_case = IngestDocumentUseCase(
         document_repository=document_repository,
@@ -83,7 +87,7 @@ async def test_document_ingestion():
         chunking_service=chunking_service,
         embedding_service=embedding_service,
     )
-    
+
     # Create test document
     doc_content = """# Epic Documentation Test
 
@@ -130,7 +134,7 @@ The system follows Domain-Driven Design principles with separate layers for:
 3. Infrastructure implementations
 4. User interfaces
 """
-    
+
     document = Document(
         title="Epic Documentation Test",
         content=doc_content,
@@ -142,7 +146,7 @@ The system follows Domain-Driven Design principles with separate layers for:
             "category": "Documentation",
         },
     )
-    
+
     # Process the document
     result = await use_case.execute(
         document=document,
@@ -150,33 +154,33 @@ The system follows Domain-Driven Design principles with separate layers for:
         min_chunk_size=200,
         max_chunk_size=500,
     )
-    
+
     print(f"Document processed with {len(result.chunks)} chunks")
     print("Chunk lengths:")
     for i, chunk in enumerate(result.chunks, 1):
         print(f"  Chunk {i}: {len(chunk.content)} chars")
-    
+
     return result
 
 
 async def test_retrieval():
     """Test retrieval functionality."""
     print("\nTesting retrieval...")
-    
+
     # Get services
     retrieval_service = container.get("retrieval_service")
     embedding_service = container.get("embedding_service")
-    
+
     # Create a test query
     query_text = "How do I use the Epic documentation system?"
     query = Query(text=query_text)
-    
+
     # Embed the query
     query = await embedding_service.embed_query(query)
-    
+
     print(f"Query: {query_text}")
     print(f"Embedding dimensions: {len(query.embedding) if query.embedding else 0}")
-    
+
     # Create retrieval request
     request = ContextualRetrievalRequest(
         query=query,
@@ -186,24 +190,28 @@ async def test_retrieval():
         use_query_context=True,
         merge_related_chunks=True,
     )
-    
+
     # Execute retrieval
     result = await retrieval_service.contextual_retrieval(request)
-    
+
     print(f"Retrieved {len(result.first_stage_results.chunks)} chunks in first stage")
     print(f"Final results: {len(result.final_chunks)} chunks")
-    
+
     if result.merged_content:
         print("\nMerged Content Preview:")
-        preview = result.merged_content[:200] + "..." if len(result.merged_content) > 200 else result.merged_content
+        preview = (
+            result.merged_content[:200] + "..."
+            if len(result.merged_content) > 200
+            else result.merged_content
+        )
         print(preview)
-    
+
     # Print performance metrics
     print(f"\nPerformance:")
     print(f"  Total latency: {result.total_latency_ms:.2f}ms")
     print(f"  Retrieval latency: {result.retrieval_latency_ms:.2f}ms")
     print(f"  Processing latency: {result.processing_latency_ms:.2f}ms")
-    
+
     return result
 
 
@@ -212,38 +220,41 @@ async def main():
     print("Testing Epic Documentation RAG System\n")
     print(f"OpenAI API Key available: {'Yes' if settings.openai_api_key else 'No'}")
     print(f"Gemini API Key available: {'Yes' if settings.gemini_api_key else 'No'}")
-    print(f"HuggingFace available: {'Yes (using CUDA)' if torch.cuda.is_available() else 'Yes (using CPU)'}")
-    
+    print(
+        f"HuggingFace available: {'Yes (using CUDA)' if torch.cuda.is_available() else 'Yes (using CPU)'}"
+    )
+
     # Setup the container
     setup_container()
-    
+
     try:
         # Test HuggingFace embedding (local)
         await test_embedding("huggingface")
-        
+
         # Test OpenAI embedding if available
         if settings.openai_api_key:
             await test_embedding("openai")
-        
+
         # Test Gemini embedding if available
         if settings.gemini_api_key:
             await test_embedding("gemini")
-        
+
         # Test document ingestion (uses whatever provider is set in settings)
         doc_result = await test_document_ingestion()
-        
+
         # Allow time for Qdrant to index
         print("\nWaiting for Qdrant to index documents...")
         await asyncio.sleep(2)
-        
+
         # Test retrieval
         await test_retrieval()
-        
+
         print("\nAll tests completed successfully!")
-        
+
     except Exception as e:
         print(f"Error during testing: {e}")
         import traceback
+
         traceback.print_exc()
 
 

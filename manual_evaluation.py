@@ -24,7 +24,11 @@ TEST_QUERIES = [
 # Sections we expect to match for each query
 EXPECTED_SECTIONS = {
     "How do I access my email in Epic?": ["Email", "Microsoft Outlook"],
-    "How do I compare quotes for a client?": ["Quote Results", "Quote Results List", "Prepare Proposal"],
+    "How do I compare quotes for a client?": [
+        "Quote Results",
+        "Quote Results List",
+        "Prepare Proposal",
+    ],
     "What steps are needed to renew a certificate?": ["Renew a Certificate"],
     "How do I set up faxing for my agency?": ["Faxing Setup", "COM Port Settings"],
     "How do I configure VINlink Decoder?": ["VINlink Decoder Configuration"],

@@ -102,7 +102,25 @@ The system implements Anthropic's Contextual Retrieval approach, which improves 
   - [x] Measured impact of enrichment on search relevance scoring
   - [x] Documented performance improvements using Anthropic's recommended metrics
 
-### Phase 6: Deployment and Monitoring
+### Phase 6: Image Enrichment for Enhanced Context
+
+- [ ] Implement image description generation using Gemma 27B model
+  - [ ] Create image processing pipeline to extract image context from markdown
+  - [ ] Develop prompt template for Gemma 27B to generate image descriptions
+  - [ ] Build async processing mechanism for batch image description generation
+  - [ ] Create storage mechanism for image descriptions
+  - [ ] Integrate image descriptions into contextual enrichment process
+- [ ] Enhance chunking to preserve image context
+  - [ ] Modify chunking service to keep images with surrounding text
+  - [ ] Implement special handling for image-rich sections
+  - [ ] Create image reference tracking during chunking
+- [ ] Extend contextual enrichment with image descriptions
+  - [ ] Update enrichment prompts to incorporate image descriptions
+  - [ ] Design method to weigh text vs. image context based on content type
+  - [ ] Implement evaluation framework to measure impact of image descriptions
+  - [ ] Add metrics specific to image-enhanced retrieval
+
+### Phase 7: Deployment and Monitoring
 
 - [ ] Containerize the application
 - [ ] Set up model and data versioning
