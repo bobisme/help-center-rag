@@ -1,10 +1,12 @@
 # Epic Documentation Tools
 
-This project contains tools for working with Epic healthcare system documentation:
+This project contains tools for working with Applied Epic insurance agency management system documentation:
 
 1. **Epic Documentation CLI**: A tool to crawl Epic docs and convert to Markdown
 2. **HTML to Markdown Converter**: A Python tool for preprocessing HTML docs
 3. **Epic Documentation RAG System**: A retrieval system based on Anthropic's Contextual Retrieval methodology
+
+Applied Epic is a comprehensive insurance agency management system used by insurance agencies and brokerages to manage client information, policies, quotes, certificates, agency communications, and financial operations.
 
 ## Documentation CLI Features
 
@@ -249,19 +251,19 @@ pip install -e .
 epic-rag ingest --source-dir data/markdown
 
 # Query the system
-epic-rag query "How do I create a new patient record?"
+epic-rag query "How do I set up faxing for my agency?"
 
 # Show system information
 epic-rag info
 
 # Test the embedding service
-epic-rag test-embed "How do I create a new patient record?"
+epic-rag test-embed "How do I renew a certificate in Epic?"
 
 # Compare text similarity
-epic-rag test-embed "How do I create a new patient record?" --compare "What's the process for adding a new patient?"
+epic-rag test-embed "How do I compare quotes?" --compare "What's the process for generating a proposal?"
 
 # Visualize document chunks
-epic-rag chunks --file data/markdown/patient_registration.md --dynamic
+epic-rag chunks --file data/markdown/email.md --dynamic
 ```
 
 ### Testing Database and Embeddings
@@ -283,37 +285,37 @@ epic-rag test-embed "This is a test of the embedding service" --provider openai
 epic-rag test-embed "This is a test of the embedding service" --provider gemini
 
 # Test query transformation using local LLM
-epic-rag transform-query "How do I schedule a patient visit?"
+epic-rag transform-query "How do I access my email in Epic?"
 
 # Test query transformation with a specific model
-epic-rag transform-query "How do I modify patient allergies?" --model gemma3:27b
+epic-rag transform-query "How do I compare insurance quotes for a client?" --model gemma3:27b
 
 # Test BM25 search (lexical/keyword search)
-epic-rag bm25 "patient allergies medication documentation"
+epic-rag bm25 "renew certificate insurance client"
 
 # Test BM25 search with full content display
-epic-rag bm25 "patient allergies medication documentation" --full-content
+epic-rag bm25 "faxing setup configuration" --full-content
 
 # Test hybrid search combining BM25 and vector search
-epic-rag hybrid-search "How do I document patient allergies to medications?"
+epic-rag hybrid-search "How do I configure VINlink Decoder for my account?"
 
 # Test hybrid search with detailed output
-epic-rag hybrid-search "How do I document patient allergies to medications?" --show-separate
+epic-rag hybrid-search "How do I prepare an insurance proposal with multiple carriers?" --show-separate
 
 # Test hybrid search with custom weights
-epic-rag hybrid-search "patient medication allergies" --bm25-weight 0.6 --vector-weight 0.4
+epic-rag hybrid-search "quote results comparison carrier" --bm25-weight 0.6 --vector-weight 0.4
 
 # Test with reranking enabled
-epic-rag hybrid-search "How do I document patient allergies to medications?" --rerank
+epic-rag hybrid-search "How do I set up faxing for my agency?" --rerank
 
 # Compare semantic similarity between texts using local model
-epic-rag test-embed "Epic is a healthcare software company" --compare "Epic Systems makes EHR software for hospitals"
+epic-rag test-embed "Applied Epic is an insurance agency management system" --compare "Applied Epic helps brokers manage policies and clients"
 
 # Compare using Gemini
-epic-rag test-embed "Epic is a healthcare software company" --compare "Epic Systems makes EHR software for hospitals" --provider gemini
+epic-rag test-embed "Applied Epic is an insurance agency management system" --compare "Applied Epic helps brokers manage policies and clients" --provider gemini
 
 # Compare using OpenAI
-epic-rag test-embed "Epic is a healthcare software company" --compare "Epic Systems makes EHR software for hospitals" --provider openai
+epic-rag test-embed "Applied Epic is an insurance agency management system" --compare "Applied Epic helps brokers manage policies and clients" --provider openai
 
 # View cache statistics
 epic-rag cache stats

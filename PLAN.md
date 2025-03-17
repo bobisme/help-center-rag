@@ -1,10 +1,10 @@
-# Epic Documentation RAG System Plan
+# Applied Epic Documentation RAG System Plan
 
-This document outlines the plan for building a Retrieval-Augmented Generation (RAG) system based on Epic documentation using Anthropic's Contextual Retrieval methodology.
+This document outlines the plan for building a Retrieval-Augmented Generation (RAG) system based on Applied Epic insurance agency management system documentation using Anthropic's Contextual Retrieval methodology.
 
 ## System Overview
 
-The system will process the converted Epic documentation (from HTML to Markdown) and create a retrieval system that can provide accurate, contextual responses to queries about Epic systems. The architecture follows domain-driven design principles to ensure maintainability and separation of concerns.
+The system will process the converted Applied Epic documentation (from HTML to Markdown) and create a retrieval system that can provide accurate, contextual responses to queries about insurance agency operations, policy management, quoting, certificates, and other insurance workflows. The architecture follows domain-driven design principles to ensure maintainability and separation of concerns.
 
 ### Key Components
 
@@ -85,9 +85,10 @@ The system implements Anthropic's Contextual Retrieval approach, which improves 
 - [x] Design evaluation metrics (e.g., retrieval precision, relevance scoring)
   - [x] Implement Recall@k, Precision@k, MRR, and NDCG metrics
   - [x] Add Anthropic's failure rate reduction metric (1 - recall@20)
-- [x] Create test query dataset from Epic documentation
-  - [x] Develop LLM-based dataset generator for query-document pairs
+- [x] Create test query dataset from Applied Epic insurance documentation
+  - [x] Develop LLM-based dataset generator for insurance-related query-document pairs
   - [x] Implement ground truth tracking for evaluation
+  - [x] Update evaluation to use real insurance agency system documents
 - [x] Implement evaluation pipeline
   - [x] Create comparative evaluation of standard vs. enriched retrieval
   - [x] Build detailed metrics reporting and visualization

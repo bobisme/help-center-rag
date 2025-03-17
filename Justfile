@@ -22,20 +22,20 @@ reset:
 
 # Test query transformation with default model
 transform-test:
-    python -m epic_rag.interfaces.cli.main transform-query "How do I schedule a patient visit?"
+    python -m epic_rag.interfaces.cli.main transform-query "How do I set up faxing for my agency?"
 
 # Test various query transformations with different models
-transform-scheduling:
-    python -m epic_rag.interfaces.cli.main transform-query "How do I schedule a patient visit?" --model gemma3:27b
+transform-email:
+    python -m epic_rag.interfaces.cli.main transform-query "How do I access my email in Epic?" --model gemma3:27b
 
-transform-allergies:
-    python -m epic_rag.interfaces.cli.main transform-query "How do I modify patient allergies?" --model gemma3:27b
+transform-quotes:
+    python -m epic_rag.interfaces.cli.main transform-query "How do I compare insurance quotes for a client?" --model gemma3:27b
 
-transform-labs:
-    python -m epic_rag.interfaces.cli.main transform-query "What are the steps to order a lab test?" --model gemma3:27b
+transform-certificate:
+    python -m epic_rag.interfaces.cli.main transform-query "What are the steps to renew a certificate?" --model gemma3:27b
 
-transform-reactions:
-    python -m epic_rag.interfaces.cli.main transform-query "How to document adverse reactions to medications?" --model gemma3:27b
+transform-vinlink:
+    python -m epic_rag.interfaces.cli.main transform-query "How do I set up VINlink Decoder for my account?" --model gemma3:27b
 
 # Test full query with transformed queries
 query q:
@@ -75,65 +75,47 @@ info:
 
 # Test document processing pipeline with contextual enrichment
 zenml-docs-enriched:
-    python -m epic_rag.interfaces.cli.main zenml-run --source-dir data/markdown --pipeline document_processing --limit 5 --apply-enrichment
+    python -m epic_rag.interfaces.cli.main zenml-run --source-dir test/samples --pipeline document_processing --limit 5 --apply-enrichment
 
 # Test document processing pipeline without contextual enrichment
 zenml-docs-plain:
-    python -m epic_rag.interfaces.cli.main zenml-run --source-dir data/markdown --pipeline document_processing --limit 5 --skip-enrichment
+    python -m epic_rag.interfaces.cli.main zenml-run --source-dir test/samples --pipeline document_processing --limit 5 --skip-enrichment
 
 # Test orchestration pipeline with contextual enrichment
 zenml-orchestration-enriched:
-    python -m epic_rag.interfaces.cli.main zenml-run --source-dir data/markdown --pipeline orchestration --limit 3 --apply-enrichment
+    python -m epic_rag.interfaces.cli.main zenml-run --source-dir test/samples --pipeline orchestration --limit 3 --apply-enrichment
 
-# Test contextual enrichment with sample document
-enrich-test:
+# Process all sample documents with contextual enrichment
+process-samples:
     #!/usr/bin/env bash
-    echo "Testing contextual enrichment on sample document..."
-    # Create test directory if it doesn't exist
-    mkdir -p test/samples
+    echo "Processing sample documents with contextual enrichment..."
     
-    # Create a sample markdown file if it doesn't exist
-    if [ ! -f test/samples/test_doc.md ]; then
-      echo "# Epic Documentation Sample
-    
-    ## Introduction
-    
-    This is a sample document about Epic healthcare software documentation.
-    
-    ## Patient Registration
-    
-    The patient registration module allows healthcare providers to register new patients,
-    update demographic information, and manage patient records efficiently.
-    
-    ## Medication Management
-    
-    Epic's medication management features help providers:
-    
-    1. Prescribe medications safely
-    2. Check for drug interactions
-    3. Monitor medication adherence
-    4. Document adverse reactions
-    " > test/samples/test_doc.md
-    fi
-    
-    # Run the document processing pipeline with enrichment enabled
+    # Run the document processing pipeline with enrichment enabled on all samples
     python -m epic_rag.interfaces.cli.main zenml-run --source-dir test/samples --pipeline document_processing --apply-enrichment
 
 # Simple test that directly shows enrichment results
 enrich-simple:
-    python -m epic_rag.interfaces.cli.main test-enrichment test_sample.md
+    python -m epic_rag.interfaces.cli.main test-enrichment test/samples/email.md
 
 # Test enrichment with custom file
 enrich:
-    python -m epic_rag.interfaces.cli.main test-enrichment test_sample.md --max-chunks 3
+    python -m epic_rag.interfaces.cli.main test-enrichment test/samples/email.md --max-chunks 3
 
 # Evaluate the impact of contextual enrichment on retrieval quality
 evaluate-enrichment:
-    python -m epic_rag.interfaces.cli.main evaluate-enrichment test_sample.md
+    python -m epic_rag.interfaces.cli.main evaluate-enrichment test/samples/quote-results.md
 
 # Run evaluation of contextual enrichment impact
 evaluate:
     python manual_evaluation.py
+
+# Generate enriched contexts for sample insurance docs
+enrich-insurance:
+    python insurance_enrichment.py
+
+# Run interactive demo of contextual enrichment
+demo:
+    python demo_enrichment.py
 
 # Stop ZenML server
 zenml-stop:

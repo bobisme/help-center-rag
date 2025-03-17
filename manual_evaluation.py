@@ -14,201 +14,180 @@ console = Console()
 
 # Test queries relevant to our test document
 TEST_QUERIES = [
-    "How do I document patient vital signs in Epic?",
-    "What are the steps for ordering a lab test?",
-    "How do I create a referral order?",
-    "What tools are available for documentation in Epic?",
-    "How do I manage the patient problem list?",
+    "How do I access my email in Epic?",
+    "How do I compare quotes for a client?",
+    "What steps are needed to renew a certificate?",
+    "How do I set up faxing for my agency?",
+    "How do I configure VINlink Decoder?",
 ]
 
 # Sections we expect to match for each query
 EXPECTED_SECTIONS = {
-    "How do I document patient vital signs in Epic?": ["Vital Signs Documentation"],
-    "What are the steps for ordering a lab test?": ["Lab Orders"],
-    "How do I create a referral order?": ["Referral Orders"],
-    "What tools are available for documentation in Epic?": ["SmartTools", "Templates"],
-    "How do I manage the patient problem list?": ["Problem List Management"],
+    "How do I access my email in Epic?": ["Email", "Microsoft Outlook"],
+    "How do I compare quotes for a client?": ["Quote Results", "Quote Results List", "Prepare Proposal"],
+    "What steps are needed to renew a certificate?": ["Renew a Certificate"],
+    "How do I set up faxing for my agency?": ["Faxing Setup", "COM Port Settings"],
+    "How do I configure VINlink Decoder?": ["VINlink Decoder Configuration"],
 }
 
-# Manually define chunk content (simplified from our test document)
+# Manually define chunk content from our sample documents
 BASE_CHUNKS = [
     {
         "id": "chunk1",
-        "content": """# Epic Healthcare Documentation - Clinical Workflows
+        "content": """# Email
 
+Applied Epic allows you to launch an integrated email client from within the
+system for all routine email workflows except those initiated by Distribution
+Manager. Your organization may opt to use *Microsoft Outlook* or an Epic custom
+message window for this integration, or allow you to make an individual
+selection in Email Settings Configuration. Regardless of the option you are
+using, do one of the following to access your email:
 
+* From the Home screen, click **Email** on the navigation panel or **Areas > Email** on the menubar.
+* To access email from any other part of the program, click the **down arrow** next to *Home* on the options bar and select **Email**.
 
-## Introduction to Epic EMR
+**Note:** If you are using *Microsoft Outlook*, *Outlook* opens to the last
+window you accessed. This window may open in focus or minimized in the taskbar.
 
-Epic Systems Corporation is a leading provider of electronic medical record (EMR) software used by hospitals, healthcare providers, and other medical organizations. Epic's software platform includes a suite of integrated applications for both clinical and revenue operations, with modules covering patient care, registration, scheduling, billing, and more.
+## Epic Email
 
-The Epic EMR system is designed to create a seamless, unified patient record across care settings, enabling healthcare providers to access complete and up-to-date patient information regardless of where the patient receives care within a healthcare system.
+This is a custom message window unique to Applied Epic. It contains the
+functionality you would expect from most email clients and is comprised of the
+following sections:
 
+* Menubar
+* Email Folders
+* Search Bar
+* Email List
+* Reading Pane
 
+## Microsoft Outlook
 
-## Key Features and Benefits
-
-Epic EMR offers several key features and benefits:
-
-1. **Integrated Platform**: A unified system for clinical, administrative, and billing functions
-2. **Interoperability**: Ability to share data with other healthcare systems
-3. **Mobile Access**: Secure access to patient information from mobile devices
-4. **Patient Portal (MyChart)**: Online access for patients to view their health records
-5. **Decision Support**: Tools to help clinicians make informed decisions
-6. **Reporting and Analytics**: Comprehensive data analysis capabilities
-
-
-
-## Clinical Documentation Workflows
-
-
-
-### Patient Registration and Check-in
-
-The patient registration process in Epic involves capturing demographic information, insurance details, and consent forms. Key steps include:
-
-1. **Patient Search**: First, search for the patient in the system to avoid duplicate records
-2. **Demographics Entry**: Collect or update patient information including name, DOB, address
-3. **Insurance Verification**: Capture and verify insurance information
-4. **Consent Forms**: Document patient consent for treatment and privacy notices
-5. **Medical History**: Collect preliminary information about medical history and current medications
-
-
-
-### Vital Signs Documentation
-
-Documenting accurate vital signs is essential for patient assessment:
-
-1. Access the patient's chart and navigate to the vitals flowsheet
-2. Record temperature, blood pressure, pulse, respiratory rate, and oxygen saturation
-3. Document height, weight, and pain score as appropriate
-4. Enter any relevant notes about the measurements
-5. Save the documentation""",
+Applied Epic opens *Microsoft Outlook* (even if you do not currently have it
+open outside of Epic) whenever you click on a hyperlinked email address or the
+envelope button beside an email address, or perform the Send via Email action.""",
     },
     {
         "id": "chunk2",
-        "content": """## Order Management
+        "content": """# Quote Results
 
+On the *Quote Results* screen, you can view and compare carrier rates, review
+quote details, add additional quotes to the session, prepare agency-branded
+proposals, and finalize a quote.
 
+You may be prompted to select a username/password combination and/or a code to
+use for the rate you are running if you have multiple credentials or codes saved
+for the same carrier. If so, select a **username/password** and/or a **code**
+and click the **Use Login Info** button.
 
-### Lab Orders
+To edit risk detail for the quote from the *Quote Results* screen, click the
+**button** that displays the quote's line type beside the *+ Quote* button.
 
-To order laboratory tests in Epic:
+You can add additional quotes to the same session on the *Quote Results* screen
+(for example, if the client wants a Homeowners as well as a Personal Auto
+quote). All quotes in the session display on the *Quote Results* screen,
+although they will have separate results and will need to be accepted
+separately. If you accept multiple quotes, the system will create them as
+separate monoline policies, not as a package policy.
 
-1. Navigate to the Orders tab in the patient's chart
-2. Select "Laboratory" from the order types
-3. Search for and select the specific lab test(s)
-4. Enter collection details (time, priority, special instructions)
-5. Select the appropriate diagnosis to link to the order
-6. Complete and sign the order
+## Quote Results List
 
+The *Quote Results* screen displays a list of carriers who provided a rate for
+your quote based on the risk detail you entered on the *Quoting Session* screen,
+and whose websites are selected in Quote Setup. A *Credit Check* icon   displays
+beside any carrier that performed a credit check when providing a rate.
 
+If you did not configure an agent/producer code for a carrier in Quotes Setup,
+enter your **code** and click **Get Rate** in the *Premium* column to get a rate
+for the quote from that carrier. To save this agent/producer code to Quotes
+Setup for future use with the carrier, click **Save**.
 
-### Imaging Orders
+## Prepare Proposal
 
-For radiology and other imaging orders:
+Generate an agency-branded proposal to share with your client. In the proposal,
+you can present multiple carrier rates, indicate recommended rates, and provide
+a coverage comparison for the rates included.
 
-1. Select "Imaging/Radiology" from the order types
-2. Choose the appropriate study (X-ray, CT, MRI, ultrasound, etc.)
-3. Specify the body part or region to be examined
-4. Document the reason for the examination
-5. Indicate if contrast is required
-6. Provide any special instructions or patient preparation requirements
-7. Complete and sign the order
-
-
-
-### Referral Orders
-
-To create referrals to specialists:
-
-1. Access the Referral section under Orders
-2. Select the specialty or specific provider
-3. Document the reason for referral
-4. Include relevant clinical information
-5. Specify urgency (routine, urgent, STAT)
-6. Add any specific questions for the consultant
-7. Complete and route the referral
-
-
-
-## Clinical Notes Documentation
-
-
-
-### Progress Notes
-
-Creating comprehensive progress notes:
-
-1. Select the appropriate note type (progress note, procedure note, etc.)
-2. Use templates or SmartTools to structure the note
-3. Document subjective information (patient complaints, history)
-4. Record objective findings (exam results, vital signs, lab results)
-5. Document assessment and clinical impression
-6. Detail the treatment plan and follow-up instructions
-7. Sign and complete the note
-
-
-
-### SmartTools and Templates
-
-Epic offers several documentation aids:
-
-1. **SmartPhrases**: Expand abbreviations into full text (e.g., ".hpi" becomes a history template)
-2. **SmartLists**: Present pick-lists for common documentation elements
-3. **SmartLinks**: Pull in patient-specific data (labs, vitals, etc.)
-4. **SmartSets**: Group orders, documentation templates, and patient instructions
-5. **Templates**: Pre-formatted note structures for consistent documentation""",
+Carrier logos only display on proposals for carriers with an *Instant* rate
+connection. Other carriers' names display in plain text.""",
     },
     {
         "id": "chunk3",
-        "content": """## Patient Education and Instructions
+        "content": """# Renew a Certificate
 
-Epic facilitates patient education through:
+Renew the policy in question before renewing a certificate.
 
-1. **After Visit Summaries (AVS)**: Customized visit summaries with care instructions
-2. **Patient Instructions**: Pre-built or custom instructions for specific conditions
-3. **Education Materials**: Integrated resources for patient education
-4. **MyChart Integration**: Ability to send materials directly to patient portal
-5. **Documentation**: Record which materials were provided to patients
+1. Locate the client in question and access the Proofs of Insurance area.
+2. Click **Certificates** on the navigation panel.
+3. A list of certificates for the selected customer displays. Change the certificates that display in the list if necessary.
+4. Click on the appropriate **certificate** in the list.
+5. Do one of the following:
+   * Click **Actions > Renew Certificate** on the options bar.
+   * Click **Actions > Renew Certificate** on the menubar.
+   * Right click the **certificate** and select **Actions > Renew Certificate**.
+6. The *Renew* window displays. In the *Default* section, select **checkboxes** for any items that you wish to pull into the new certificate from the existing one.
+7. Click **Detail**.
+8. The *Certificate Detail* screen displays. The navigation panel expands to show the available categories for the selected certificate.
+9. Click to highlight the desired **template** in the list.
+10. In the **Line of Business** dropdown menu, select the new policy.
+11. Complete the rest of the certificate as usual. Be sure to make any necessary holder changes.
+12. To close the certificate, click the "X" next to the certificate on the navigation panel. Your changes are saved automatically.
+13. The new certificate displays in the list. Click to highlight it, and then issue the certificate.""",
+    },
+    {
+        "id": "chunk4",
+        "content": """# Faxing Setup
 
+This function allows you to set up faxing for incoming and outgoing faxes. You
+can set COM port settings, *Brooktrout* settings, and dialing rules.
 
+The Integrated Faxing Application is already a part of Applied Epic; however, a
+license is required to activate the application. This is activated by installing
+the Fax Server Client (FSC) on the dedicated fax server.
 
-## Reporting and Analytics
+Once you have installed the Fax Server Client, use the following instructions to
+configure your faxing.
 
-Epic provides robust reporting capabilities:
+1. From the Home screen, do one of the following:
+   * Click **Configure** on the navigation panel.
+   * Click the **down arrow** next to *Home* on the menubar and select **Configure**.
+   * Click **Areas > Configure** on the menubar.
 
-1. **Standard Reports**: Pre-built reports for common metrics
-2. **Custom Reports**: Tools to create tailored reports for specific needs
-3. **Dashboards**: Visual displays of key performance indicators
-4. **Population Health**: Tools to analyze and manage patient populations
-5. **Regulatory Reporting**: Support for required quality measures and regulatory submissions
+2. Click **Job Management** on the navigation panel, or **Areas > Job Management** on the menubar.
+3. Click **Fax Setup** on the navigation panel.
+4. If this is your first time configuring faxing setup, the list at the top of the screen is blank. Click the **Add** button to add a Fax Server Client.
 
+## COM Port Settings
 
+If you are using *Brooktrout* channels only, you may skip this tab.
 
-## Best Practices for Efficient Documentation
+1. The *COM Port Settings* list shows all communication ports available on the machine running the Fax Server Client. Check the **port(s)** that will be used.
+2. Highlight each selected port and select a **Port functionality** from the dropdown list:
+   + **Send/Receive:** Select this option if you only have one communication port and must use it for both functions.
+   + **Send Only**
+   + **Receive Only**""",
+    },
+    {
+        "id": "chunk5",
+        "content": """# VINlink Decoder Configuration
 
-To optimize documentation workflow in Epic:
+VINlink Decoder is a Canadian tool that ensures that VIN numbers are valid and
+belong to the described vehicles. Rather than enter a username and password
+every time you use this tool, you can configure VINlink Decoder to submit that
+information automatically to the WebVINlink website.
 
-1. **Learn SmartTools**: Invest time in mastering SmartPhrases and SmartLinks
-2. **Customize Templates**: Adapt templates to your specific documentation needs
-3. **Use QuickActions**: Create shortcuts for frequent tasks
-4. **Organize Workspace**: Customize your workspace for efficiency
-5. **Utilize Mobile Apps**: Use Epic's mobile applications for documentation on the go
-6. **Leverage Voice Recognition**: Integrate speech recognition for faster documentation
-7. **Optimize In-Basket Management**: Develop efficient processes for message handling
+1. From the Home screen, do one of the following:
+   * Click **Configure** on the navigation panel.
+   * Click **Areas > Configure** on the menubar.
+   * Click the **down arrow** next to *Home* on the options bar and select **Configure**.
 
+   From any other area of the program, do one of the following:
 
-
-## Troubleshooting Common Issues
-
-When encountering problems in Epic:
-
-1. **System Alerts**: Pay attention to system warnings and alerts
-2. **Help Resources**: Use Epic's built-in help functionality
-3. **IT Support**: Contact your organization's Epic support team
-4. **Feedback**: Provide structured feedback for system improvements
-5. **Training**: Attend refresher training for updated functionality""",
+   * Click the **down arrow** to the right of *Home* on the options bar and select **Configure**.
+   * Click **Home > Configure** on the menubar.
+2. Click **User Options > VINlink Decoder** on the navigation panel.
+3. Enter the appropriate **employee code** in the *Employee to edit* field and click the **lookup** button, or click in **Employee to edit** field and press **[Tab]** to open the Employee to Edit screen.
+4. Enter or edit the **Username** and **Password**.""",
     },
 ]
 
@@ -216,187 +195,170 @@ When encountering problems in Epic:
 ENRICHED_CHUNKS = [
     {
         "id": "enriched_chunk1",
-        "content": """Overview of Epic EMR functionality, specifically detailing common clinical workflows like patient registration, vital signs documentation, medication management, and problem list management.
+        "content": """This document explains how to access and use email within the Applied Epic insurance agency management system, including both the integrated Epic Email client and Microsoft Outlook integration options.
 
-# Epic Healthcare Documentation - Clinical Workflows
+# Email
 
+Applied Epic allows you to launch an integrated email client from within the
+system for all routine email workflows except those initiated by Distribution
+Manager. Your organization may opt to use *Microsoft Outlook* or an Epic custom
+message window for this integration, or allow you to make an individual
+selection in Email Settings Configuration. Regardless of the option you are
+using, do one of the following to access your email:
 
+* From the Home screen, click **Email** on the navigation panel or **Areas > Email** on the menubar.
+* To access email from any other part of the program, click the **down arrow** next to *Home* on the options bar and select **Email**.
 
-## Introduction to Epic EMR
+**Note:** If you are using *Microsoft Outlook*, *Outlook* opens to the last
+window you accessed. This window may open in focus or minimized in the taskbar.
 
-Epic Systems Corporation is a leading provider of electronic medical record (EMR) software used by hospitals, healthcare providers, and other medical organizations. Epic's software platform includes a suite of integrated applications for both clinical and revenue operations, with modules covering patient care, registration, scheduling, billing, and more.
+## Epic Email
 
-The Epic EMR system is designed to create a seamless, unified patient record across care settings, enabling healthcare providers to access complete and up-to-date patient information regardless of where the patient receives care within a healthcare system.
+This is a custom message window unique to Applied Epic. It contains the
+functionality you would expect from most email clients and is comprised of the
+following sections:
 
+* Menubar
+* Email Folders
+* Search Bar
+* Email List
+* Reading Pane
 
+## Microsoft Outlook
 
-## Key Features and Benefits
-
-Epic EMR offers several key features and benefits:
-
-1. **Integrated Platform**: A unified system for clinical, administrative, and billing functions
-2. **Interoperability**: Ability to share data with other healthcare systems
-3. **Mobile Access**: Secure access to patient information from mobile devices
-4. **Patient Portal (MyChart)**: Online access for patients to view their health records
-5. **Decision Support**: Tools to help clinicians make informed decisions
-6. **Reporting and Analytics**: Comprehensive data analysis capabilities
-
-
-
-## Clinical Documentation Workflows
-
-
-
-### Patient Registration and Check-in
-
-The patient registration process in Epic involves capturing demographic information, insurance details, and consent forms. Key steps include:
-
-1. **Patient Search**: First, search for the patient in the system to avoid duplicate records
-2. **Demographics Entry**: Collect or update patient information including name, DOB, address
-3. **Insurance Verification**: Capture and verify insurance information
-4. **Consent Forms**: Document patient consent for treatment and privacy notices
-5. **Medical History**: Collect preliminary information about medical history and current medications
-
-
-
-### Vital Signs Documentation
-
-Documenting accurate vital signs is essential for patient assessment:
-
-1. Access the patient's chart and navigate to the vitals flowsheet
-2. Record temperature, blood pressure, pulse, respiratory rate, and oxygen saturation
-3. Document height, weight, and pain score as appropriate
-4. Enter any relevant notes about the measurements
-5. Save the documentation""",
+Applied Epic opens *Microsoft Outlook* (even if you do not currently have it
+open outside of Epic) whenever you click on a hyperlinked email address or the
+envelope button beside an email address, or perform the Send via Email action.""",
     },
     {
         "id": "enriched_chunk2",
-        "content": """This section details workflows for ordering tests and documenting patient encounters within Epic, including specific steps for lab, imaging, and referral orders, as well as utilizing Epic's SmartTools and templates for efficient note creation.
+        "content": """This document explains how to use the Quote Results screen in Applied Epic to compare insurance carrier rates, prepare proposals for clients, and finalize quotes within the insurance agency management system.
 
-## Order Management
+# Quote Results
 
+On the *Quote Results* screen, you can view and compare carrier rates, review
+quote details, add additional quotes to the session, prepare agency-branded
+proposals, and finalize a quote.
 
+You may be prompted to select a username/password combination and/or a code to
+use for the rate you are running if you have multiple credentials or codes saved
+for the same carrier. If so, select a **username/password** and/or a **code**
+and click the **Use Login Info** button.
 
-### Lab Orders
+To edit risk detail for the quote from the *Quote Results* screen, click the
+**button** that displays the quote's line type beside the *+ Quote* button.
 
-To order laboratory tests in Epic:
+You can add additional quotes to the same session on the *Quote Results* screen
+(for example, if the client wants a Homeowners as well as a Personal Auto
+quote). All quotes in the session display on the *Quote Results* screen,
+although they will have separate results and will need to be accepted
+separately. If you accept multiple quotes, the system will create them as
+separate monoline policies, not as a package policy.
 
-1. Navigate to the Orders tab in the patient's chart
-2. Select "Laboratory" from the order types
-3. Search for and select the specific lab test(s)
-4. Enter collection details (time, priority, special instructions)
-5. Select the appropriate diagnosis to link to the order
-6. Complete and sign the order
+## Quote Results List
 
+The *Quote Results* screen displays a list of carriers who provided a rate for
+your quote based on the risk detail you entered on the *Quoting Session* screen,
+and whose websites are selected in Quote Setup. A *Credit Check* icon   displays
+beside any carrier that performed a credit check when providing a rate.
 
+If you did not configure an agent/producer code for a carrier in Quotes Setup,
+enter your **code** and click **Get Rate** in the *Premium* column to get a rate
+for the quote from that carrier. To save this agent/producer code to Quotes
+Setup for future use with the carrier, click **Save**.
 
-### Imaging Orders
+## Prepare Proposal
 
-For radiology and other imaging orders:
+Generate an agency-branded proposal to share with your client. In the proposal,
+you can present multiple carrier rates, indicate recommended rates, and provide
+a coverage comparison for the rates included.
 
-1. Select "Imaging/Radiology" from the order types
-2. Choose the appropriate study (X-ray, CT, MRI, ultrasound, etc.)
-3. Specify the body part or region to be examined
-4. Document the reason for the examination
-5. Indicate if contrast is required
-6. Provide any special instructions or patient preparation requirements
-7. Complete and sign the order
-
-
-
-### Referral Orders
-
-To create referrals to specialists:
-
-1. Access the Referral section under Orders
-2. Select the specialty or specific provider
-3. Document the reason for referral
-4. Include relevant clinical information
-5. Specify urgency (routine, urgent, STAT)
-6. Add any specific questions for the consultant
-7. Complete and route the referral
-
-
-
-## Clinical Notes Documentation
-
-
-
-### Progress Notes
-
-Creating comprehensive progress notes:
-
-1. Select the appropriate note type (progress note, procedure note, etc.)
-2. Use templates or SmartTools to structure the note
-3. Document subjective information (patient complaints, history)
-4. Record objective findings (exam results, vital signs, lab results)
-5. Document assessment and clinical impression
-6. Detail the treatment plan and follow-up instructions
-7. Sign and complete the note
-
-
-
-### SmartTools and Templates
-
-Epic offers several documentation aids:
-
-1. **SmartPhrases**: Expand abbreviations into full text (e.g., ".hpi" becomes a history template)
-2. **SmartLists**: Present pick-lists for common documentation elements
-3. **SmartLinks**: Pull in patient-specific data (labs, vitals, etc.)
-4. **SmartSets**: Group orders, documentation templates, and patient instructions
-5. **Templates**: Pre-formatted note structures for consistent documentation""",
+Carrier logos only display on proposals for carriers with an *Instant* rate
+connection. Other carriers' names display in plain text.""",
     },
     {
         "id": "enriched_chunk3",
-        "content": """This section details post-clinical workflow aspects of Epic, including patient education, reporting/analytics, documentation best practices, and troubleshooting.
+        "content": """This document provides step-by-step instructions for renewing an insurance certificate in Applied Epic, including accessing the client's Proofs of Insurance area, selecting certificate options, and completing the renewal process.
 
-## Patient Education and Instructions
+# Renew a Certificate
 
-Epic facilitates patient education through:
+Renew the policy in question before renewing a certificate.
 
-1. **After Visit Summaries (AVS)**: Customized visit summaries with care instructions
-2. **Patient Instructions**: Pre-built or custom instructions for specific conditions
-3. **Education Materials**: Integrated resources for patient education
-4. **MyChart Integration**: Ability to send materials directly to patient portal
-5. **Documentation**: Record which materials were provided to patients
+1. Locate the client in question and access the Proofs of Insurance area.
+2. Click **Certificates** on the navigation panel.
+3. A list of certificates for the selected customer displays. Change the certificates that display in the list if necessary.
+4. Click on the appropriate **certificate** in the list.
+5. Do one of the following:
+   * Click **Actions > Renew Certificate** on the options bar.
+   * Click **Actions > Renew Certificate** on the menubar.
+   * Right click the **certificate** and select **Actions > Renew Certificate**.
+6. The *Renew* window displays. In the *Default* section, select **checkboxes** for any items that you wish to pull into the new certificate from the existing one.
+7. Click **Detail**.
+8. The *Certificate Detail* screen displays. The navigation panel expands to show the available categories for the selected certificate.
+9. Click to highlight the desired **template** in the list.
+10. In the **Line of Business** dropdown menu, select the new policy.
+11. Complete the rest of the certificate as usual. Be sure to make any necessary holder changes.
+12. To close the certificate, click the "X" next to the certificate on the navigation panel. Your changes are saved automatically.
+13. The new certificate displays in the list. Click to highlight it, and then issue the certificate.""",
+    },
+    {
+        "id": "enriched_chunk4",
+        "content": """This document explains how to set up and configure the integrated faxing application in Applied Epic for insurance agencies, including COM port settings, Brooktrout settings, and other configuration options.
 
+# Faxing Setup
 
+This function allows you to set up faxing for incoming and outgoing faxes. You
+can set COM port settings, *Brooktrout* settings, and dialing rules.
 
-## Reporting and Analytics
+The Integrated Faxing Application is already a part of Applied Epic; however, a
+license is required to activate the application. This is activated by installing
+the Fax Server Client (FSC) on the dedicated fax server.
 
-Epic provides robust reporting capabilities:
+Once you have installed the Fax Server Client, use the following instructions to
+configure your faxing.
 
-1. **Standard Reports**: Pre-built reports for common metrics
-2. **Custom Reports**: Tools to create tailored reports for specific needs
-3. **Dashboards**: Visual displays of key performance indicators
-4. **Population Health**: Tools to analyze and manage patient populations
-5. **Regulatory Reporting**: Support for required quality measures and regulatory submissions
+1. From the Home screen, do one of the following:
+   * Click **Configure** on the navigation panel.
+   * Click the **down arrow** next to *Home* on the menubar and select **Configure**.
+   * Click **Areas > Configure** on the menubar.
 
+2. Click **Job Management** on the navigation panel, or **Areas > Job Management** on the menubar.
+3. Click **Fax Setup** on the navigation panel.
+4. If this is your first time configuring faxing setup, the list at the top of the screen is blank. Click the **Add** button to add a Fax Server Client.
 
+## COM Port Settings
 
-## Best Practices for Efficient Documentation
+If you are using *Brooktrout* channels only, you may skip this tab.
 
-To optimize documentation workflow in Epic:
+1. The *COM Port Settings* list shows all communication ports available on the machine running the Fax Server Client. Check the **port(s)** that will be used.
+2. Highlight each selected port and select a **Port functionality** from the dropdown list:
+   + **Send/Receive:** Select this option if you only have one communication port and must use it for both functions.
+   + **Send Only**
+   + **Receive Only**""",
+    },
+    {
+        "id": "enriched_chunk5",
+        "content": """This document provides instructions for configuring the VINlink Decoder tool in Applied Epic, which helps insurance agencies in Canada verify vehicle identification numbers during the quoting and policy creation process.
 
-1. **Learn SmartTools**: Invest time in mastering SmartPhrases and SmartLinks
-2. **Customize Templates**: Adapt templates to your specific documentation needs
-3. **Use QuickActions**: Create shortcuts for frequent tasks
-4. **Organize Workspace**: Customize your workspace for efficiency
-5. **Utilize Mobile Apps**: Use Epic's mobile applications for documentation on the go
-6. **Leverage Voice Recognition**: Integrate speech recognition for faster documentation
-7. **Optimize In-Basket Management**: Develop efficient processes for message handling
+# VINlink Decoder Configuration
 
+VINlink Decoder is a Canadian tool that ensures that VIN numbers are valid and
+belong to the described vehicles. Rather than enter a username and password
+every time you use this tool, you can configure VINlink Decoder to submit that
+information automatically to the WebVINlink website.
 
+1. From the Home screen, do one of the following:
+   * Click **Configure** on the navigation panel.
+   * Click **Areas > Configure** on the menubar.
+   * Click the **down arrow** next to *Home* on the options bar and select **Configure**.
 
-## Troubleshooting Common Issues
+   From any other area of the program, do one of the following:
 
-When encountering problems in Epic:
-
-1. **System Alerts**: Pay attention to system warnings and alerts
-2. **Help Resources**: Use Epic's built-in help functionality
-3. **IT Support**: Contact your organization's Epic support team
-4. **Feedback**: Provide structured feedback for system improvements
-5. **Training**: Attend refresher training for updated functionality""",
+   * Click the **down arrow** to the right of *Home* on the options bar and select **Configure**.
+   * Click **Home > Configure** on the menubar.
+2. Click **User Options > VINlink Decoder** on the navigation panel.
+3. Enter the appropriate **employee code** in the *Employee to edit* field and click the **lookup** button, or click in **Employee to edit** field and press **[Tab]** to open the Employee to Edit screen.
+4. Enter or edit the **Username** and **Password**.""",
     },
 ]
 
