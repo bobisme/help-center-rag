@@ -1,8 +1,12 @@
-# Epic Documentation CLI
+# Epic Documentation Tools
 
-A command-line tool to crawl the Applied Systems Epic documentation and compile it into a single markdown file.
+This project contains tools for working with Epic healthcare system documentation:
 
-## Features
+1. **Epic Documentation CLI**: A tool to crawl Epic docs and convert to Markdown
+2. **HTML to Markdown Converter**: A Python tool for preprocessing HTML docs
+3. **Epic Documentation RAG System**: A retrieval system based on Anthropic's Contextual Retrieval methodology
+
+## Documentation CLI Features
 
 - Crawls the Epic documentation website
 - Extracts all documentation content
@@ -13,6 +17,26 @@ A command-line tool to crawl the Applied Systems Epic documentation and compile 
 - Outputs everything to a single searchable markdown file
 - Condenses markdown to fit in LLM context windows
 - Estimates token counts for different LLM models
+
+## HTML to Markdown Converter Features
+
+- Specialized HTML cleanup for Epic documentation
+- Fixes nested list structures for proper Markdown conversion
+- Converts inline styles to semantic HTML (bold/italic)
+- Handles image path resolution and processing
+- Well-structured Python package design
+- Command-line interface with Typer and Rich
+
+## RAG System Features
+
+- Retrieval-Augmented Generation using Anthropic's Contextual Retrieval methodology
+- Domain-driven design with clean architecture
+- Dynamic document chunking optimized for context retrieval
+- Two-stage retrieval process for better query accuracy
+- Qdrant vector database integration
+- SQLite document store with JSON support
+- ZenML pipeline orchestration
+- Command-line interface with Rich formatting
 
 ## Installation
 
@@ -148,6 +172,92 @@ epic-help count <file-path>
 - Typecheck: `bun x tsc --noEmit`
 - Format: `bun x prettier --write "**/*.{ts,js,json}"`
 - Lint: `bun run lint`
+
+## HTML to Markdown Converter Usage
+
+The HTML to Markdown converter is optimized for Epic documentation structure.
+
+```bash
+# Basic conversion from a JSON file
+python -m html2md convert --file path/to/epic/docs.json
+
+# Convert a specific page by ID
+python -m html2md convert --file path/to/epic/docs.json --page-id 12345
+
+# List available pages in the JSON file
+python -m html2md list --file path/to/epic/docs.json
+
+# Show tool information
+python -m html2md info
+```
+
+The converter provides special preprocessing for:
+- Nested lists (fixing indentation issues)
+- Inline styles (converting to semantic HTML)
+- Image paths (resolving to local references)
+- Link handling (processing local references)
+
+## RAG System Usage
+
+The RAG system builds on the converted documentation to provide intelligent retrieval of Epic documentation.
+
+### Project Structure
+
+```
+epic_rag/
+├── domain/                 # Core business logic and entities
+│   ├── models/             # Domain entities
+│   ├── repositories/       # Data access interfaces
+│   └── services/           # Business logic interfaces
+├── application/            # Use cases and orchestration
+│   ├── pipelines/          # ZenML pipelines
+│   └── use_cases/          # Application use cases
+├── infrastructure/         # Technical implementations
+│   ├── config/             # Configuration
+│   ├── embedding/          # Vector database implementations
+│   └── persistence/        # Data persistence implementations
+└── interfaces/             # User interfaces
+    └── cli/                # Command-line interface
+```
+
+### Contextual Retrieval Methodology
+
+This system implements Anthropic's Contextual Retrieval approach, which improves upon standard RAG systems by:
+
+1. **Two-Stage Retrieval**: Initial broader retrieval followed by a more focused retrieval
+2. **Dynamic Chunk Sizing**: Intelligently determining chunk sizes based on content
+3. **Context-Aware Merging**: Combining retrieved chunks based on semantic relatedness
+4. **Relevance Filtering**: Using LLMs to filter retrieved chunks by relevance
+5. **Query Transformation**: Rewriting queries to better match document corpus semantics
+
+### Basic Usage
+
+```bash
+# Install the RAG system
+pip install -e .
+
+# Ingest documents
+epic-rag ingest --source-dir data/markdown
+
+# Query the system
+epic-rag query "How do I create a new patient record?"
+
+# Show system information
+epic-rag info
+```
+
+### ZenML Pipelines
+
+```bash
+# Run document processing pipeline
+python -m epic_rag.application.pipelines.document_processing_pipeline \
+  --source-dir data/markdown \
+  --dynamic-chunking
+
+# Run query evaluation pipeline
+python -m epic_rag.application.pipelines.query_evaluation_pipeline \
+  --query-file data/test_queries.txt
+```
 
 ## License
 
