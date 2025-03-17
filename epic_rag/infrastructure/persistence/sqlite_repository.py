@@ -1,7 +1,6 @@
 """SQLite implementation of the document repository."""
 
 import json
-import sqlite3
 import asyncio
 from datetime import datetime
 from typing import List, Optional, Dict, Any
@@ -29,11 +28,31 @@ class SQLiteDocumentRepository(DocumentRepository):
 
     async def _initialize_db(self):
         """Initialize the database schema."""
+        # Ensure parent directory exists
+        import os
+
+        os.makedirs(os.path.dirname(self.db_path), exist_ok=True)
+
         async with aiosqlite.connect(self.db_path) as db:
-            # Enable JSON extension if requested
+            # Configure database settings
             if self.enable_json:
-                await db.execute("PRAGMA journal_mode=WAL;")
-                await db.execute("PRAGMA foreign_keys=ON;")
+                # Load the JSON extension
+                await db.execute(
+                    "PRAGMA module_list;"
+                )  # This forces SQLite to load extensions
+
+            # Set pragmas for performance and reliability
+            await db.execute("PRAGMA journal_mode=WAL;")  # Write-ahead logging
+            await db.execute(
+                "PRAGMA foreign_keys=ON;"
+            )  # Enable foreign key constraints
+            await db.execute(
+                "PRAGMA synchronous=NORMAL;"
+            )  # Balance between safety and speed
+            await db.execute("PRAGMA temp_store=MEMORY;")  # Store temp tables in memory
+            await db.execute(
+                "PRAGMA cache_size=-10000;"
+            )  # Use 10MB of memory for cache
 
             # Create documents table
             await db.execute(
@@ -69,12 +88,56 @@ class SQLiteDocumentRepository(DocumentRepository):
             """
             )
 
-            # Create indices
+            # Create query history table
+            await db.execute(
+                """
+                CREATE TABLE IF NOT EXISTS query_history (
+                    id TEXT PRIMARY KEY,
+                    query_text TEXT NOT NULL,
+                    transformed_query TEXT,
+                    timestamp TEXT NOT NULL,
+                    metadata TEXT
+                );
+            """
+            )
+
+            # Create statistics table
+            await db.execute(
+                """
+                CREATE TABLE IF NOT EXISTS statistics (
+                    key TEXT PRIMARY KEY,
+                    value TEXT,
+                    updated_at TEXT
+                );
+            """
+            )
+
+            # Create indices for performance
             await db.execute(
                 "CREATE INDEX IF NOT EXISTS idx_chunks_document_id ON chunks(document_id);"
             )
             await db.execute(
                 "CREATE INDEX IF NOT EXISTS idx_documents_epic_page_id ON documents(epic_page_id);"
+            )
+            await db.execute(
+                "CREATE INDEX IF NOT EXISTS idx_document_title ON documents(title);"
+            )
+            await db.execute(
+                "CREATE INDEX IF NOT EXISTS idx_query_timestamp ON query_history(timestamp);"
+            )
+
+            # Initialize statistics
+            await db.execute(
+                """
+                INSERT OR IGNORE INTO statistics (key, value, updated_at)
+                VALUES ('document_count', '0', datetime('now'))
+            """
+            )
+            await db.execute(
+                """
+                INSERT OR IGNORE INTO statistics (key, value, updated_at)
+                VALUES ('chunk_count', '0', datetime('now'))
+            """
             )
 
             await db.commit()
@@ -83,13 +146,20 @@ class SQLiteDocumentRepository(DocumentRepository):
         """Save a document to the repository."""
         async with aiosqlite.connect(self.db_path) as db:
             # Ensure timestamps are set
-            now = datetime.now().isoformat()
             if not document.created_at:
                 document.created_at = datetime.now()
             document.updated_at = datetime.now()
 
             # Convert metadata to JSON string
             metadata_json = json.dumps(document.metadata)
+
+            # Check if document exists
+            is_new = False
+            async with db.execute(
+                "SELECT id FROM documents WHERE id = ?", (document.id,)
+            ) as cursor:
+                if await cursor.fetchone() is None:
+                    is_new = True
 
             # Insert or replace document
             await db.execute(
@@ -109,6 +179,17 @@ class SQLiteDocumentRepository(DocumentRepository):
                     document.updated_at.isoformat(),
                 ),
             )
+
+            # Update document count if it's a new document
+            if is_new:
+                await db.execute(
+                    """
+                    UPDATE statistics
+                    SET value = CAST(CAST(value AS INTEGER) + 1 AS TEXT),
+                        updated_at = datetime('now')
+                    WHERE key = 'document_count'
+                """
+                )
 
             await db.commit()
 
@@ -221,6 +302,14 @@ class SQLiteDocumentRepository(DocumentRepository):
             # Convert metadata to JSON string
             metadata_json = json.dumps(chunk.metadata)
 
+            # Check if chunk exists
+            is_new = False
+            async with db.execute(
+                "SELECT id FROM chunks WHERE id = ?", (chunk.id,)
+            ) as cursor:
+                if await cursor.fetchone() is None:
+                    is_new = True
+
             # Insert or replace chunk
             await db.execute(
                 """
@@ -240,6 +329,17 @@ class SQLiteDocumentRepository(DocumentRepository):
                     getattr(chunk, "vector_id", None),
                 ),
             )
+
+            # Update chunk count if it's a new chunk
+            if is_new:
+                await db.execute(
+                    """
+                    UPDATE statistics 
+                    SET value = CAST(CAST(value AS INTEGER) + 1 AS TEXT),
+                        updated_at = datetime('now')
+                    WHERE key = 'chunk_count'
+                """
+                )
 
             await db.commit()
 
@@ -312,3 +412,48 @@ class SQLiteDocumentRepository(DocumentRepository):
                     chunk.vector_id = row[8]
 
                 return chunk
+
+    async def get_statistics(self) -> Dict[str, Any]:
+        """Get repository statistics."""
+        async with aiosqlite.connect(self.db_path) as db:
+            stats = {}
+
+            # Get statistics from the statistics table
+            async with db.execute(
+                "SELECT key, value, updated_at FROM statistics"
+            ) as cursor:
+                async for row in cursor:
+                    key, value, updated_at = row
+                    # Try to convert numeric values
+                    try:
+                        if "." in value:
+                            value = float(value)
+                        else:
+                            value = int(value)
+                    except (ValueError, TypeError):
+                        pass
+
+                    stats[key] = {"value": value, "updated_at": updated_at}
+
+            # Get additional statistics
+            # Count total content size
+            async with db.execute(
+                "SELECT SUM(LENGTH(content)) FROM documents"
+            ) as cursor:
+                row = await cursor.fetchone()
+                if row and row[0]:
+                    stats["total_content_size"] = {
+                        "value": row[0],
+                        "updated_at": datetime.now().isoformat(),
+                    }
+
+            # Get average chunk size
+            async with db.execute("SELECT AVG(LENGTH(content)) FROM chunks") as cursor:
+                row = await cursor.fetchone()
+                if row and row[0]:
+                    stats["avg_chunk_size"] = {
+                        "value": int(row[0]),
+                        "updated_at": datetime.now().isoformat(),
+                    }
+
+            return stats

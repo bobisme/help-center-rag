@@ -9,10 +9,12 @@ from typing import Dict, Any, Optional
 class DatabaseSettings:
     """Settings for SQLite database."""
 
-    path: str = "epic_rag.db"
+    path: str = "data/epic_rag.db"
     enable_json: bool = True
     enable_foreign_keys: bool = True
     journal_mode: str = "WAL"  # Write-Ahead Logging for better concurrency
+    synchronous: str = "NORMAL"  # Compromise between safety and performance
+    temp_store: str = "MEMORY"  # Store temp tables and indices in memory
 
 
 @dataclass

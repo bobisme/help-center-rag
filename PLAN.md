@@ -41,8 +41,8 @@ The system implements Anthropic's Contextual Retrieval approach, which improves 
 - [x] Set up project structure following domain-driven design
 - [x] Create core domain models and interfaces
 - [x] Implement document processing for dynamic chunking
-- [ ] Set up SQLite database with JSON extension
-- [ ] Implement document storage and retrieval layer
+- [x] Set up SQLite database with JSON extension
+- [x] Implement document storage and retrieval layer
 
 ### Phase 2: Vector Database and Embeddings
 

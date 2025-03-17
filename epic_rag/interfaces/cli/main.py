@@ -1,8 +1,7 @@
 """Command-line interface for Epic Documentation RAG system."""
 
-import os
 import asyncio
-from typing import List, Optional
+from typing import Optional
 
 import typer
 from rich.console import Console
@@ -11,7 +10,6 @@ from rich.progress import Progress, TextColumn, BarColumn, TaskProgressColumn
 from rich.panel import Panel
 
 from ...domain.models.document import Document
-from ...domain.models.retrieval import Query
 from ...infrastructure.config.settings import settings
 from ...infrastructure.container import container, setup_container
 from ...application.use_cases.ingest_document import IngestDocumentUseCase
@@ -438,6 +436,94 @@ def visualize_chunks(
             console.print()
 
 
+@app.command("test-db")
+def test_database():
+    """Test the document storage by adding a test document."""
+    import uuid
+    from datetime import datetime
+
+    # Get chunking service and document repository
+    chunking_service = container.get("chunking_service")
+    document_repository = container.get("document_repository")
+
+    # Create a test document
+    document_id = str(uuid.uuid4())
+    test_content = """\
+# Test Document
+
+This is a test document created to verify database functionality.
+
+## Section 1
+
+This is the first section of the test document.
+
+## Section 2
+
+This is the second section with a list:
+
+1. Item one
+2. Item two
+3. Item three
+
+## Section 3
+
+This is the final section of our test document.
+"""
+
+    # Create document
+
+    document = Document(
+        id=document_id,
+        title="Test Document",
+        content=test_content,
+        created_at=datetime.now(),
+        updated_at=datetime.now(),
+        metadata={"test": True, "created_by": "CLI", "purpose": "Database testing"},
+    )
+
+    # Process the document
+    async def process_document():
+        # Save document
+        console.print("[bold blue]Saving document to database...[/bold blue]")
+        saved_doc = await document_repository.save_document(document)
+
+        # Generate chunks
+        console.print("[bold blue]Generating chunks...[/bold blue]")
+        chunks = await chunking_service.dynamic_chunk_document(
+            document=saved_doc, min_chunk_size=200, max_chunk_size=500
+        )
+
+        # Save chunks
+        console.print(
+            f"[bold blue]Saving {len(chunks)} chunks to database...[/bold blue]"
+        )
+        for chunk in chunks:
+            await document_repository.save_chunk(chunk)
+
+        # Get statistics
+        stats = await document_repository.get_statistics()
+
+        return {"document": saved_doc, "chunks": chunks, "stats": stats}
+
+    # Run the processing
+    results = asyncio.run(process_document())
+
+    # Show results
+    console.print()
+    console.print(
+        Panel(
+            f"[bold green]Successfully saved test document and chunks[/bold green]\n\n"
+            f"Document ID: {results['document'].id}\n"
+            f"Title: {results['document'].title}\n"
+            f"Chunks: {len(results['chunks'])}\n"
+            f"Document Count: {results['stats']['document_count']['value']}\n"
+            f"Chunk Count: {results['stats']['chunk_count']['value']}",
+            title="Database Test Results",
+            border_style="green",
+        )
+    )
+
+
 @app.command("info")
 def show_system_info():
     """Show system information and statistics."""
@@ -448,17 +534,16 @@ def show_system_info():
     # Get statistics async
     async def get_stats():
         try:
-            # Get document counts
-            documents = await document_repository.list_documents()
-            doc_count = len(documents)
+            # Get repository statistics
+            db_stats = await document_repository.get_statistics()
 
             # Get collection stats
             vector_stats = await vector_repository.get_collection_stats()
 
-            return {"document_count": doc_count, "vector_stats": vector_stats}
+            return {"db_stats": db_stats, "vector_stats": vector_stats}
         except Exception as e:
             console.print(f"[bold red]Error getting statistics:[/bold red] {str(e)}")
-            return {"document_count": 0, "vector_stats": {}}
+            return {"db_stats": {}, "vector_stats": {}}
 
     # Run the stats collection
     stats = asyncio.run(get_stats())
@@ -484,14 +569,34 @@ def show_system_info():
     table.add_column("Metric", style="cyan")
     table.add_column("Value", style="green")
 
-    table.add_row("Documents Stored", str(stats["document_count"]))
+    # Add document stats
+    db_stats = stats["db_stats"]
+    if "document_count" in db_stats:
+        table.add_row("Documents Stored", str(db_stats["document_count"]["value"]))
+
+    if "chunk_count" in db_stats:
+        table.add_row("Chunks Stored", str(db_stats["chunk_count"]["value"]))
+
+    if "total_content_size" in db_stats:
+        size_kb = db_stats["total_content_size"]["value"] / 1024
+        table.add_row("Total Content Size", f"{size_kb:.2f} KB")
+
+    if "avg_chunk_size" in db_stats:
+        table.add_row(
+            "Average Chunk Size", f"{db_stats['avg_chunk_size']['value']} chars"
+        )
 
     # Add vector stats if available
-    if "vector_count" in stats["vector_stats"]:
-        table.add_row("Vectors Stored", str(stats["vector_stats"]["vector_count"]))
+    vector_stats = stats["vector_stats"]
+    if "vector_count" in vector_stats:
+        table.add_row("Vectors Stored", str(vector_stats["vector_count"]))
 
-    if "segment_count" in stats["vector_stats"]:
-        table.add_row("Vector Segments", str(stats["vector_stats"]["segment_count"]))
+    if "segment_count" in vector_stats:
+        table.add_row("Vector Segments", str(vector_stats["segment_count"]))
+
+    if "size_bytes" in vector_stats and vector_stats["size_bytes"]:
+        size_mb = vector_stats["size_bytes"] / (1024 * 1024)
+        table.add_row("Vector DB Size", f"{size_mb:.2f} MB")
 
     console.print(table)
 

@@ -178,3 +178,7 @@ dist
 
 # Python stuff
 *.pyc
+
+# Database
+data/
+qdrant_data/
