@@ -75,6 +75,10 @@ The system implements Anthropic's Contextual Retrieval approach, which improves 
 - [x] Build embedding generation step
 - [x] Set up retrieval evaluation step
 - [x] Create end-to-end orchestration pipeline
+- [x] Implement contextual enrichment for chunks using LLM
+  - [x] Create prompt template for generating chunk context
+  - [x] Integrate with local LLM (Ollama/Gemma) for context generation
+  - [x] Add context to chunks before embedding
 
 ### Phase 5: Evaluation and Optimization
 

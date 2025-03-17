@@ -237,6 +237,7 @@ This system implements Anthropic's Contextual Retrieval approach, which improves
 5. **Context-Aware Merging**: Combining retrieved chunks based on semantic relatedness
 6. **Relevance Filtering**: Using similarity scores to filter retrieved chunks by relevance
 7. **Query Transformation**: Rewriting queries to better match document corpus semantics using LLMs
+8. **Contextual Enrichment**: Using LLMs to generate context for chunks before embedding
 
 ### Basic Usage
 
@@ -362,6 +363,7 @@ EPIC_RAG_BM25_WEIGHT=0.4  # Weight for BM25 results in hybrid search
 EPIC_RAG_VECTOR_WEIGHT=0.6  # Weight for vector results in hybrid search
 EPIC_RAG_ENABLE_QUERY_TRANSFORMATION=true  # Enable query transformation
 EPIC_RAG_ENABLE_CHUNK_MERGING=true  # Enable merging of related chunks
+EPIC_RAG_ENABLE_CONTEXTUAL_ENRICHMENT=true  # Enable LLM-based contextual enrichment for chunks
 
 # Reranker configuration
 EPIC_RAG_RERANKER_ENABLED=false  # Enable cross-encoder reranking
@@ -394,6 +396,9 @@ epic-rag zenml-run --source-dir data/markdown --query-file data/test_queries.txt
 
 # Run with custom parameters
 epic-rag zenml-run --source-dir data/markdown --pattern "**/*.md" --limit 10 --min-chunk-size 400 --max-chunk-size 900
+
+# Run with contextual enrichment disabled
+epic-rag zenml-run --source-dir data/markdown --pipeline document_processing --skip-enrichment
 ```
 
 #### Running Pipelines Directly
@@ -417,7 +422,7 @@ python -m epic_rag.application.pipelines.orchestration_pipeline \
 
 #### Pipeline Overview
 
-1. **Document Processing Pipeline**: Handles document loading, preprocessing, and ingestion
+1. **Document Processing Pipeline**: Handles document loading, preprocessing, chunking, contextual enrichment, and ingestion
 2. **Query Evaluation Pipeline**: Evaluates query performance against a test set
 3. **Orchestration Pipeline**: Combines all steps in an end-to-end workflow
 

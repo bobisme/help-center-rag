@@ -11,6 +11,8 @@ from zenml.config import DockerSettings
 from .document_processing_pipeline import (
     load_markdown_documents,
     preprocess_documents,
+    chunk_documents,
+    enrich_document_chunks,
     ingest_documents,
 )
 from .query_evaluation_pipeline import (
@@ -215,6 +217,7 @@ def orchestration_pipeline(
     min_chunk_size: int = 300,
     max_chunk_size: int = 800,
     chunk_overlap: int = 50,
+    apply_enrichment: bool = True,
     query_file: Optional[str] = None,
     first_stage_k: int = 20,
     second_stage_k: int = 5,
@@ -235,6 +238,7 @@ def orchestration_pipeline(
         min_chunk_size: Minimum chunk size when using dynamic chunking
         max_chunk_size: Maximum chunk size when using dynamic chunking
         chunk_overlap: Overlap between chunks
+        apply_enrichment: Whether to apply LLM-based contextual enrichment to chunks
         query_file: Optional file containing test queries
         first_stage_k: Number of documents to retrieve in first stage
         second_stage_k: Number of documents to retrieve in second stage
@@ -256,8 +260,8 @@ def orchestration_pipeline(
     # Step 3: Preprocess documents
     preprocessed_documents = preprocess_documents(documents=documents)
 
-    # Step 4: Ingest documents
-    ingestion_stats = ingest_documents(
+    # Step 4: Chunk documents
+    chunked_documents = chunk_documents(
         documents=preprocessed_documents,
         dynamic_chunking=dynamic_chunking,
         min_chunk_size=min_chunk_size,
@@ -265,10 +269,18 @@ def orchestration_pipeline(
         chunk_overlap=chunk_overlap,
     )
 
-    # Step 5: Prepare data for evaluation
+    # Step 5: Enrich chunks with contextual information
+    enriched_documents = enrich_document_chunks(
+        documents=chunked_documents, apply_enrichment=apply_enrichment
+    )
+
+    # Step 6: Ingest documents
+    ingestion_stats = ingest_documents(documents=enriched_documents)
+
+    # Step 7: Prepare data for evaluation
     evaluation_data = prepare_data_for_evaluation(processed_data=ingestion_stats)
 
-    # Step 6: Load or generate test queries
+    # Step 8: Load or generate test queries
     # For now, let's skip the query evaluation part to simplify the pipeline
     # and avoid return type issues
 

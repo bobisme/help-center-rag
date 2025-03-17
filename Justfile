@@ -73,6 +73,60 @@ benchmark-bm25-custom q iters docs:
 info:
     python -m epic_rag.interfaces.cli.main info
 
+# Test document processing pipeline with contextual enrichment
+zenml-docs-enriched:
+    python -m epic_rag.interfaces.cli.main zenml-run --source-dir data/markdown --pipeline document_processing --limit 5 --apply-enrichment
+
+# Test document processing pipeline without contextual enrichment
+zenml-docs-plain:
+    python -m epic_rag.interfaces.cli.main zenml-run --source-dir data/markdown --pipeline document_processing --limit 5 --skip-enrichment
+
+# Test orchestration pipeline with contextual enrichment
+zenml-orchestration-enriched:
+    python -m epic_rag.interfaces.cli.main zenml-run --source-dir data/markdown --pipeline orchestration --limit 3 --apply-enrichment
+
+# Test contextual enrichment with sample document
+enrich-test:
+    #!/usr/bin/env bash
+    echo "Testing contextual enrichment on sample document..."
+    # Create test directory if it doesn't exist
+    mkdir -p test/samples
+    
+    # Create a sample markdown file if it doesn't exist
+    if [ ! -f test/samples/test_doc.md ]; then
+      echo "# Epic Documentation Sample
+    
+    ## Introduction
+    
+    This is a sample document about Epic healthcare software documentation.
+    
+    ## Patient Registration
+    
+    The patient registration module allows healthcare providers to register new patients,
+    update demographic information, and manage patient records efficiently.
+    
+    ## Medication Management
+    
+    Epic's medication management features help providers:
+    
+    1. Prescribe medications safely
+    2. Check for drug interactions
+    3. Monitor medication adherence
+    4. Document adverse reactions
+    " > test/samples/test_doc.md
+    fi
+    
+    # Run the document processing pipeline with enrichment enabled
+    python -m epic_rag.interfaces.cli.main zenml-run --source-dir test/samples --pipeline document_processing --apply-enrichment
+
+# Simple test that directly shows enrichment results
+enrich-simple:
+    python -m epic_rag.interfaces.cli.main test-enrichment test_sample.md
+
+# Test enrichment with custom file
+enrich file='test_sample.md' chunks=3:
+    python -m epic_rag.interfaces.cli.main test-enrichment {{file}} --max-chunks {{chunks}}
+
 # Stop ZenML server
 zenml-stop:
     zenml logout --local

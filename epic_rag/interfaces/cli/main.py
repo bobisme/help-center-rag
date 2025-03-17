@@ -1846,6 +1846,11 @@ def run_zenml_pipeline(
     chunk_overlap: int = typer.Option(
         50, "--chunk-overlap", help="Overlap between chunks"
     ),
+    apply_enrichment: bool = typer.Option(
+        True,
+        "--apply-enrichment/--skip-enrichment",
+        help="Apply LLM-based contextual enrichment to chunks",
+    ),
     query_file: Optional[str] = typer.Option(
         None, "--query-file", "-q", help="Optional file containing test queries"
     ),
@@ -1871,6 +1876,7 @@ def run_zenml_pipeline(
             f"[cyan]File Pattern:[/cyan] {pattern}\n"
             f"[cyan]Chunking:[/cyan] {'Dynamic' if dynamic_chunking else 'Fixed'} "
             f"(min={min_chunk_size}, max={max_chunk_size}, overlap={chunk_overlap})\n"
+            f"[cyan]Contextual Enrichment:[/cyan] {'Enabled' if apply_enrichment else 'Disabled'}\n"
             f"[cyan]Query File:[/cyan] {query_file or 'Auto-generated queries'}\n",
             title="ZenML Pipeline Execution",
             border_style="blue",
@@ -1894,6 +1900,7 @@ def run_zenml_pipeline(
                 min_chunk_size=min_chunk_size,
                 max_chunk_size=max_chunk_size,
                 chunk_overlap=chunk_overlap,
+                apply_enrichment=apply_enrichment,
                 query_file=query_file,
             )
         elif pipeline_name.lower() == "document_processing":
@@ -1913,6 +1920,7 @@ def run_zenml_pipeline(
                 min_chunk_size=min_chunk_size,
                 max_chunk_size=max_chunk_size,
                 chunk_overlap=chunk_overlap,
+                apply_enrichment=apply_enrichment,
             )
         elif pipeline_name.lower() == "query_evaluation":
             from ...application.pipelines.query_evaluation_pipeline import (
@@ -1959,6 +1967,116 @@ def run_zenml_pipeline(
 
         console.print(traceback.format_exc())
         sys.exit(1)
+
+
+@app.command("test-enrichment")
+def test_enrichment(
+    file_path: str = typer.Argument(..., help="Path to the markdown file to enrich"),
+    max_chunks: int = typer.Option(
+        5, "--max-chunks", "-n", help="Maximum number of chunks to display"
+    ),
+):
+    """Test contextual enrichment on a markdown file.
+
+    This command processes a markdown file, chunks it, and applies contextual enrichment
+    to each chunk, displaying the before and after results.
+    """
+    import asyncio
+    from ...domain.models.document import Document
+    from ...infrastructure.document_processing.chunking_service import (
+        MarkdownChunkingService,
+    )
+
+    async def process_file():
+        # Initialize services
+        chunking_service = MarkdownChunkingService()
+        enrichment_service = container.get("contextual_enrichment_service")
+
+        # Read the markdown file
+        try:
+            with open(file_path, "r", encoding="utf-8") as f:
+                content = f.read()
+        except FileNotFoundError:
+            console.print(f"[bold red]Error:[/bold red] File not found: {file_path}")
+            return
+        except Exception as e:
+            console.print(f"[bold red]Error reading file:[/bold red] {str(e)}")
+            return
+
+        # Create document object
+        doc_title = (
+            file_path.split("/")[-1].replace(".md", "").replace("_", " ").title()
+        )
+        document = Document(
+            title=doc_title,
+            content=content,
+            metadata={"source_path": file_path, "file_type": "markdown"},
+        )
+
+        # Create chunks
+        with Progress(
+            TextColumn("[bold blue]{task.description}"),
+            BarColumn(),
+            TaskProgressColumn(),
+            console=console,
+        ) as progress:
+            task = progress.add_task("Chunking document", total=100)
+            progress.update(task, advance=30)
+
+            chunks = await chunking_service.dynamic_chunk_document(
+                document=document, min_chunk_size=300, max_chunk_size=800
+            )
+
+            progress.update(task, advance=40, description="Enriching chunks")
+
+            # Enrich chunks
+            enriched_chunks = await enrichment_service.enrich_chunks(document, chunks)
+
+            progress.update(task, completed=100, description="Complete")
+
+        # Display document info
+        console.print()
+        console.print(
+            Panel(
+                f"[bold]Document:[/bold] {document.title}\n"
+                f"[bold]Content Length:[/bold] {len(document.content)} characters\n"
+                f"[bold]Chunks Created:[/bold] {len(chunks)}",
+                title="Document Information",
+                border_style="blue",
+            )
+        )
+
+        # Display results (limit to max_chunks)
+        display_chunks = min(len(chunks), max_chunks)
+        for i, (original, enriched) in enumerate(
+            zip(chunks[:display_chunks], enriched_chunks[:display_chunks])
+        ):
+            # Calculate the added context (what was prepended)
+            added_context = enriched.metadata.get("context", "No context added")
+
+            # Display the chunk comparison
+            console.print()
+            console.print(
+                Panel(
+                    f"[bold cyan]Original Content (first 200 chars):[/bold cyan]\n"
+                    f"{original.content[:200].strip()}...\n\n"
+                    f"[bold green]Enriched Content (first 200 chars):[/bold green]\n"
+                    f"{enriched.content[:200].strip()}...\n\n"
+                    f"[bold yellow]Added Context:[/bold yellow]\n"
+                    f"{added_context}",
+                    title=f"Chunk {i+1}/{len(chunks)}",
+                    border_style="green",
+                )
+            )
+
+        # If we limited the display, show a message
+        if len(chunks) > max_chunks:
+            console.print(
+                f"\n[dim]Showing {max_chunks} of {len(chunks)} chunks. Use --max-chunks option to view more.[/dim]"
+            )
+
+    # Run the async function
+    asyncio.run(process_file())
 
 
 @app.command("info")

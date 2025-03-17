@@ -134,6 +134,9 @@ def setup_container():
 
     # Import LLM service
     from epic_rag.infrastructure.llm.ollama_llm_service import OllamaLLMService
+    from epic_rag.infrastructure.llm.contextual_enrichment_service import (
+        OllamaContextualEnrichmentService,
+    )
 
     # Import BM25 search services
     from epic_rag.infrastructure.search.bm25_search_service import BM25SearchService
@@ -148,6 +151,12 @@ def setup_container():
     container.register_factory(
         "llm_service",
         lambda c: OllamaLLMService(settings=settings.llm),
+    )
+
+    # Register contextual enrichment service
+    container.register_factory(
+        "contextual_enrichment_service",
+        lambda c: OllamaContextualEnrichmentService(llm_service=c.get("llm_service")),
     )
 
     # Register BM25 search service based on configuration
