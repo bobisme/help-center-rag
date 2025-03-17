@@ -34,6 +34,7 @@ This project contains tools for working with Epic healthcare system documentatio
 - Dynamic document chunking optimized for context retrieval
 - Two-stage retrieval process for better query accuracy
 - Hybrid search combining BM25 (lexical) and vector (semantic) search with rank fusion
+- Multiple BM25 implementations (rank-bm25 and Huggingface's bm25s)
 - Query transformation using local LLMs (Ollama integration with gemma3:27b)
 - Multiple embedding providers (HuggingFace E5-large-v2, OpenAI, Google Gemini)
 - Efficient two-level embedding caching (memory + disk)
@@ -351,6 +352,7 @@ EPIC_RAG_FIRST_STAGE_K=20  # Number of results in first stage
 EPIC_RAG_SECOND_STAGE_K=5  # Number of results in second stage
 EPIC_RAG_MIN_RELEVANCE_SCORE=0.7  # Minimum relevance score for filtering
 EPIC_RAG_ENABLE_BM25=true  # Enable BM25 search
+EPIC_RAG_BM25_IMPLEMENTATION=bm25s  # BM25 implementation to use ("bm25" or "bm25s")
 EPIC_RAG_BM25_WEIGHT=0.4  # Weight for BM25 results in hybrid search
 EPIC_RAG_VECTOR_WEIGHT=0.6  # Weight for vector results in hybrid search
 EPIC_RAG_ENABLE_QUERY_TRANSFORMATION=true  # Enable query transformation

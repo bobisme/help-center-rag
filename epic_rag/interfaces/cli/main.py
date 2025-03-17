@@ -902,9 +902,23 @@ def test_bm25(
     show_full_content: bool = typer.Option(
         False, "--full-content", "-f", help="Show full chunk content instead of preview"
     ),
+    debug: bool = typer.Option(
+        False, "--debug", "-d", help="Show detailed debug information"
+    ),
 ):
     """Test BM25 search functionality."""
     from epic_rag.domain.models.retrieval import Query
+    import logging
+
+    # Set up debug logging if requested
+    if debug:
+        root_logger = logging.getLogger()
+        root_logger.setLevel(logging.DEBUG)
+        handler = logging.StreamHandler()
+        handler.setLevel(logging.DEBUG)
+        formatter = logging.Formatter("%(name)s - %(levelname)s - %(message)s")
+        handler.setFormatter(formatter)
+        root_logger.addHandler(handler)
 
     # Get BM25 service
     bm25_service = container.get("bm25_search_service")
@@ -928,6 +942,16 @@ def test_bm25(
             progress.update(task, advance=30, description="Indexing documents")
             await bm25_service.reindex_all()
 
+            # Show corpus debug info
+            if debug:
+                corpus_content = getattr(bm25_service, "corpus", [])
+                console.print(
+                    f"[bold cyan]BM25 Corpus Size:[/bold cyan] {len(corpus_content)}"
+                )
+                if len(corpus_content) > 0:
+                    console.print("[bold cyan]First document sample:[/bold cyan]")
+                    console.print(corpus_content[0][:200] + "...")
+
             # Run BM25 search
             progress.update(task, advance=30, description="Searching")
             result = await bm25_service.search(query, limit=limit)
@@ -938,6 +962,48 @@ def test_bm25(
     # Run search
     try:
         result = asyncio.run(run_search())
+
+        # Direct BM25S test if debugging is enabled
+        if debug:
+            console.print("\n[bold blue]Direct BM25S Test:[/bold blue]")
+
+            # Import BM25S directly
+            import bm25s
+
+            # Get the corpus directly from the service
+            corpus = getattr(bm25_service, "corpus", [])
+
+            if not corpus:
+                console.print("[yellow]Corpus is empty, can't run direct test[/yellow]")
+            else:
+                console.print(f"Corpus size: {len(corpus)}")
+                console.print("Building direct BM25 model...")
+
+                # Create a fresh BM25 model
+                model = bm25s.BM25(corpus=corpus)
+
+                # Tokenize corpus and query
+                console.print("Tokenizing corpus and query...")
+                tokenized_corpus = bm25s.tokenize(corpus)
+                tokenized_query = bm25s.tokenize([query.text])
+
+                # Index and retrieve
+                console.print("Indexing corpus...")
+                model.index(tokenized_corpus)
+
+                console.print(f"Running search for: '{query.text}'")
+                k = min(3, len(corpus))
+                doc_indices, scores = model.retrieve(tokenized_query, k=k)
+
+                console.print(f"Got results: {doc_indices}")
+                console.print(f"Scores: {scores}")
+
+                # Show first document match if any
+                if doc_indices and doc_indices[0]:
+                    idx = doc_indices[0][0]
+                    score = scores[0][0]
+                    console.print(f"Top match (idx={idx}, score={score}):")
+                    console.print(corpus[idx][:200] + "...")
 
         # Display results
         console.print()
@@ -1193,6 +1259,270 @@ def test_hybrid_search(
             console.print(f"Total latency: {results['fused'].latency_ms:.2f}ms")
         else:
             console.print("Total latency: N/A")
+
+    except Exception as e:
+        console.print(f"[bold red]Error:[/bold red] {str(e)}")
+        import traceback
+
+        console.print(traceback.format_exc())
+
+
+@app.command("benchmark-bm25")
+def benchmark_bm25(
+    query_text: str = typer.Argument(..., help="Query text to search"),
+    iterations: int = typer.Option(
+        10, "--iterations", "-n", help="Number of iterations for benchmark"
+    ),
+    limit: int = typer.Option(
+        10, "--limit", "-l", help="Maximum number of results to return"
+    ),
+    document_count: int = typer.Option(
+        50, "--documents", "-d", help="Number of test documents to generate"
+    ),
+):
+    """Benchmark different BM25 implementations."""
+    import time
+    import numpy as np
+    import random
+    import string
+    import uuid
+    from datetime import datetime
+
+    from epic_rag.domain.models.retrieval import Query
+    from epic_rag.domain.models.document import Document, DocumentChunk
+    from epic_rag.infrastructure.search.bm25_search_service import BM25SearchService
+    from epic_rag.infrastructure.search.bm25s_search_service import BM25SSearchService
+
+    # Get document repository
+    document_repository = container.get("document_repository")
+
+    # Create both implementations
+    bm25_service = BM25SearchService(document_repository=document_repository)
+    bm25s_service = BM25SSearchService(document_repository=document_repository)
+
+    # Create query
+    query = Query(
+        id=str(uuid.uuid4()),
+        text=query_text,
+        metadata={"source": "cli"},
+    )
+
+    # Run benchmark
+    async def run_benchmark():
+        with Progress(
+            TextColumn("[bold blue]{task.description}"),
+            BarColumn(),
+            TaskProgressColumn(),
+            console=console,
+        ) as progress:
+            # First, clear existing documents and create test data
+            prep_task = progress.add_task(
+                "Preparing test data...", total=document_count
+            )
+
+            # Generate test data
+            test_chunks = []
+            topics = ["healthcare", "technology", "finance", "education", "sports"]
+
+            # Keywords that will be in the query
+            query_keywords = query_text.lower().split()
+
+            for i in range(document_count):
+                # Generate random content with some query keywords
+                topic = random.choice(topics)
+                words = [
+                    random.choice(string.ascii_lowercase)
+                    for _ in range(random.randint(100, 500))
+                ]
+
+                # Insert some query keywords randomly
+                for keyword in query_keywords:
+                    for _ in range(random.randint(0, 3)):
+                        position = random.randint(0, len(words) - 1)
+                        words[position] = keyword
+
+                content = f"# Document about {topic}\n\nThis is a test document about {topic}. "
+                content += " ".join(words)
+
+                # Create a document chunk
+                chunk = DocumentChunk(
+                    id=f"test-{i}",
+                    document_id=f"doc-{i}",
+                    content=content,
+                    metadata={"title": f"Test Document {i}", "topic": topic},
+                    chunk_index=0,
+                )
+
+                test_chunks.append(chunk)
+                progress.update(prep_task, advance=1)
+
+            # Index documents
+            progress.update(
+                prep_task, completed=True, description="Indexing documents in BM25..."
+            )
+            await bm25_service.index_documents(test_chunks)
+
+            progress.update(prep_task, description="Indexing documents in BM25S...")
+            await bm25s_service.index_documents(test_chunks)
+
+            progress.update(prep_task, description="Test data prepared")
+
+            # Run benchmark iterations
+            bm25_task = progress.add_task(
+                "Benchmarking BM25 (rank-bm25)...", total=iterations
+            )
+            bm25s_task = progress.add_task(
+                "Benchmarking BM25S (huggingface)...", total=iterations
+            )
+
+            # Warm-up run
+            await bm25_service.search(query, limit=limit)
+            await bm25s_service.search(query, limit=limit)
+
+            # BM25 benchmark
+            bm25_latencies = []
+            for i in range(iterations):
+                start_time = time.time()
+                result = await bm25_service.search(query, limit=limit)
+                latency = (time.time() - start_time) * 1000
+                bm25_latencies.append(latency)
+                progress.update(bm25_task, advance=1)
+
+            # BM25S benchmark
+            bm25s_latencies = []
+            for i in range(iterations):
+                start_time = time.time()
+                result = await bm25s_service.search(query, limit=limit)
+                latency = (time.time() - start_time) * 1000
+                bm25s_latencies.append(latency)
+                progress.update(bm25s_task, advance=1)
+
+            # Run comparison search to verify result quality
+            bm25_results = await bm25_service.search(query, limit=limit)
+            bm25s_results = await bm25s_service.search(query, limit=limit)
+
+            return {
+                "bm25": {
+                    "latencies": bm25_latencies,
+                    "results": bm25_results,
+                },
+                "bm25s": {
+                    "latencies": bm25s_latencies,
+                    "results": bm25s_results,
+                },
+            }
+
+    # Run benchmark
+    try:
+        results = asyncio.run(run_benchmark())
+
+        # Calculate statistics
+        bm25_latencies = results["bm25"]["latencies"]
+        bm25s_latencies = results["bm25s"]["latencies"]
+
+        bm25_avg = np.mean(bm25_latencies)
+        bm25_min = np.min(bm25_latencies)
+        bm25_max = np.max(bm25_latencies)
+        bm25_stddev = np.std(bm25_latencies)
+
+        bm25s_avg = np.mean(bm25s_latencies)
+        bm25s_min = np.min(bm25s_latencies)
+        bm25s_max = np.max(bm25s_latencies)
+        bm25s_stddev = np.std(bm25s_latencies)
+
+        speedup = bm25_avg / bm25s_avg if bm25s_avg > 0 else 0
+
+        # Display results
+        console.print()
+        console.print(
+            Panel(
+                f"[bold]Query:[/bold] {query_text}\n"
+                f"[bold]Iterations:[/bold] {iterations}\n"
+                f"[bold]Results Limit:[/bold] {limit}\n"
+                f"[bold]Test Documents:[/bold] {document_count}",
+                title="BM25 Implementations Benchmark",
+                border_style="blue",
+            )
+        )
+
+        # Show performance comparison
+        console.print()
+        table = Table(title="Performance Comparison")
+        table.add_column("Metric", style="cyan")
+        table.add_column("BM25 (rank-bm25)", style="green")
+        table.add_column("BM25S (huggingface)", style="green")
+        table.add_column("Speedup", style="yellow")
+
+        table.add_row(
+            "Average Latency",
+            f"{bm25_avg:.2f} ms",
+            f"{bm25s_avg:.2f} ms",
+            f"{speedup:.2f}x faster" if speedup > 1 else f"{1/speedup:.2f}x slower",
+        )
+        table.add_row("Min Latency", f"{bm25_min:.2f} ms", f"{bm25s_min:.2f} ms", "")
+        table.add_row("Max Latency", f"{bm25_max:.2f} ms", f"{bm25s_max:.2f} ms", "")
+        table.add_row(
+            "Std Deviation", f"{bm25_stddev:.2f} ms", f"{bm25s_stddev:.2f} ms", ""
+        )
+        table.add_row(
+            "Result Count",
+            str(len(results["bm25"]["results"].chunks)),
+            str(len(results["bm25s"]["results"].chunks)),
+            "",
+        )
+
+        console.print(table)
+
+        # Show result quality comparison (first 3 results)
+        console.print()
+        console.print("[bold blue]Top Results Comparison:[/bold blue]")
+
+        # Create a side-by-side view of the first 3 results
+        max_results = min(
+            3,
+            max(
+                len(results["bm25"]["results"].chunks),
+                len(results["bm25s"]["results"].chunks),
+            ),
+        )
+        if max_results > 0:
+            for i in range(max_results):
+                bm25_chunk = (
+                    results["bm25"]["results"].chunks[i]
+                    if i < len(results["bm25"]["results"].chunks)
+                    else None
+                )
+                bm25s_chunk = (
+                    results["bm25s"]["results"].chunks[i]
+                    if i < len(results["bm25s"]["results"].chunks)
+                    else None
+                )
+
+                bm25_content = bm25_chunk.content[:200] + "..." if bm25_chunk else "N/A"
+                bm25s_content = (
+                    bm25s_chunk.content[:200] + "..." if bm25s_chunk else "N/A"
+                )
+
+                bm25_score = (
+                    f"{bm25_chunk.relevance_score:.4f}" if bm25_chunk else "N/A"
+                )
+                bm25s_score = (
+                    f"{bm25s_chunk.relevance_score:.4f}" if bm25s_chunk else "N/A"
+                )
+
+                console.print(f"[bold]Result {i+1}:[/bold]")
+                console.print(f"[bold]BM25 Score:[/bold] {bm25_score}")
+                console.print(f"[bold]BM25S Score:[/bold] {bm25s_score}")
+
+                columns = Table.grid(padding=1)
+                columns.add_column("BM25", style="green")
+                columns.add_column("BM25S", style="blue")
+
+                columns.add_row(bm25_content, bm25s_content)
+                console.print(columns)
+                console.print()
+        else:
+            console.print("[yellow]No results found to compare.[/yellow]")
 
     except Exception as e:
         console.print(f"[bold red]Error:[/bold red] {str(e)}")

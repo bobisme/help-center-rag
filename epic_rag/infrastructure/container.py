@@ -132,8 +132,9 @@ def setup_container():
     # Import LLM service
     from epic_rag.infrastructure.llm.ollama_llm_service import OllamaLLMService
 
-    # Import BM25 search service
+    # Import BM25 search services
     from epic_rag.infrastructure.search.bm25_search_service import BM25SearchService
+    from epic_rag.infrastructure.search.bm25s_search_service import BM25SSearchService
 
     # Import Rank Fusion service
     from epic_rag.infrastructure.search.rank_fusion_service import (
@@ -146,11 +147,21 @@ def setup_container():
         lambda c: OllamaLLMService(settings=settings.llm),
     )
 
-    # Register BM25 search service
-    container.register_factory(
-        "bm25_search_service",
-        lambda c: BM25SearchService(document_repository=c.get("document_repository")),
-    )
+    # Register BM25 search service based on configuration
+    if settings.retrieval.bm25_implementation.lower() == "bm25s":
+        container.register_factory(
+            "bm25_search_service",
+            lambda c: BM25SSearchService(
+                document_repository=c.get("document_repository")
+            ),
+        )
+    else:
+        container.register_factory(
+            "bm25_search_service",
+            lambda c: BM25SearchService(
+                document_repository=c.get("document_repository")
+            ),
+        )
 
     # Register Rank Fusion service
     container.register_factory(

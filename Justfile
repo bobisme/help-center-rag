@@ -61,6 +61,14 @@ hybrid-full q:
 hybrid-weights q b v:
     python -m epic_rag.interfaces.cli.main hybrid-search "{{q}}" --bm25-weight {{b}} --vector-weight {{v}}
 
+# Benchmark BM25 implementations
+benchmark-bm25 q:
+    python -m epic_rag.interfaces.cli.main benchmark-bm25 "{{q}}" --iterations 20 --documents 100
+
+# Benchmark BM25 implementations with custom parameters
+benchmark-bm25-custom q iters docs:
+    python -m epic_rag.interfaces.cli.main benchmark-bm25 "{{q}}" --iterations {{iters}} --documents {{docs}}
+
 # Show system information
 info:
     python -m epic_rag.interfaces.cli.main info
