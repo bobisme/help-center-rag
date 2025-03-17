@@ -24,7 +24,7 @@ class QdrantSettings:
     url: Optional[str] = None  # If None, use local instance
     api_key: Optional[str] = None
     collection_name: str = "epic_docs"
-    vector_size: int = 1536  # Default for many embedding models
+    vector_size: int = 1024  # Match E5-large-v2 dimensions
     distance: str = "Cosine"
 
     # Local settings (when url is None)
@@ -84,8 +84,8 @@ class EmbeddingSettings:
 class LLMSettings:
     """Settings for LLM service."""
 
-    provider: str = "openai"
-    model: str = "gpt-3.5-turbo"
+    provider: str = "ollama"
+    model: str = "gemma3:27b"  # Using more powerful model for better transformations
     api_key: Optional[str] = None
     temperature: float = 0.0  # Keep deterministic for retrieval
     max_tokens: int = 1024

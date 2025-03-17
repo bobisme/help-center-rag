@@ -27,6 +27,8 @@ dependencies = [
   "torch>=2.6.0",
   "einops>=0.8.1",
   "flash-attn>=2.7.4.post1",
+  "httpx>=0.28.1",
+  "litellm>=1.63.11",
 ]
 
 [dependency-groups]

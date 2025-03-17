@@ -21,6 +21,8 @@ from ...infrastructure.config.settings import Settings
 logger = logging.getLogger(__name__)
 
 
+from ...domain.services.llm_service import LLMService
+
 class ContextualRetrievalService(RetrievalService):
     """Implementation of the Contextual Retrieval methodology."""
 
@@ -29,7 +31,8 @@ class ContextualRetrievalService(RetrievalService):
         document_repository: DocumentRepository,
         vector_repository: VectorRepository,
         embedding_service: EmbeddingService,
-        settings: Settings,
+        llm_service: Optional[LLMService] = None,
+        settings: Settings = None,
     ):
         """Initialize the retrieval service.
 
@@ -37,11 +40,13 @@ class ContextualRetrievalService(RetrievalService):
             document_repository: Repository for document storage
             vector_repository: Repository for vector operations
             embedding_service: Service for generating embeddings
+            llm_service: Optional service for LLM operations like query transformation
             settings: Application settings
         """
         self.document_repository = document_repository
         self.vector_repository = vector_repository
         self.embedding_service = embedding_service
+        self.llm_service = llm_service
         self.settings = settings
 
     async def retrieve(
@@ -106,10 +111,28 @@ class ContextualRetrievalService(RetrievalService):
         Returns:
             Transformed query with updated text
         """
-        # TODO: Implement query transformation using LLM
-        # For now, we'll return the original query
-        logger.info(f"Query transformation not yet implemented. Using original query: {query.text}")
-        return query
+        if not self.llm_service or not self.settings.retrieval.enable_query_transformation:
+            logger.info(f"Query transformation disabled. Using original query: {query.text}")
+            return query
+            
+        try:
+            # Use LLM to transform the query
+            logger.info(f"Transforming query: {query.text}")
+            transformed_text = await self.llm_service.transform_query(query.text)
+            
+            # Create a new query with the transformed text but keep the original ID
+            # We'll need to re-embed the transformed query
+            transformed_query = Query(
+                id=query.id,
+                text=transformed_text,
+                metadata={**query.metadata, "original_query": query.text}
+            )
+            
+            logger.info(f"Transformed query: '{query.text}' -> '{transformed_text}'")
+            return transformed_query
+        except Exception as e:
+            logger.error(f"Error transforming query: {e}")
+            return query
 
     async def filter_chunks_by_relevance(
         self, query: Query, chunks: List[DocumentChunk], min_score: float = 0.7

@@ -830,6 +830,61 @@ async def _clear_cache_entries(cache, days):
     console.print(f"[bold green]Cleared {count} old entries older than {days} days.[/bold green]")
 
 
+@app.command("transform-query")
+def transform_query(
+    query_text: str = typer.Argument(..., help="Query text to transform"),
+    model: str = typer.Option(
+        "gemma3:27b", "--model", "-m", help="Ollama model to use for transformation"
+    ),
+):
+    """Test query transformation functionality using the LLM."""
+    from epic_rag.domain.models.retrieval import Query
+    
+    # Update the LLM model setting
+    settings.llm.model = model
+    
+    # Setup container with the specified model
+    setup_container()
+    
+    # Get LLM service
+    llm_service = container.get("llm_service")
+    
+    # Transform query
+    async def run_transform():
+        with Progress(
+            TextColumn("[bold blue]{task.description}"),
+            BarColumn(),
+            console=console,
+        ) as progress:
+            task = progress.add_task("Transforming query", total=100)
+            
+            # Update progress
+            progress.update(task, advance=10, description="Processing with LLM")
+            
+            # Transform query
+            transformed_text = await llm_service.transform_query(query_text)
+            
+            progress.update(task, completed=100, description="Complete")
+            return transformed_text
+    
+    # Run transformation
+    try:
+        transformed_text = asyncio.run(run_transform())
+        
+        # Display results
+        console.print()
+        console.print(
+            Panel(
+                f"[bold]Original Query:[/bold]\n{query_text}\n\n"
+                f"[bold]Transformed Query:[/bold]\n{transformed_text}",
+                title=f"Query Transformation ({model})",
+                border_style="green",
+            )
+        )
+    except Exception as e:
+        console.print(f"[bold red]Error:[/bold red] {str(e)}")
+        console.print("Make sure Ollama is running with the specified model.")
+
 @app.command("info")
 def show_system_info():
     """Show system information and statistics."""

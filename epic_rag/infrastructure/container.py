@@ -128,6 +128,15 @@ def setup_container():
     from epic_rag.infrastructure.embedding.cached_embedding_service import (
         CachedEmbeddingService,
     )
+    
+    # Import LLM service
+    from epic_rag.infrastructure.llm.ollama_llm_service import OllamaLLMService
+
+    # Register LLM service
+    container.register_factory(
+        "llm_service",
+        lambda c: OllamaLLMService(settings=settings.llm),
+    )
 
     # Register embedding service based on provider configuration
     if settings.embedding.provider.lower() == "openai":
@@ -227,6 +236,7 @@ def setup_container():
             document_repository=c.get("document_repository"),
             vector_repository=c.get("vector_repository"),
             embedding_service=c.get("embedding_service"),
+            llm_service=c.get("llm_service") if settings.retrieval.enable_query_transformation else None,
             settings=settings,
         ),
     )

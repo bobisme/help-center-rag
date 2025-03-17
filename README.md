@@ -33,6 +33,9 @@ This project contains tools for working with Epic healthcare system documentatio
 - Domain-driven design with clean architecture
 - Dynamic document chunking optimized for context retrieval
 - Two-stage retrieval process for better query accuracy
+- Query transformation using local LLMs (Ollama integration with gemma3:27b)
+- Multiple embedding providers (HuggingFace E5-large-v2, OpenAI, Google Gemini)
+- Efficient two-level embedding caching (memory + disk)
 - Qdrant vector database integration
 - SQLite document store with JSON support
 - ZenML pipeline orchestration
@@ -273,6 +276,12 @@ epic-rag test-embed "This is a test of the embedding service" --provider openai
 # Test with Gemini embeddings
 epic-rag test-embed "This is a test of the embedding service" --provider gemini
 
+# Test query transformation using local LLM
+epic-rag transform-query "How do I schedule a patient visit?"
+
+# Test query transformation with a specific model
+epic-rag transform-query "How do I modify patient allergies?" --model gemma3:27b
+
 # Compare semantic similarity between texts using local model
 epic-rag test-embed "Epic is a healthcare software company" --compare "Epic Systems makes EHR software for hospitals"
 
@@ -301,6 +310,10 @@ GEMINI_API_KEY=your_gemini_api_key
 # Embedding configuration
 EPIC_RAG_EMBEDDING_PROVIDER=huggingface  # or openai, gemini
 EPIC_RAG_EMBEDDING_API_KEY=your_embedding_api_key  # for cloud providers
+
+# LLM configuration for query transformation
+EPIC_RAG_LLM_PROVIDER=ollama  # Local LLM provider
+EPIC_RAG_LLM_MODEL=gemma3:27b  # Model to use for transformations
 
 # Provider-specific model configuration
 EPIC_RAG_OPENAI_EMBEDDING_MODEL=text-embedding-3-small

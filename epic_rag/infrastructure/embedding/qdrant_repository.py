@@ -150,15 +150,19 @@ class QdrantVectorRepository(VectorRepository):
                 if filter_conditions:
                     filter_obj = qmodels.Filter(must=filter_conditions)
 
-            # Perform search
-            results = self.client.search(
-                collection_name=self.collection_name,
-                query_vector=query.embedding,
-                limit=limit,
-                filter=filter_obj,
-                with_payload=True,
-                score_threshold=0.0,
-            )
+            # Perform search - conditionally add filter only if we have filter conditions
+            search_params = {
+                "collection_name": self.collection_name,
+                "query_vector": query.embedding,
+                "limit": limit,
+                "with_payload": True,
+                "score_threshold": 0.0,
+            }
+            
+            if filter_obj:
+                search_params["filter"] = filter_obj
+                
+            results = self.client.search(**search_params)
 
             # Convert results to chunks
             chunks = []

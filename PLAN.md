@@ -57,7 +57,7 @@ The system implements Anthropic's Contextual Retrieval approach, which improves 
 ### Phase 3: Retrieval Engine
 
 - [x] Implement first-stage broad retrieval
-- [ ] Develop query transformation functionality
+- [x] Develop query transformation functionality using local LLM (Ollama)
 - [x] Build context-aware chunk merging logic
 - [x] Create relevance filtering using similarity scores
 - [x] Develop retrieval pipeline with Anthropic's methodology
