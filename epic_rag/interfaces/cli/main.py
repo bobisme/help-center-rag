@@ -524,6 +524,183 @@ This is the final section of our test document.
     )
 
 
+@app.command("test-embed")
+def test_embedding(
+    text: str = typer.Argument(..., help="Text to embed"),
+    compare_with: Optional[str] = typer.Option(
+        None, "--compare", "-c", help="Optional text to compare similarity with"
+    ),
+    provider: str = typer.Option(
+        "current",
+        "--provider",
+        "-p",
+        help="Embedding provider to use (huggingface, openai, gemini, or current for using the configured provider)",
+    ),
+):
+    """Test the embedding service by embedding text and optionally comparing with another text."""
+    import numpy as np
+    from epic_rag.infrastructure.config.settings import settings as global_settings
+
+    # Backup original provider
+    original_provider = global_settings.embedding.provider
+
+    # Set provider if specified
+    if provider != "current":
+        if provider.lower() not in ["huggingface", "openai", "gemini"]:
+            console.print(f"[bold red]Error:[/bold red] Invalid provider '{provider}'.")
+            console.print("Supported providers: huggingface, openai, gemini")
+            return
+
+        global_settings.embedding.provider = provider.lower()
+        setup_container()
+
+    # Get embedding service
+    try:
+        embedding_service = container.get("embedding_service")
+    except KeyError:
+        console.print("[bold red]Error:[/bold red] Embedding service not registered.")
+        console.print(f"Make sure {provider.upper()}_API_KEY is properly configured.")
+
+        # Restore original provider
+        if provider != "current":
+            global_settings.embedding.provider = original_provider
+            setup_container()
+        return
+
+    # Embed the text
+    async def run_embedding():
+        with Progress(
+            TextColumn("[bold blue]{task.description}"),
+            BarColumn(),
+            TaskProgressColumn(),
+            console=console,
+        ) as progress:
+            task = progress.add_task("Generating embedding", total=100)
+
+            # Generate embedding for input text
+            progress.update(task, advance=30, description="Embedding input text")
+            embedding = await embedding_service.embed_text(text)
+
+            progress.update(task, advance=40, description="Processing")
+
+            # If comparison text is provided, generate embedding for it and calculate similarity
+            comparison_embedding = None
+            similarity = None
+
+            if compare_with:
+                progress.update(task, description="Embedding comparison text")
+                comparison_embedding = await embedding_service.embed_text(compare_with)
+
+                # Calculate similarity
+                progress.update(task, description="Calculating similarity")
+                similarity = await embedding_service.get_embedding_similarity(
+                    embedding, comparison_embedding
+                )
+
+            progress.update(task, completed=100, description="Complete")
+
+            return {
+                "text": text,
+                "embedding": embedding,
+                "dimensions": len(embedding),
+                "compare_with": compare_with,
+                "comparison_embedding": comparison_embedding,
+                "similarity": similarity,
+            }
+
+    # Run the embedding
+    result = asyncio.run(run_embedding())
+
+    # Show results
+    console.print()
+
+    # Get appropriate model name based on provider
+    model_name = settings.embedding.model
+    if settings.embedding.provider.lower() == "openai":
+        model_name = settings.embedding.openai_model
+    elif settings.embedding.provider.lower() == "gemini":
+        model_name = settings.embedding.gemini_model
+
+    console.print(
+        Panel(
+            f"[bold]Model:[/bold] {model_name}\n"
+            f"[bold]Provider:[/bold] {settings.embedding.provider}\n"
+            f"[bold]Dimensions:[/bold] {result['dimensions']}",
+            title="Embedding Information",
+            border_style="blue",
+        )
+    )
+
+    # Display preview of the embedding vector
+    console.print()
+    console.print("[bold]Text:[/bold]")
+    console.print(text)
+
+    # Show embedding preview (first few dimensions)
+    preview_count = min(5, len(result["embedding"]))
+    preview = ", ".join(f"{result['embedding'][i]:.6f}" for i in range(preview_count))
+
+    console.print()
+    console.print(
+        f"[bold]Embedding Vector[/bold] (first {preview_count} of {result['dimensions']} dimensions):"
+    )
+    console.print(f"[dim]{preview}...[/dim]")
+
+    # Display vector statistics
+    embedding_array = np.array(result["embedding"])
+    stats = {
+        "Mean": float(np.mean(embedding_array)),
+        "Std Dev": float(np.std(embedding_array)),
+        "Min": float(np.min(embedding_array)),
+        "Max": float(np.max(embedding_array)),
+        "L2 Norm": float(np.linalg.norm(embedding_array)),
+    }
+
+    console.print()
+    table = Table(title="Vector Statistics")
+    table.add_column("Metric", style="cyan")
+    table.add_column("Value", style="green")
+
+    for key, value in stats.items():
+        table.add_row(key, f"{value:.6f}")
+
+    console.print(table)
+
+    # Show similarity if comparison text was provided
+    if result["similarity"] is not None:
+        console.print()
+        console.print("[bold]Comparison Text:[/bold]")
+        console.print(compare_with)
+
+        console.print()
+        similarity_percentage = result["similarity"] * 100
+        similarity_level = (
+            "High"
+            if similarity_percentage > 80
+            else "Medium" if similarity_percentage > 50 else "Low"
+        )
+
+        console.print(
+            Panel(
+                f"[bold green]{similarity_percentage:.2f}%[/bold green]\n\n"
+                f"Similarity Level: [bold]{similarity_level}[/bold]",
+                title="Semantic Similarity",
+                border_style=(
+                    "green"
+                    if similarity_percentage > 70
+                    else "yellow" if similarity_percentage > 40 else "red"
+                ),
+            )
+        )
+
+    # Restore original provider if changed
+    if provider != "current":
+        from epic_rag.infrastructure.config.settings import settings as global_settings
+
+        global_settings.embedding.provider = original_provider
+        setup_container()
+
+
 @app.command("info")
 def show_system_info():
     """Show system information and statistics."""

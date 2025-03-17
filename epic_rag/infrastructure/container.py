@@ -81,6 +81,9 @@ def setup_container():
     from epic_rag.infrastructure.embedding.qdrant_repository import (
         QdrantVectorRepository,
     )
+    from epic_rag.infrastructure.embedding.openai_embedding_service import (
+        OpenAIEmbeddingService,
+    )
 
     # Register repositories
     container.register_factory(
@@ -109,3 +112,61 @@ def setup_container():
     )
 
     container.register_factory("chunking_service", lambda c: MarkdownChunkingService())
+    
+    # Register embedding service based on provider configuration
+    if settings.embedding.provider.lower() == "openai":
+        from epic_rag.infrastructure.embedding.openai_embedding_service import (
+            OpenAIEmbeddingService,
+        )
+        container.register_factory(
+            "embedding_service",
+            lambda c: OpenAIEmbeddingService(
+                settings=settings,
+                model=settings.embedding.openai_model,
+                dimensions=settings.embedding.openai_dimensions,
+                batch_size=settings.embedding.batch_size,
+            ),
+        )
+    elif settings.embedding.provider.lower() == "gemini":
+        from epic_rag.infrastructure.embedding.gemini_embedding_service import (
+            GeminiEmbeddingService,
+        )
+        container.register_factory(
+            "embedding_service",
+            lambda c: GeminiEmbeddingService(
+                settings=settings,
+                model=settings.embedding.gemini_model,
+                dimensions=settings.embedding.gemini_dimensions,
+                batch_size=settings.embedding.batch_size,
+            ),
+        )
+    elif settings.embedding.provider.lower() == "huggingface":
+        from epic_rag.infrastructure.embedding.huggingface_embedding_service import (
+            HuggingFaceEmbeddingService,
+        )
+        container.register_factory(
+            "embedding_service",
+            lambda c: HuggingFaceEmbeddingService(
+                settings=settings,
+                model_name=settings.embedding.huggingface_model,
+                dimensions=settings.embedding.huggingface_dimensions,
+                batch_size=settings.embedding.batch_size,
+                device=settings.embedding.device,
+                max_length=settings.embedding.max_length,
+            ),
+        )
+    
+    # Register retrieval service
+    from epic_rag.infrastructure.retrieval.retrieval_service import (
+        ContextualRetrievalService,
+    )
+    
+    container.register_factory(
+        "retrieval_service",
+        lambda c: ContextualRetrievalService(
+            document_repository=c.get("document_repository"),
+            vector_repository=c.get("vector_repository"),
+            embedding_service=c.get("embedding_service"),
+            settings=settings,
+        ),
+    )

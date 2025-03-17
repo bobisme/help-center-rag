@@ -5,32 +5,38 @@ description = "Epic Documentation RAG System using Anthropic's Contextual Retrie
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
-    # HTML to Markdown conversion
-    "beautifulsoup4>=4.13.3",
-    "html2text>=2024.2.26",
-    "markdown-it-py>=3.0.0",
-    "markdownify>=1.1.0",
-    # RAG System
-    "rich>=13.9.4",
-    "typer>=0.15.2",
-    "zenml[server]>=0.75.0",
-    "aiosqlite>=0.19.0",
-    "qdrant-client>=1.7.0",
-    "pydantic>=2.0.0",
-    "numpy>=1.24.0",
-    "openai>=1.6.0",
-    "tiktoken>=0.5.0",
-    "asyncio>=3.4.3",
+  # HTML to Markdown conversion
+  "beautifulsoup4>=4.13.3",
+  "html2text>=2024.2.26",
+  "markdown-it-py>=3.0.0",
+  "markdownify>=1.1.0",
+  # RAG System
+  "rich>=13.9.4",
+  "typer>=0.15.2",
+  "zenml[server]>=0.75.0",
+  "google-generativeai>=0.8.4",
+  "aiosqlite>=0.21.0",
+  "qdrant-client>=1.13.3",
+  "pydantic>=2.8.2",
+  "pydantic-settings>=2.8.1",
+  "numpy>=2.2.4",
+  "openai>=1.66.3",
+  "tiktoken>=0.9.0",
+  "asyncio>=3.4.3",
+  "transformers>=4.49.0",
+  "torch>=2.6.0",
+  "einops>=0.8.1",
+  "flash-attn>=2.7.4.post1",
 ]
 
 [dependency-groups]
 dev = [
-    "black>=25.1.0",
-    "flake8>=7.1.2",
-    "pyright>=1.1.396",
-    "ruff>=0.11.0",
-    "pytest>=7.3.1",
-    "pytest-asyncio>=0.21.0",
+  "black>=25.1.0",
+  "flake8>=7.1.2",
+  "pyright>=1.1.396",
+  "ruff>=0.11.0",
+  "pytest>=7.3.1",
+  "pytest-asyncio>=0.21.0",
 ]
 
 [project.scripts]

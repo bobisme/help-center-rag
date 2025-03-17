@@ -244,6 +244,70 @@ epic-rag query "How do I create a new patient record?"
 
 # Show system information
 epic-rag info
+
+# Test the embedding service
+epic-rag test-embed "How do I create a new patient record?"
+
+# Compare text similarity
+epic-rag test-embed "How do I create a new patient record?" --compare "What's the process for adding a new patient?"
+
+# Visualize document chunks
+epic-rag chunks --file data/markdown/patient_registration.md --dynamic
+```
+
+### Testing Database and Embeddings
+
+```bash
+# Test the database
+epic-rag test-db
+
+# Test with the default embedding provider (HuggingFace)
+epic-rag test-embed "This is a test of the embedding service"
+
+# Test with local HuggingFace model on GPU
+epic-rag test-embed "This is a test of the embedding service" --provider huggingface
+
+# Test with a specific provider (OpenAI)
+epic-rag test-embed "This is a test of the embedding service" --provider openai
+
+# Test with Gemini embeddings
+epic-rag test-embed "This is a test of the embedding service" --provider gemini
+
+# Compare semantic similarity between texts using local model
+epic-rag test-embed "Epic is a healthcare software company" --compare "Epic Systems makes EHR software for hospitals"
+
+# Compare using Gemini
+epic-rag test-embed "Epic is a healthcare software company" --compare "Epic Systems makes EHR software for hospitals" --provider gemini
+
+# Compare using OpenAI
+epic-rag test-embed "Epic is a healthcare software company" --compare "Epic Systems makes EHR software for hospitals" --provider openai
+```
+
+### Environment Variables
+
+The system uses the following environment variables:
+
+```
+# API Keys for embeddings (choose one or both)
+OPENAI_API_KEY=your_openai_api_key
+GEMINI_API_KEY=your_gemini_api_key
+
+# Embedding configuration
+EPIC_RAG_EMBEDDING_PROVIDER=huggingface  # or openai, gemini
+EPIC_RAG_EMBEDDING_API_KEY=your_embedding_api_key  # for cloud providers
+
+# Provider-specific model configuration
+EPIC_RAG_OPENAI_EMBEDDING_MODEL=text-embedding-3-small
+EPIC_RAG_GEMINI_EMBEDDING_MODEL=gemini-embedding-exp-03-07
+EPIC_RAG_HUGGINGFACE_MODEL=intfloat/e5-large-v2
+
+# HuggingFace specific settings (for local embeddings)
+EPIC_RAG_EMBEDDING_DEVICE=cuda  # cuda, cpu, mps
+
+# Qdrant configuration (optional for remote Qdrant)
+EPIC_RAG_QDRANT_URL=https://your-qdrant-instance.com
+EPIC_RAG_QDRANT_API_KEY=your_qdrant_api_key
+EPIC_RAG_QDRANT_COLLECTION=epic_docs
 ```
 
 ### ZenML Pipelines

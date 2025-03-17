@@ -35,15 +35,36 @@ class QdrantSettings:
 class EmbeddingSettings:
     """Settings for embedding service."""
 
-    provider: str = "openai"  # openai, cohere, huggingface, etc.
-    model: str = "text-embedding-3-small"  # For OpenAI
-    dimensions: int = 1536
+    provider: str = "huggingface"  # huggingface, openai, gemini, etc.
+    dimensions: int = 1536  # Default dimensions
     batch_size: int = 20
     api_key: Optional[str] = None
 
+    # Provider-specific model names
+    openai_model: str = "text-embedding-3-small"
+    gemini_model: str = "gemini-embedding-exp-03-07"
+    huggingface_model: str = "intfloat/e5-large-v2"
+
     # HuggingFace specific settings
-    device: str = "cpu"  # cpu, cuda, mps
+    device: str = "cuda"  # cuda, cpu, mps
+    max_length: int = 512  # Maximum token length
     quantization: Optional[str] = None  # int8, fp16, etc.
+
+    # Model-specific dimensions
+    openai_dimensions: int = 1536  # text-embedding-3-small dimensions
+    gemini_dimensions: int = 768  # gemini-embedding dimensions
+    huggingface_dimensions: int = 1024  # e5-large-v2 dimensions
+
+    @property
+    def model(self):
+        if self.provider == "openai":
+            return self.openai_model
+        elif self.provider == "gemini":
+            return self.gemini_model
+        elif self.provider == "huggingface":
+            return self.huggingface_model
+        else:
+            raise ValueError(f"Unsupported provider: {self.provider}")
 
 
 @dataclass
@@ -102,6 +123,34 @@ class Settings:
     chunking: ChunkingSettings = field(default_factory=ChunkingSettings)
     retrieval: RetrievalSettings = field(default_factory=RetrievalSettings)
 
+    @property
+    def openai_api_key(self) -> Optional[str]:
+        """Get the OpenAI API key.
+
+        Returns the embedding API key if provider is OpenAI,
+        otherwise falls back to the LLM API key if provider is OpenAI,
+        or returns None if neither is available.
+        """
+        if self.embedding.provider.lower() == "openai" and self.embedding.api_key:
+            return self.embedding.api_key
+        elif self.llm.provider.lower() == "openai" and self.llm.api_key:
+            return self.llm.api_key
+        return os.getenv("OPENAI_API_KEY")
+
+    @property
+    def gemini_api_key(self) -> Optional[str]:
+        """Get the Google Gemini API key.
+
+        Returns the embedding API key if provider is Gemini,
+        otherwise falls back to the LLM API key if provider is Gemini,
+        or returns None if neither is available.
+        """
+        if self.embedding.provider.lower() == "gemini" and self.embedding.api_key:
+            return self.embedding.api_key
+        elif self.llm.provider.lower() == "gemini" and self.llm.api_key:
+            return self.llm.api_key
+        return os.getenv("GEMINI_API_KEY")
+
     @classmethod
     def from_environment(cls) -> "Settings":
         """Load settings from environment variables."""
@@ -126,10 +175,15 @@ class Settings:
         settings.embedding.provider = os.getenv(
             "EPIC_RAG_EMBEDDING_PROVIDER", settings.embedding.provider
         )
-        settings.embedding.model = os.getenv(
-            "EPIC_RAG_EMBEDDING_MODEL", settings.embedding.model
-        )
         settings.embedding.api_key = os.getenv("EPIC_RAG_EMBEDDING_API_KEY")
+
+        # Provider-specific model settings
+        settings.embedding.openai_model = os.getenv(
+            "EPIC_RAG_OPENAI_EMBEDDING_MODEL", settings.embedding.openai_model
+        )
+        settings.embedding.gemini_model = os.getenv(
+            "EPIC_RAG_GEMINI_EMBEDDING_MODEL", settings.embedding.gemini_model
+        )
 
         # LLM settings
         settings.llm.provider = os.getenv(

@@ -46,19 +46,21 @@ The system implements Anthropic's Contextual Retrieval approach, which improves 
 
 ### Phase 2: Vector Database and Embeddings
 
-- [ ] Research and select appropriate embedding model
-- [ ] Set up Qdrant instance (local/cloud)
-- [ ] Implement embedding generation pipeline
-- [ ] Create vector indexing and retrieval functionality
+- [x] Research and select appropriate embedding model
+- [x] Set up Qdrant instance (local/cloud)
+- [x] Implement embedding generation pipeline
+- [x] Create vector indexing and retrieval functionality
+- [x] Add support for multiple embedding providers (HuggingFace, OpenAI, Gemini)
+- [x] Implement local GPU-accelerated embedding with E5-large-v2
 - [ ] Design and implement caching strategy for embeddings
 
 ### Phase 3: Retrieval Engine
 
-- [ ] Implement first-stage broad retrieval
+- [x] Implement first-stage broad retrieval
 - [ ] Develop query transformation functionality
-- [ ] Build context-aware chunk merging logic
-- [ ] Create relevance filtering using LLM
-- [ ] Develop second-stage focused retrieval
+- [x] Build context-aware chunk merging logic
+- [x] Create relevance filtering using similarity scores
+- [x] Develop retrieval pipeline with Anthropic's methodology
 
 ### Phase 4: ZenML Pipeline Integration
 
