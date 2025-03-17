@@ -84,6 +84,9 @@ def setup_container():
     from epic_rag.infrastructure.embedding.openai_embedding_service import (
         OpenAIEmbeddingService,
     )
+    from epic_rag.infrastructure.reranker.cross_encoder_reranker_service import (
+        CrossEncoderRerankerService,
+    )
 
     # Register repositories
     container.register_factory(
@@ -256,6 +259,15 @@ def setup_container():
                 lambda c: c.get("base_embedding_service"),
             )
 
+    # Register reranker service if enabled
+    if settings.retrieval.reranker.enabled:
+        container.register_factory(
+            "reranker_service",
+            lambda c: CrossEncoderRerankerService(
+                model_name=settings.retrieval.reranker.model_name
+            ),
+        )
+
     # Register retrieval service
     from epic_rag.infrastructure.retrieval.retrieval_service import (
         ContextualRetrievalService,
@@ -276,6 +288,11 @@ def setup_container():
             llm_service=(
                 c.get("llm_service")
                 if settings.retrieval.enable_query_transformation
+                else None
+            ),
+            reranker_service=(
+                c.get("reranker_service")
+                if settings.retrieval.reranker.enabled
                 else None
             ),
             settings=settings,

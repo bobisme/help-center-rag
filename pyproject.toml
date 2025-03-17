@@ -31,6 +31,7 @@ dependencies = [
   "litellm>=1.63.11",
   "rank-bm25>=0.2.2",
   "bm25s>=0.2.9",
+  "sentence-transformers>=3.4.1",
 ]
 
 [dependency-groups]

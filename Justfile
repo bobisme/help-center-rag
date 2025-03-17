@@ -51,7 +51,7 @@ bm25-full q:
 
 # Test hybrid search with both BM25 and vector search
 hybrid q:
-    python -m epic_rag.interfaces.cli.main hybrid-search "{{q}}"
+    python -m epic_rag.interfaces.cli.main hybrid-search "{{q}}" --rerank
 
 # Test hybrid search with detailed output
 hybrid-full q:

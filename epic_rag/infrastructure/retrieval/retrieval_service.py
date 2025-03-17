@@ -3,7 +3,7 @@
 import time
 import asyncio
 import logging
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, TYPE_CHECKING
 
 from ...domain.models.document import DocumentChunk
 from ...domain.models.retrieval import (
@@ -21,6 +21,9 @@ from ...domain.services.retrieval_service import RetrievalService
 from ...domain.services.llm_service import LLMService
 from ...infrastructure.config.settings import Settings
 
+if TYPE_CHECKING:
+    from ...domain.services.reranker_service import RerankerService
+
 logger = logging.getLogger(__name__)
 
 
@@ -35,6 +38,7 @@ class ContextualRetrievalService(RetrievalService):
         bm25_service: Optional[LexicalSearchService] = None,
         rank_fusion_service: Optional[RankFusionService] = None,
         llm_service: Optional[LLMService] = None,
+        reranker_service: Optional["RerankerService"] = None,
         settings: Settings = None,
     ):
         """Initialize the retrieval service.
@@ -46,6 +50,7 @@ class ContextualRetrievalService(RetrievalService):
             bm25_service: Service for BM25 lexical search
             rank_fusion_service: Service for combining vector and BM25 results
             llm_service: Optional service for LLM operations like query transformation
+            reranker_service: Optional service for reranking search results
             settings: Application settings
         """
         self.document_repository = document_repository
@@ -54,6 +59,7 @@ class ContextualRetrievalService(RetrievalService):
         self.bm25_service = bm25_service
         self.rank_fusion_service = rank_fusion_service
         self.llm_service = llm_service
+        self.reranker_service = reranker_service
         self.settings = settings
 
     async def retrieve(
@@ -391,6 +397,17 @@ class ContextualRetrievalService(RetrievalService):
             chunks=first_stage_results.chunks,
             min_score=request.min_relevance_score,
         )
+
+        # Step 3.5: Apply reranking if enabled
+        if self.reranker_service and self.settings.retrieval.reranker.enabled:
+            logger.info(f"Applying reranking to {len(relevant_chunks)} chunks")
+            reranked_chunks = await self.reranker_service.rerank(
+                query=request.query,
+                chunks=relevant_chunks,
+                top_k=self.settings.retrieval.reranker.top_k,
+            )
+            relevant_chunks = reranked_chunks
+            logger.info(f"Reranking returned {len(relevant_chunks)} chunks")
 
         # Step 4: Merge related chunks if enabled
         if request.merge_related_chunks and relevant_chunks:

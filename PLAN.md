@@ -64,6 +64,7 @@ The system implements Anthropic's Contextual Retrieval approach, which improves 
   - [x] Standard implementation using rank-bm25
   - [x] High-performance implementation using Huggingface's bm25s
 - [x] Create rank fusion to combine vector and BM25 search results
+- [x] Implement reranking with cross-encoder models for improved result relevance
 - [x] Develop retrieval pipeline with Anthropic's methodology
 
 ### Phase 4: ZenML Pipeline Integration

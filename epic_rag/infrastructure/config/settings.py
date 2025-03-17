@@ -103,6 +103,15 @@ class ChunkingSettings:
 
 
 @dataclass
+class RerankerSettings:
+    """Settings for reranker service."""
+
+    enabled: bool = True  # Enable by default
+    model_name: str = "mixedbread-ai/mxbai-rerank-large-v1"
+    top_k: int = 10  # Maximum number of results to return after reranking
+
+
+@dataclass
 class RetrievalSettings:
     """Settings for retrieval services."""
 
@@ -122,6 +131,9 @@ class RetrievalSettings:
     bm25_weight: float = 0.4  # Weight for BM25 results in fusion (0.0-1.0)
     vector_weight: float = 0.6  # Weight for vector results in fusion (0.0-1.0)
     fusion_k: float = 60.0  # Constant in RRF formula to mitigate impact of top results
+
+    # Reranker settings
+    reranker: RerankerSettings = field(default_factory=RerankerSettings)
 
 
 @dataclass

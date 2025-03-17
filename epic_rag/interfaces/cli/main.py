@@ -1,6 +1,7 @@
 """Command-line interface for Epic Documentation RAG system."""
 
 import asyncio
+import time
 from typing import Optional
 
 import typer
@@ -1065,6 +1066,9 @@ def test_hybrid_search(
     show_full_content: bool = typer.Option(
         False, "--full-content", "-f", help="Show full chunk content instead of preview"
     ),
+    rerank: bool = typer.Option(
+        False, "--rerank", "-r", help="Apply reranking to results"
+    ),
 ):
     """Test hybrid search with BM25 and vector search with rank fusion."""
     from epic_rag.domain.models.retrieval import Query, RetrievalResult
@@ -1075,6 +1079,29 @@ def test_hybrid_search(
     vector_repository = container.get("vector_repository")
     document_repository = container.get("document_repository")
     rank_fusion_service = container.get("rank_fusion_service")
+
+    # Get reranker service if needed
+    reranker_service = None
+    if rerank:
+        try:
+            # Force-enable reranker for this test
+            settings.retrieval.reranker.enabled = True
+            if not container.has("reranker_service"):
+                from epic_rag.infrastructure.reranker.cross_encoder_reranker_service import (
+                    CrossEncoderRerankerService,
+                )
+
+                container.register(
+                    "reranker_service",
+                    CrossEncoderRerankerService(
+                        model_name=settings.retrieval.reranker.model_name
+                    ),
+                )
+            reranker_service = container.get("reranker_service")
+        except Exception as e:
+            console.print(
+                f"[bold yellow]Warning:[/bold yellow] Could not load reranker: {e}"
+            )
 
     # Create query
     query = Query(
@@ -1128,7 +1155,7 @@ def test_hybrid_search(
             )
 
             # Fuse results
-            progress.update(task, advance=20, description="Fusing results")
+            progress.update(task, advance=15, description="Fusing results")
             fused_results = await rank_fusion_service.fuse_results(
                 vector_results=vector_results,
                 bm25_results=bm25_results,
@@ -1136,11 +1163,29 @@ def test_hybrid_search(
                 vector_weight=vector_weight,
             )
 
+            # Apply reranking if enabled
+            reranked_results = None
+            if rerank and reranker_service:
+                progress.update(task, advance=5, description="Reranking results")
+                reranked_chunks = await reranker_service.rerank(
+                    query=query,
+                    chunks=fused_results.chunks,
+                    top_k=settings.retrieval.reranker.top_k,
+                )
+
+                # Create new result with reranked chunks
+                reranked_results = RetrievalResult(
+                    query_id=query.id,
+                    chunks=reranked_chunks,
+                    latency_ms=fused_results.latency_ms,  # We'll add reranking time later
+                )
+
             progress.update(task, completed=100, description="Complete")
             return {
                 "vector": vector_results,
                 "bm25": bm25_results,
                 "fused": fused_results,
+                "reranked": reranked_results,
             }
 
     # Run search
@@ -1149,14 +1194,29 @@ def test_hybrid_search(
 
         # Display results
         console.print()
+
+        # Base result panel content
+        panel_content = (
+            f"[bold]Query:[/bold] {query_text}\n"
+            f"[bold]BM25 Results:[/bold] {len(results['bm25'].chunks)}\n"
+            f"[bold]Vector Results:[/bold] {len(results['vector'].chunks)}\n"
+            f"[bold]Fused Results:[/bold] {len(results['fused'].chunks)}\n"
+        )
+
+        # Add reranking info if present
+        if rerank and results["reranked"]:
+            panel_content += (
+                f"[bold]Reranked Results:[/bold] {len(results['reranked'].chunks)}\n"
+            )
+            panel_content += f"[bold]Reranker Model:[/bold] {settings.retrieval.reranker.model_name}\n"
+
+        # Add weights
+        panel_content += f"[bold]BM25 Weight:[/bold] {bm25_weight}\n"
+        panel_content += f"[bold]Vector Weight:[/bold] {vector_weight}"
+
         console.print(
             Panel(
-                f"[bold]Query:[/bold] {query_text}\n"
-                f"[bold]BM25 Results:[/bold] {len(results['bm25'].chunks)}\n"
-                f"[bold]Vector Results:[/bold] {len(results['vector'].chunks)}\n"
-                f"[bold]Fused Results:[/bold] {len(results['fused'].chunks)}\n"
-                f"[bold]BM25 Weight:[/bold] {bm25_weight}\n"
-                f"[bold]Vector Weight:[/bold] {vector_weight}",
+                panel_content,
                 title="Hybrid Search Results",
                 border_style="blue",
             )
@@ -1206,10 +1266,16 @@ def test_hybrid_search(
                     )
                 )
 
-        # Show fused results
+        # Determine which results to show (fused or reranked)
+        final_results = (
+            results["reranked"] if rerank and results["reranked"] else results["fused"]
+        )
+        result_type = "Reranked" if rerank and results["reranked"] else "Fused"
+
+        # Show results
         console.print()
-        console.print("[bold blue]Fused Results:[/bold blue]")
-        for i, chunk in enumerate(results["fused"].chunks, 1):
+        console.print(f"[bold blue]{result_type} Results:[/bold blue]")
+        for i, chunk in enumerate(final_results.chunks, 1):
             # Prepare the content (full or preview)
             if show_full_content:
                 content = chunk.content
@@ -1231,14 +1297,34 @@ def test_hybrid_search(
                     vector_rank = str(j)
                     break
 
+            # Get fusion rank if showing reranked results
+            fusion_rank = "N/A"
+            if rerank and results["reranked"]:
+                for j, fused_chunk in enumerate(results["fused"].chunks, 1):
+                    if fused_chunk.id == chunk.id:
+                        fusion_rank = str(j)
+                        break
+
+            # Build panel content
+            panel_content = (
+                f"[bold]{result_type} Score:[/bold] {chunk.relevance_score:.4f}\n"
+            )
+            panel_content += f"[bold]BM25 Rank:[/bold] {bm25_rank}\n"
+            panel_content += f"[bold]Vector Rank:[/bold] {vector_rank}\n"
+
+            # Add fusion rank if showing reranked results
+            if rerank and results["reranked"]:
+                panel_content += f"[bold]Fusion Rank:[/bold] {fusion_rank}\n"
+
+            panel_content += (
+                f"[bold]Document:[/bold] {chunk.metadata.get('title', 'Untitled')}\n"
+            )
+            panel_content += f"[bold]Content:[/bold]\n{content}"
+
             console.print(
                 Panel(
-                    f"[bold]Fused Score:[/bold] {chunk.relevance_score:.4f}\n"
-                    f"[bold]BM25 Rank:[/bold] {bm25_rank}\n"
-                    f"[bold]Vector Rank:[/bold] {vector_rank}\n"
-                    f"[bold]Document:[/bold] {chunk.metadata.get('title', 'Untitled')}\n"
-                    f"[bold]Content:[/bold]\n{content}",
-                    title=f"Result {i}/{len(results['fused'].chunks)}",
+                    panel_content,
+                    title=f"Result {i}/{len(final_results.chunks)}",
                     border_style="green" if i <= 3 else "blue",
                 )
             )
@@ -1531,6 +1617,212 @@ def benchmark_bm25(
         console.print(traceback.format_exc())
 
 
+@app.command("test-rerank")
+def test_reranker(
+    query_text: str = typer.Argument(..., help="Query text to search"),
+    limit: int = typer.Option(
+        10, "--limit", "-l", help="Maximum number of initial results to retrieve"
+    ),
+    top_k: int = typer.Option(
+        5, "--top-k", "-k", help="Number of results to keep after reranking"
+    ),
+    model: str = typer.Option(
+        "mixedbread-ai/mxbai-rerank-large-v1",
+        "--model",
+        "-m",
+        help="Cross-encoder model to use",
+    ),
+    show_full_content: bool = typer.Option(
+        False, "--full-content", "-f", help="Show full chunk content instead of preview"
+    ),
+):
+    """Test the reranker service on vector search results."""
+    from epic_rag.domain.models.retrieval import Query, RetrievalResult
+    from epic_rag.infrastructure.reranker.cross_encoder_reranker_service import (
+        CrossEncoderRerankerService,
+    )
+
+    # Get required services
+    embedding_service = container.get("embedding_service")
+    vector_repository = container.get("vector_repository")
+    document_repository = container.get("document_repository")
+
+    # Create reranker with specified model
+    try:
+        reranker_service = CrossEncoderRerankerService(model_name=model)
+    except Exception as e:
+        console.print(f"[bold red]Error creating reranker:[/bold red] {str(e)}")
+        console.print("Make sure the specified model is available.")
+        return
+
+    # Create query
+    query = Query(
+        text=query_text,
+        metadata={"source": "cli"},
+    )
+
+    # Run test
+    async def run_test():
+        with Progress(
+            TextColumn("[bold blue]{task.description}"),
+            BarColumn(),
+            console=console,
+        ) as progress:
+            task = progress.add_task("Testing reranker", total=100)
+
+            # Embed the query for vector search
+            progress.update(task, advance=20, description="Embedding query")
+            query_with_embedding = await embedding_service.embed_query(query)
+
+            # Run vector search
+            progress.update(task, advance=20, description="Vector search")
+            vector_chunks = await vector_repository.search_similar(
+                query=query_with_embedding, limit=limit
+            )
+
+            # Create vector results
+            for chunk in vector_chunks:
+                # Get full chunk content from document repository
+                full_chunk = await document_repository.get_chunk(chunk.id)
+                if full_chunk:
+                    # Update the chunk content while keeping the relevance score
+                    chunk.content = full_chunk.content
+                    # Copy any missing metadata
+                    for key, value in full_chunk.metadata.items():
+                        if key not in chunk.metadata:
+                            chunk.metadata[key] = value
+
+            # Create vector result
+            vector_results = RetrievalResult(
+                query_id=query.id,
+                chunks=vector_chunks,
+                latency_ms=0.0,
+            )
+
+            # Apply reranking
+            progress.update(task, advance=40, description="Reranking results")
+            start_time = time.time()
+            reranked_chunks = await reranker_service.rerank(
+                query=query, chunks=vector_chunks, top_k=top_k
+            )
+            rerank_time = (time.time() - start_time) * 1000
+
+            # Create reranked result
+            reranked_results = RetrievalResult(
+                query_id=query.id,
+                chunks=reranked_chunks,
+                latency_ms=rerank_time,
+            )
+
+            progress.update(task, completed=100, description="Complete")
+            return {
+                "vector": vector_results,
+                "reranked": reranked_results,
+            }
+
+    # Run test
+    try:
+        results = asyncio.run(run_test())
+
+        # Display results
+        console.print()
+        console.print(
+            Panel(
+                f"[bold]Query:[/bold] {query_text}\n"
+                f"[bold]Model:[/bold] {model}\n"
+                f"[bold]Initial Results:[/bold] {len(results['vector'].chunks)}\n"
+                f"[bold]Reranked Results:[/bold] {len(results['reranked'].chunks)}\n"
+                f"[bold]Reranking Time:[/bold] {results['reranked'].latency_ms:.2f}ms",
+                title="Reranker Test Results",
+                border_style="blue",
+            )
+        )
+
+        # Show comparison
+        console.print()
+        console.print("[bold blue]Vector Search vs. Reranked Results:[/bold blue]")
+
+        # Show side-by-side comparison of up to 5 results
+        comparison_count = min(
+            5, len(results["vector"].chunks), len(results["reranked"].chunks)
+        )
+
+        for i in range(comparison_count):
+            vector_chunk = (
+                results["vector"].chunks[i]
+                if i < len(results["vector"].chunks)
+                else None
+            )
+            reranked_chunk = (
+                results["reranked"].chunks[i]
+                if i < len(results["reranked"].chunks)
+                else None
+            )
+
+            # Prepare content previews
+            if show_full_content:
+                vector_content = vector_chunk.content if vector_chunk else "N/A"
+                reranked_content = reranked_chunk.content if reranked_chunk else "N/A"
+            else:
+                vector_content = (
+                    vector_chunk.content[:200]
+                    + ("..." if len(vector_chunk.content) > 200 else "")
+                    if vector_chunk
+                    else "N/A"
+                )
+                reranked_content = (
+                    reranked_chunk.content[:200]
+                    + ("..." if len(reranked_chunk.content) > 200 else "")
+                    if reranked_chunk
+                    else "N/A"
+                )
+
+            # Get scores
+            vector_score = (
+                f"{vector_chunk.relevance_score:.4f}" if vector_chunk else "N/A"
+            )
+            reranked_score = (
+                f"{reranked_chunk.relevance_score:.4f}" if reranked_chunk else "N/A"
+            )
+
+            # Find reranked position in original vector results
+            original_rank = "N/A"
+            if reranked_chunk:
+                for j, vec_chunk in enumerate(results["vector"].chunks, 1):
+                    if vec_chunk.id == reranked_chunk.id:
+                        original_rank = str(j)
+                        break
+
+            # Show comparison
+            console.print(f"[bold]Result {i+1}:[/bold]")
+
+            # Show side-by-side scores
+            table = Table.grid(padding=1)
+            table.add_column("Vector", style="cyan", width=30)
+            table.add_column("Reranked", style="green", width=30)
+
+            table.add_row(f"Score: {vector_score}", f"Score: {reranked_score}")
+            if reranked_chunk:
+                table.add_row("", f"Original Rank: {original_rank}")
+
+            console.print(table)
+
+            # Show side-by-side content
+            columns = Table.grid(padding=1)
+            columns.add_column("Vector Content", style="cyan")
+            columns.add_column("Reranked Content", style="green")
+
+            columns.add_row(vector_content, reranked_content)
+            console.print(columns)
+            console.print()
+
+    except Exception as e:
+        console.print(f"[bold red]Error:[/bold red] {str(e)}")
+        import traceback
+
+        console.print(traceback.format_exc())
+
+
 @app.command("info")
 def show_system_info():
     """Show system information and statistics."""
@@ -1593,6 +1885,15 @@ def show_system_info():
     elif settings.embedding.provider.lower() == "huggingface":
         model_name = settings.embedding.huggingface_model
 
+    # Get reranker status
+    reranker_info = ""
+    if settings.retrieval.reranker.enabled:
+        reranker_status = "Enabled"
+        reranker_model = settings.retrieval.reranker.model_name
+        reranker_info = f"\n[cyan]Reranker:[/cyan] {reranker_status} / {reranker_model}"
+    else:
+        reranker_info = "\n[cyan]Reranker:[/cyan] Disabled"
+
     console.print(
         Panel(
             f"[bold]Epic Documentation RAG System[/bold]\n"
@@ -1602,7 +1903,8 @@ def show_system_info():
             f"[cyan]Vector Database:[/cyan] {settings.qdrant.url or 'Local Qdrant'}\n"
             f"[cyan]Embedding Model:[/cyan] {settings.embedding.provider} / {model_name}\n"
             f"[cyan]LLM Model:[/cyan] {settings.llm.provider} / {settings.llm.model}"
-            f"{cache_info}",
+            f"{cache_info}"
+            f"{reranker_info}",
             title="System Information",
             border_style="blue",
         )

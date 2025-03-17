@@ -35,6 +35,7 @@ This project contains tools for working with Epic healthcare system documentatio
 - Two-stage retrieval process for better query accuracy
 - Hybrid search combining BM25 (lexical) and vector (semantic) search with rank fusion
 - Multiple BM25 implementations (rank-bm25 and Huggingface's bm25s)
+- Cross-encoder reranking for improved result relevance scoring (mixedbread-ai/mxbai-rerank-large-v1)
 - Query transformation using local LLMs (Ollama integration with gemma3:27b)
 - Multiple embedding providers (HuggingFace E5-large-v2, OpenAI, Google Gemini)
 - Efficient two-level embedding caching (memory + disk)
@@ -231,10 +232,11 @@ This system implements Anthropic's Contextual Retrieval approach, which improves
 
 1. **Two-Stage Retrieval**: Initial broader retrieval followed by a more focused retrieval
 2. **BM25 + Vector Hybrid Search**: Combining lexical (exact keyword) and semantic (vector) search with rank fusion
-3. **Dynamic Chunk Sizing**: Intelligently determining chunk sizes based on content
-4. **Context-Aware Merging**: Combining retrieved chunks based on semantic relatedness
-5. **Relevance Filtering**: Using similarity scores to filter retrieved chunks by relevance
-6. **Query Transformation**: Rewriting queries to better match document corpus semantics using LLMs
+3. **Cross-Encoder Reranking**: Using a dedicated reranker model to improve result relevance scoring
+4. **Dynamic Chunk Sizing**: Intelligently determining chunk sizes based on content
+5. **Context-Aware Merging**: Combining retrieved chunks based on semantic relatedness
+6. **Relevance Filtering**: Using similarity scores to filter retrieved chunks by relevance
+7. **Query Transformation**: Rewriting queries to better match document corpus semantics using LLMs
 
 ### Basic Usage
 
@@ -300,6 +302,9 @@ epic-rag hybrid-search "How do I document patient allergies to medications?" --s
 # Test hybrid search with custom weights
 epic-rag hybrid-search "patient medication allergies" --bm25-weight 0.6 --vector-weight 0.4
 
+# Test with reranking enabled
+epic-rag hybrid-search "How do I document patient allergies to medications?" --rerank
+
 # Compare semantic similarity between texts using local model
 epic-rag test-embed "Epic is a healthcare software company" --compare "Epic Systems makes EHR software for hospitals"
 
@@ -357,6 +362,11 @@ EPIC_RAG_BM25_WEIGHT=0.4  # Weight for BM25 results in hybrid search
 EPIC_RAG_VECTOR_WEIGHT=0.6  # Weight for vector results in hybrid search
 EPIC_RAG_ENABLE_QUERY_TRANSFORMATION=true  # Enable query transformation
 EPIC_RAG_ENABLE_CHUNK_MERGING=true  # Enable merging of related chunks
+
+# Reranker configuration
+EPIC_RAG_RERANKER_ENABLED=false  # Enable cross-encoder reranking
+EPIC_RAG_RERANKER_MODEL=mixedbread-ai/mxbai-rerank-large-v1  # Reranker model to use
+EPIC_RAG_RERANKER_TOP_K=10  # Maximum number of results to return after reranking
 
 # Qdrant configuration (optional for remote Qdrant)
 EPIC_RAG_QDRANT_URL=https://your-qdrant-instance.com
