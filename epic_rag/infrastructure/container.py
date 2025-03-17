@@ -112,14 +112,27 @@ def setup_container():
     )
 
     container.register_factory("chunking_service", lambda c: MarkdownChunkingService())
-    
+
+    # Import embedding services
+    from epic_rag.infrastructure.embedding.openai_embedding_service import (
+        OpenAIEmbeddingService,
+    )
+    from epic_rag.infrastructure.embedding.gemini_embedding_service import (
+        GeminiEmbeddingService,
+    )
+    from epic_rag.infrastructure.embedding.huggingface_embedding_service import (
+        HuggingFaceEmbeddingService,
+    )
+
+    # Import caching wrapper
+    from epic_rag.infrastructure.embedding.cached_embedding_service import (
+        CachedEmbeddingService,
+    )
+
     # Register embedding service based on provider configuration
     if settings.embedding.provider.lower() == "openai":
-        from epic_rag.infrastructure.embedding.openai_embedding_service import (
-            OpenAIEmbeddingService,
-        )
         container.register_factory(
-            "embedding_service",
+            "base_embedding_service",
             lambda c: OpenAIEmbeddingService(
                 settings=settings,
                 model=settings.embedding.openai_model,
@@ -127,12 +140,27 @@ def setup_container():
                 batch_size=settings.embedding.batch_size,
             ),
         )
+
+        # Wrap with caching if enabled
+        if settings.embedding.cache.enabled:
+            container.register_factory(
+                "embedding_service",
+                lambda c: CachedEmbeddingService(
+                    wrapped_service=c.get("base_embedding_service"),
+                    settings=settings,
+                    provider_name="openai",
+                    model_name=settings.embedding.openai_model,
+                ),
+            )
+        else:
+            container.register_factory(
+                "embedding_service",
+                lambda c: c.get("base_embedding_service"),
+            )
+
     elif settings.embedding.provider.lower() == "gemini":
-        from epic_rag.infrastructure.embedding.gemini_embedding_service import (
-            GeminiEmbeddingService,
-        )
         container.register_factory(
-            "embedding_service",
+            "base_embedding_service",
             lambda c: GeminiEmbeddingService(
                 settings=settings,
                 model=settings.embedding.gemini_model,
@@ -140,12 +168,27 @@ def setup_container():
                 batch_size=settings.embedding.batch_size,
             ),
         )
+
+        # Wrap with caching if enabled
+        if settings.embedding.cache.enabled:
+            container.register_factory(
+                "embedding_service",
+                lambda c: CachedEmbeddingService(
+                    wrapped_service=c.get("base_embedding_service"),
+                    settings=settings,
+                    provider_name="gemini",
+                    model_name=settings.embedding.gemini_model,
+                ),
+            )
+        else:
+            container.register_factory(
+                "embedding_service",
+                lambda c: c.get("base_embedding_service"),
+            )
+
     elif settings.embedding.provider.lower() == "huggingface":
-        from epic_rag.infrastructure.embedding.huggingface_embedding_service import (
-            HuggingFaceEmbeddingService,
-        )
         container.register_factory(
-            "embedding_service",
+            "base_embedding_service",
             lambda c: HuggingFaceEmbeddingService(
                 settings=settings,
                 model_name=settings.embedding.huggingface_model,
@@ -155,12 +198,29 @@ def setup_container():
                 max_length=settings.embedding.max_length,
             ),
         )
-    
+
+        # Wrap with caching if enabled
+        if settings.embedding.cache.enabled:
+            container.register_factory(
+                "embedding_service",
+                lambda c: CachedEmbeddingService(
+                    wrapped_service=c.get("base_embedding_service"),
+                    settings=settings,
+                    provider_name="huggingface",
+                    model_name=settings.embedding.huggingface_model,
+                ),
+            )
+        else:
+            container.register_factory(
+                "embedding_service",
+                lambda c: c.get("base_embedding_service"),
+            )
+
     # Register retrieval service
     from epic_rag.infrastructure.retrieval.retrieval_service import (
         ContextualRetrievalService,
     )
-    
+
     container.register_factory(
         "retrieval_service",
         lambda c: ContextualRetrievalService(

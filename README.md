@@ -281,6 +281,12 @@ epic-rag test-embed "Epic is a healthcare software company" --compare "Epic Syst
 
 # Compare using OpenAI
 epic-rag test-embed "Epic is a healthcare software company" --compare "Epic Systems makes EHR software for hospitals" --provider openai
+
+# View cache statistics
+epic-rag cache stats
+
+# Clear cache entries older than 7 days
+epic-rag cache clear --days 7
 ```
 
 ### Environment Variables
@@ -303,6 +309,12 @@ EPIC_RAG_HUGGINGFACE_MODEL=intfloat/e5-large-v2
 
 # HuggingFace specific settings (for local embeddings)
 EPIC_RAG_EMBEDDING_DEVICE=cuda  # cuda, cpu, mps
+
+# Embedding cache settings
+EPIC_RAG_CACHE_ENABLED=true  # Enable caching of embeddings
+EPIC_RAG_CACHE_MEMORY_SIZE=1000  # Number of entries to keep in memory
+EPIC_RAG_CACHE_EXPIRATION_DAYS=30  # Embeddings expire after this many days
+EPIC_RAG_CACHE_CLEAR_ON_STARTUP=false  # Whether to clear expired entries on startup
 
 # Qdrant configuration (optional for remote Qdrant)
 EPIC_RAG_QDRANT_URL=https://your-qdrant-instance.com

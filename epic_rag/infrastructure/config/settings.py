@@ -32,6 +32,16 @@ class QdrantSettings:
 
 
 @dataclass
+class CacheSettings:
+    """Settings for embedding cache."""
+    
+    enabled: bool = True
+    memory_size: int = 1000  # Number of entries to keep in memory
+    expiration_days: int = 30  # Number of days to keep entries
+    clear_on_startup: bool = False  # Whether to clear expired entries on startup
+
+
+@dataclass
 class EmbeddingSettings:
     """Settings for embedding service."""
 
@@ -54,6 +64,9 @@ class EmbeddingSettings:
     openai_dimensions: int = 1536  # text-embedding-3-small dimensions
     gemini_dimensions: int = 768  # gemini-embedding dimensions
     huggingface_dimensions: int = 1024  # e5-large-v2 dimensions
+    
+    # Cache settings
+    cache: CacheSettings = field(default_factory=CacheSettings)
 
     @property
     def model(self):
@@ -184,6 +197,21 @@ class Settings:
         settings.embedding.gemini_model = os.getenv(
             "EPIC_RAG_GEMINI_EMBEDDING_MODEL", settings.embedding.gemini_model
         )
+        
+        # Cache settings
+        settings.embedding.cache.enabled = os.getenv(
+            "EPIC_RAG_CACHE_ENABLED", "true"
+        ).lower() in ("true", "1", "yes")
+        
+        if memory_size := os.getenv("EPIC_RAG_CACHE_MEMORY_SIZE"):
+            settings.embedding.cache.memory_size = int(memory_size)
+            
+        if expiration_days := os.getenv("EPIC_RAG_CACHE_EXPIRATION_DAYS"):
+            settings.embedding.cache.expiration_days = int(expiration_days)
+            
+        settings.embedding.cache.clear_on_startup = os.getenv(
+            "EPIC_RAG_CACHE_CLEAR_ON_STARTUP", "false"
+        ).lower() in ("true", "1", "yes")
 
         # LLM settings
         settings.llm.provider = os.getenv(

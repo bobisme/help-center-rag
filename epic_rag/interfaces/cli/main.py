@@ -701,12 +701,145 @@ def test_embedding(
         setup_container()
 
 
+@app.command("cache")
+def manage_cache(
+    action: str = typer.Argument("stats", help="Action to perform: stats, clear"),
+    days: int = typer.Option(
+        30, "--days", "-d", help="Days to keep when clearing old entries"
+    ),
+):
+    """Manage the embedding cache.
+    
+    Actions:
+    - stats: Show cache statistics
+    - clear: Clear old entries from the cache
+    """
+    if not settings.embedding.cache.enabled:
+        console.print("[bold red]Error:[/bold red] Cache is disabled in settings.")
+        return
+    
+    try:
+        # Get embedding service
+        embedding_service = container.get("embedding_service")
+        
+        # Check if it's a cached service
+        if not hasattr(embedding_service, "get_cache_stats"):
+            console.print("[bold red]Error:[/bold red] Embedding service does not support caching.")
+            return
+        
+        # Get cache from EmbeddingCache class
+        from epic_rag.infrastructure.embedding.embedding_cache import EmbeddingCache
+        cache = EmbeddingCache(
+            settings=settings,
+            memory_cache_size=settings.embedding.cache.memory_size,
+            cache_expiration_days=settings.embedding.cache.expiration_days,
+        )
+        
+        # Perform action
+        if action.lower() == "stats":
+            asyncio.run(_show_cache_stats(embedding_service))
+        elif action.lower() == "clear":
+            asyncio.run(_clear_cache_entries(cache, days))
+        else:
+            console.print(f"[bold red]Error:[/bold red] Unknown action: {action}")
+            console.print("Available actions: stats, clear")
+    except Exception as e:
+        console.print(f"[bold red]Error:[/bold red] {str(e)}")
+
+
+async def _show_cache_stats(embedding_service):
+    """Show statistics about the embedding cache."""
+    # Get cache stats
+    stats = await embedding_service.get_cache_stats()
+    
+    if not stats:
+        console.print("[bold yellow]No cache statistics available.[/bold yellow]")
+        return
+    
+    # Show general information
+    console.print()
+    console.print(Panel(
+        f"[bold]Cache Status:[/bold] Enabled\n"
+        f"[bold]Memory Cache Size:[/bold] {stats['memory_max_size']} entries\n"
+        f"[bold]Memory Cache Usage:[/bold] {stats['memory_entries']} entries "
+        f"({stats['memory_entries'] / stats['memory_max_size'] * 100:.1f}%)\n"
+        f"[bold]Total Entries:[/bold] {stats['total_entries']}\n"
+        f"[bold]Storage Size:[/bold] {stats['db_size_bytes'] / (1024*1024):.2f} MB\n"
+        f"[bold]Oldest Entry:[/bold] {stats['oldest_entry'] or 'None'}\n"
+        f"[bold]Newest Entry:[/bold] {stats['newest_entry'] or 'None'}",
+        title="Embedding Cache Statistics",
+        border_style="blue",
+    ))
+    
+    # Show provider breakdown
+    if stats.get("by_provider"):
+        console.print()
+        table = Table(title="Cache Entries by Provider")
+        table.add_column("Provider", style="cyan")
+        table.add_column("Count", style="green")
+        table.add_column("Percentage", style="yellow")
+        
+        total = stats["total_entries"] or 1  # Avoid division by zero
+        for provider, count in stats["by_provider"].items():
+            table.add_row(
+                provider,
+                str(count),
+                f"{count / total * 100:.1f}%",
+            )
+            
+        console.print(table)
+    
+    # Show model breakdown
+    if stats.get("by_model"):
+        console.print()
+        table = Table(title="Cache Entries by Model")
+        table.add_column("Model", style="cyan")
+        table.add_column("Count", style="green")
+        table.add_column("Percentage", style="yellow")
+        
+        total = stats["total_entries"] or 1  # Avoid division by zero
+        for model, count in stats["by_model"].items():
+            table.add_row(
+                model,
+                str(count),
+                f"{count / total * 100:.1f}%",
+            )
+            
+        console.print(table)
+
+
+async def _clear_cache_entries(cache, days):
+    """Clear old entries from the cache."""
+    with Progress(
+        TextColumn("[bold blue]{task.description}"),
+        BarColumn(),
+        TaskProgressColumn(),
+        console=console,
+    ) as progress:
+        task = progress.add_task("Clearing old cache entries...", total=100)
+        
+        # Update cache expiration days
+        cache._cache_expiration_days = days
+        
+        # Clear old entries
+        progress.update(task, advance=50)
+        count = await cache.clear_old_entries()
+        
+        progress.update(task, completed=100)
+    
+    console.print(f"[bold green]Cleared {count} old entries older than {days} days.[/bold green]")
+
+
 @app.command("info")
 def show_system_info():
     """Show system information and statistics."""
     # Get repositories
     document_repository = container.get("document_repository")
     vector_repository = container.get("vector_repository")
+    
+    # Try to get embedding service with cache stats
+    embedding_service = container.get("embedding_service")
+    has_cache_stats = hasattr(embedding_service, "get_cache_stats")
 
     # Get statistics async
     async def get_stats():
@@ -716,16 +849,49 @@ def show_system_info():
 
             # Get collection stats
             vector_stats = await vector_repository.get_collection_stats()
+            
+            # Get cache stats if available
+            cache_stats = None
+            if has_cache_stats:
+                cache_stats = await embedding_service.get_cache_stats()
 
-            return {"db_stats": db_stats, "vector_stats": vector_stats}
+            return {
+                "db_stats": db_stats, 
+                "vector_stats": vector_stats,
+                "cache_stats": cache_stats,
+            }
         except Exception as e:
             console.print(f"[bold red]Error getting statistics:[/bold red] {str(e)}")
-            return {"db_stats": {}, "vector_stats": {}}
+            return {"db_stats": {}, "vector_stats": {}, "cache_stats": None}
 
     # Run the stats collection
     stats = asyncio.run(get_stats())
 
     # Show system info
+    cache_info = ""
+    if settings.embedding.cache.enabled:
+        cache_status = "Enabled"
+        
+        # Add cache stats if available
+        if stats.get("cache_stats"):
+            cache_stats = stats["cache_stats"]
+            cache_entries = cache_stats.get("total_entries", 0)
+            cache_size = cache_stats.get("db_size_bytes", 0) / (1024*1024)
+            cache_info = f"\n[cyan]Embedding Cache:[/cyan] {cache_status} ({cache_entries} entries, {cache_size:.2f} MB)"
+        else:
+            cache_info = f"\n[cyan]Embedding Cache:[/cyan] {cache_status}"
+    else:
+        cache_info = "\n[cyan]Embedding Cache:[/cyan] Disabled"
+        
+    # Get appropriate model name based on provider
+    model_name = settings.embedding.model
+    if settings.embedding.provider.lower() == "openai":
+        model_name = settings.embedding.openai_model
+    elif settings.embedding.provider.lower() == "gemini":
+        model_name = settings.embedding.gemini_model
+    elif settings.embedding.provider.lower() == "huggingface":
+        model_name = settings.embedding.huggingface_model
+    
     console.print(
         Panel(
             f"[bold]Epic Documentation RAG System[/bold]\n"
@@ -733,8 +899,9 @@ def show_system_info():
             f"[cyan]Environment:[/cyan] {settings.environment}\n"
             f"[cyan]Database:[/cyan] {settings.database.path}\n"
             f"[cyan]Vector Database:[/cyan] {settings.qdrant.url or 'Local Qdrant'}\n"
-            f"[cyan]Embedding Model:[/cyan] {settings.embedding.provider} / {settings.embedding.model}\n"
-            f"[cyan]LLM Model:[/cyan] {settings.llm.provider} / {settings.llm.model}\n",
+            f"[cyan]Embedding Model:[/cyan] {settings.embedding.provider} / {model_name}\n"
+            f"[cyan]LLM Model:[/cyan] {settings.llm.provider} / {settings.llm.model}"
+            f"{cache_info}",
             title="System Information",
             border_style="blue",
         )

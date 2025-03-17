@@ -3,9 +3,9 @@
 import asyncio
 import logging
 import numpy as np
-from typing import List, Dict, Any, Optional
+from typing import List
 
-from google import genai
+import google.generativeai as genai
 
 from ...domain.models.document import DocumentChunk, EmbeddedChunk
 from ...domain.models.retrieval import Query
@@ -50,7 +50,7 @@ class GeminiEmbeddingService(EmbeddingService):
             Vector embedding as a list of floats
         """
         logger.debug(f"Embedding text of length {len(text)}")
-        
+
         try:
             # Run the embedding in a thread to avoid blocking the event loop
             loop = asyncio.get_event_loop()
@@ -59,9 +59,9 @@ class GeminiEmbeddingService(EmbeddingService):
                 lambda: self._client.models.embed_content(
                     model=self._model,
                     contents=text,
-                )
+                ),
             )
-            
+
             # Extract the embedding vector
             embedding = result.embeddings
             return embedding
@@ -118,19 +118,21 @@ class GeminiEmbeddingService(EmbeddingService):
             List of embedded chunks
         """
         logger.info(f"Batch embedding {len(chunks)} chunks")
-        
+
         # Process in batches to avoid API limits
         results = []
         for i in range(0, len(chunks), self._batch_size):
-            batch = chunks[i:i + self._batch_size]
-            logger.debug(f"Processing batch {i//self._batch_size + 1} of {(len(chunks)-1)//self._batch_size + 1}")
-            
+            batch = chunks[i : i + self._batch_size]
+            logger.debug(
+                f"Processing batch {i//self._batch_size + 1} of {(len(chunks)-1)//self._batch_size + 1}"
+            )
+
             # Embed each chunk individually
             # We could optimize this to use the batch API if available
             tasks = [self.embed_chunk(chunk) for chunk in batch]
             batch_results = await asyncio.gather(*tasks)
             results.extend(batch_results)
-        
+
         return results
 
     async def get_embedding_similarity(
@@ -148,18 +150,19 @@ class GeminiEmbeddingService(EmbeddingService):
         # Convert to numpy arrays for efficient computation
         vec1 = np.array(embedding1)
         vec2 = np.array(embedding2)
-        
+
         # Calculate cosine similarity
         dot_product = np.dot(vec1, vec2)
         norm1 = np.linalg.norm(vec1)
         norm2 = np.linalg.norm(vec2)
-        
+
         if norm1 == 0 or norm2 == 0:
             return 0.0
-            
+
         return float(dot_product / (norm1 * norm2))
 
     @property
     def embedding_dimensions(self) -> int:
         """Get the dimensions of the embedding vectors."""
         return self._dimensions
+
