@@ -69,12 +69,12 @@ The system implements Anthropic's Contextual Retrieval approach, which improves 
 
 ### Phase 4: ZenML Pipeline Integration
 
-- [ ] Define ZenML pipeline components
-- [ ] Create data ingestion step
-- [ ] Implement document processing steps
-- [ ] Build embedding generation step
-- [ ] Set up retrieval evaluation step
-- [ ] Create end-to-end orchestration pipeline
+- [x] Define ZenML pipeline components
+- [x] Create data ingestion step
+- [x] Implement document processing steps
+- [x] Build embedding generation step
+- [x] Set up retrieval evaluation step
+- [x] Create end-to-end orchestration pipeline
 
 ### Phase 5: Evaluation and Optimization
 

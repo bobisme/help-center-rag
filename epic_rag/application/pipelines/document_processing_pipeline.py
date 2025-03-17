@@ -4,7 +4,8 @@ from typing import List, Dict, Any, Optional
 
 from zenml import pipeline, step
 from zenml.config import DockerSettings
-from zenml.steps import Output
+
+# Output typing for steps
 
 from ...domain.models.document import Document
 from ...infrastructure.container import container
@@ -153,7 +154,7 @@ def ingest_documents(
     }
 
 
-@pipeline(settings={"docker": DockerSettings(required_integrations=["qdrant"])})
+@pipeline(enable_cache=True)
 def document_processing_pipeline(
     source_dir: str,
     file_pattern: str = "*.md",

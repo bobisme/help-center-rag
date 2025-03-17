@@ -376,6 +376,30 @@ EPIC_RAG_QDRANT_COLLECTION=epic_docs
 
 ### ZenML Pipelines
 
+The system uses ZenML for pipeline orchestration, providing several pipelines for different needs:
+
+#### Running Pipelines with CLI
+
+Use the built-in CLI command to run ZenML pipelines:
+
+```bash
+# Run the orchestration pipeline (full workflow)
+epic-rag zenml-run --source-dir data/markdown --pipeline orchestration
+
+# Run only the document processing pipeline
+epic-rag zenml-run --source-dir data/markdown --pipeline document_processing
+
+# Run only the query evaluation pipeline
+epic-rag zenml-run --source-dir data/markdown --query-file data/test_queries.txt --pipeline query_evaluation
+
+# Run with custom parameters
+epic-rag zenml-run --source-dir data/markdown --pattern "**/*.md" --limit 10 --min-chunk-size 400 --max-chunk-size 900
+```
+
+#### Running Pipelines Directly
+
+You can also run the pipelines directly using Python:
+
 ```bash
 # Run document processing pipeline
 python -m epic_rag.application.pipelines.document_processing_pipeline \
@@ -385,6 +409,29 @@ python -m epic_rag.application.pipelines.document_processing_pipeline \
 # Run query evaluation pipeline
 python -m epic_rag.application.pipelines.query_evaluation_pipeline \
   --query-file data/test_queries.txt
+
+# Run orchestration pipeline
+python -m epic_rag.application.pipelines.orchestration_pipeline \
+  --source-dir data/markdown
+```
+
+#### Pipeline Overview
+
+1. **Document Processing Pipeline**: Handles document loading, preprocessing, and ingestion
+2. **Query Evaluation Pipeline**: Evaluates query performance against a test set
+3. **Orchestration Pipeline**: Combines all steps in an end-to-end workflow
+
+#### Managing ZenML
+
+```bash
+# View pipeline runs
+zenml pipeline runs list
+
+# Get details about a specific run
+zenml pipeline runs describe <run-id>
+
+# View ZenML dashboard (if running with server)
+zenml up
 ```
 
 ## License

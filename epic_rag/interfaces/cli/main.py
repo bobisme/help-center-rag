@@ -1823,6 +1823,144 @@ def test_reranker(
         console.print(traceback.format_exc())
 
 
+@app.command("zenml-run")
+def run_zenml_pipeline(
+    source_dir: str = typer.Option(
+        ..., "--source-dir", "-s", help="Directory containing markdown files"
+    ),
+    pattern: str = typer.Option(
+        "*.md", "--pattern", "-p", help="Pattern to match markdown files"
+    ),
+    limit: Optional[int] = typer.Option(
+        None, "--limit", "-l", help="Limit number of files to process"
+    ),
+    dynamic_chunking: bool = typer.Option(
+        True, "--dynamic-chunking/--fixed-chunking", help="Use dynamic chunking"
+    ),
+    min_chunk_size: int = typer.Option(
+        300, "--min-chunk-size", help="Minimum chunk size when using dynamic chunking"
+    ),
+    max_chunk_size: int = typer.Option(
+        800, "--max-chunk-size", help="Maximum chunk size when using dynamic chunking"
+    ),
+    chunk_overlap: int = typer.Option(
+        50, "--chunk-overlap", help="Overlap between chunks"
+    ),
+    query_file: Optional[str] = typer.Option(
+        None, "--query-file", "-q", help="Optional file containing test queries"
+    ),
+    pipeline_name: str = typer.Option(
+        "orchestration",
+        "--pipeline",
+        "-p",
+        help="Pipeline to run (orchestration, document_processing, query_evaluation)",
+    ),
+):
+    """Run the ZenML pipeline for the Epic Documentation RAG system."""
+    import sys
+    from ...infrastructure.zenml.components import register_custom_components
+
+    # Register custom ZenML components
+    register_custom_components()
+
+    # Show pipeline info
+    console.print(
+        Panel(
+            f"[bold]Running ZenML Pipeline: {pipeline_name}[/bold]\n\n"
+            f"[cyan]Source Directory:[/cyan] {source_dir}\n"
+            f"[cyan]File Pattern:[/cyan] {pattern}\n"
+            f"[cyan]Chunking:[/cyan] {'Dynamic' if dynamic_chunking else 'Fixed'} "
+            f"(min={min_chunk_size}, max={max_chunk_size}, overlap={chunk_overlap})\n"
+            f"[cyan]Query File:[/cyan] {query_file or 'Auto-generated queries'}\n",
+            title="ZenML Pipeline Execution",
+            border_style="blue",
+        )
+    )
+
+    try:
+        # Choose which pipeline to run
+        if pipeline_name.lower() == "orchestration":
+            from ...application.pipelines.orchestration_pipeline import (
+                orchestration_pipeline,
+            )
+
+            # Run the pipeline
+            console.print("[bold blue]Running orchestration pipeline...[/bold blue]")
+            orchestration_pipeline(
+                source_dir=source_dir,
+                file_pattern=pattern,
+                limit=limit,
+                dynamic_chunking=dynamic_chunking,
+                min_chunk_size=min_chunk_size,
+                max_chunk_size=max_chunk_size,
+                chunk_overlap=chunk_overlap,
+                query_file=query_file,
+            )
+        elif pipeline_name.lower() == "document_processing":
+            from ...application.pipelines.document_processing_pipeline import (
+                document_processing_pipeline,
+            )
+
+            # Run the pipeline
+            console.print(
+                "[bold blue]Running document processing pipeline...[/bold blue]"
+            )
+            document_processing_pipeline(
+                source_dir=source_dir,
+                file_pattern=pattern,
+                limit=limit,
+                dynamic_chunking=dynamic_chunking,
+                min_chunk_size=min_chunk_size,
+                max_chunk_size=max_chunk_size,
+                chunk_overlap=chunk_overlap,
+            )
+        elif pipeline_name.lower() == "query_evaluation":
+            from ...application.pipelines.query_evaluation_pipeline import (
+                query_evaluation_pipeline,
+            )
+
+            # Check if query file is provided
+            if not query_file:
+                console.print(
+                    "[bold red]Error:[/bold red] Query file is required for query evaluation pipeline."
+                )
+                return
+
+            # Run the pipeline
+            console.print("[bold blue]Running query evaluation pipeline...[/bold blue]")
+            query_evaluation_pipeline(
+                query_file=query_file,
+            )
+        else:
+            console.print(
+                f"[bold red]Error:[/bold red] Unknown pipeline: {pipeline_name}"
+            )
+            console.print(
+                "Available pipelines: orchestration, document_processing, query_evaluation"
+            )
+            return
+
+        # Show success message
+        console.print()
+        console.print(
+            Panel(
+                "[bold green]Pipeline execution started successfully![/bold green]\n\n"
+                "The pipeline will continue running in the background.\n"
+                "You can check the status with the ZenML CLI:\n\n"
+                "[dim]zenml pipeline runs list[/dim]\n"
+                "[dim]zenml pipeline runs describe <run-id>[/dim]\n",
+                title="Success",
+                border_style="green",
+            )
+        )
+    except Exception as e:
+        console.print(f"[bold red]Error running pipeline:[/bold red] {str(e)}")
+        import traceback
+
+        console.print(traceback.format_exc())
+        sys.exit(1)
+
+
 @app.command("info")
 def show_system_info():
     """Show system information and statistics."""
@@ -1894,6 +2032,15 @@ def show_system_info():
     else:
         reranker_info = "\n[cyan]Reranker:[/cyan] Disabled"
 
+    # Get ZenML info
+    try:
+        import subprocess
+
+        zenml_version = subprocess.check_output(["zenml", "version"], text=True).strip()
+        zenml_info = f"\n[cyan]ZenML:[/cyan] {zenml_version}"
+    except Exception:
+        zenml_info = "\n[cyan]ZenML:[/cyan] Installed"
+
     console.print(
         Panel(
             f"[bold]Epic Documentation RAG System[/bold]\n"
@@ -1904,7 +2051,8 @@ def show_system_info():
             f"[cyan]Embedding Model:[/cyan] {settings.embedding.provider} / {model_name}\n"
             f"[cyan]LLM Model:[/cyan] {settings.llm.provider} / {settings.llm.model}"
             f"{cache_info}"
-            f"{reranker_info}",
+            f"{reranker_info}"
+            f"{zenml_info}",
             title="System Information",
             border_style="blue",
         )

@@ -4,7 +4,8 @@ from typing import List, Dict, Any, Optional
 
 from zenml import pipeline, step
 from zenml.config import DockerSettings
-from zenml.steps import Output
+
+# Output typing for steps
 
 from ...domain.models.retrieval import Query, ContextualRetrievalResult
 from ...infrastructure.container import container
@@ -161,7 +162,7 @@ def evaluate_all_queries(
     }
 
 
-@pipeline(settings={"docker": DockerSettings(required_integrations=["qdrant"])})
+@pipeline(enable_cache=True)
 def query_evaluation_pipeline(
     query_file: str = "data/test_queries.txt",
     first_stage_k: int = 20,
