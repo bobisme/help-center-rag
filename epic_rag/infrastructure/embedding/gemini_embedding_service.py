@@ -165,4 +165,3 @@ class GeminiEmbeddingService(EmbeddingService):
     def embedding_dimensions(self) -> int:
         """Get the dimensions of the embedding vectors."""
         return self._dimensions
-

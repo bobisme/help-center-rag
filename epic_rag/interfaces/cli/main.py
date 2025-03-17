@@ -709,7 +709,7 @@ def manage_cache(
     ),
 ):
     """Manage the embedding cache.
-    
+
     Actions:
     - stats: Show cache statistics
     - clear: Clear old entries from the cache
@@ -717,24 +717,27 @@ def manage_cache(
     if not settings.embedding.cache.enabled:
         console.print("[bold red]Error:[/bold red] Cache is disabled in settings.")
         return
-    
+
     try:
         # Get embedding service
         embedding_service = container.get("embedding_service")
-        
+
         # Check if it's a cached service
         if not hasattr(embedding_service, "get_cache_stats"):
-            console.print("[bold red]Error:[/bold red] Embedding service does not support caching.")
+            console.print(
+                "[bold red]Error:[/bold red] Embedding service does not support caching."
+            )
             return
-        
+
         # Get cache from EmbeddingCache class
         from epic_rag.infrastructure.embedding.embedding_cache import EmbeddingCache
+
         cache = EmbeddingCache(
             settings=settings,
             memory_cache_size=settings.embedding.cache.memory_size,
             cache_expiration_days=settings.embedding.cache.expiration_days,
         )
-        
+
         # Perform action
         if action.lower() == "stats":
             asyncio.run(_show_cache_stats(embedding_service))
@@ -751,26 +754,28 @@ async def _show_cache_stats(embedding_service):
     """Show statistics about the embedding cache."""
     # Get cache stats
     stats = await embedding_service.get_cache_stats()
-    
+
     if not stats:
         console.print("[bold yellow]No cache statistics available.[/bold yellow]")
         return
-    
+
     # Show general information
     console.print()
-    console.print(Panel(
-        f"[bold]Cache Status:[/bold] Enabled\n"
-        f"[bold]Memory Cache Size:[/bold] {stats['memory_max_size']} entries\n"
-        f"[bold]Memory Cache Usage:[/bold] {stats['memory_entries']} entries "
-        f"({stats['memory_entries'] / stats['memory_max_size'] * 100:.1f}%)\n"
-        f"[bold]Total Entries:[/bold] {stats['total_entries']}\n"
-        f"[bold]Storage Size:[/bold] {stats['db_size_bytes'] / (1024*1024):.2f} MB\n"
-        f"[bold]Oldest Entry:[/bold] {stats['oldest_entry'] or 'None'}\n"
-        f"[bold]Newest Entry:[/bold] {stats['newest_entry'] or 'None'}",
-        title="Embedding Cache Statistics",
-        border_style="blue",
-    ))
-    
+    console.print(
+        Panel(
+            f"[bold]Cache Status:[/bold] Enabled\n"
+            f"[bold]Memory Cache Size:[/bold] {stats['memory_max_size']} entries\n"
+            f"[bold]Memory Cache Usage:[/bold] {stats['memory_entries']} entries "
+            f"({stats['memory_entries'] / stats['memory_max_size'] * 100:.1f}%)\n"
+            f"[bold]Total Entries:[/bold] {stats['total_entries']}\n"
+            f"[bold]Storage Size:[/bold] {stats['db_size_bytes'] / (1024*1024):.2f} MB\n"
+            f"[bold]Oldest Entry:[/bold] {stats['oldest_entry'] or 'None'}\n"
+            f"[bold]Newest Entry:[/bold] {stats['newest_entry'] or 'None'}",
+            title="Embedding Cache Statistics",
+            border_style="blue",
+        )
+    )
+
     # Show provider breakdown
     if stats.get("by_provider"):
         console.print()
@@ -778,7 +783,7 @@ async def _show_cache_stats(embedding_service):
         table.add_column("Provider", style="cyan")
         table.add_column("Count", style="green")
         table.add_column("Percentage", style="yellow")
-        
+
         total = stats["total_entries"] or 1  # Avoid division by zero
         for provider, count in stats["by_provider"].items():
             table.add_row(
@@ -786,9 +791,9 @@ async def _show_cache_stats(embedding_service):
                 str(count),
                 f"{count / total * 100:.1f}%",
             )
-            
+
         console.print(table)
-    
+
     # Show model breakdown
     if stats.get("by_model"):
         console.print()
@@ -796,7 +801,7 @@ async def _show_cache_stats(embedding_service):
         table.add_column("Model", style="cyan")
         table.add_column("Count", style="green")
         table.add_column("Percentage", style="yellow")
-        
+
         total = stats["total_entries"] or 1  # Avoid division by zero
         for model, count in stats["by_model"].items():
             table.add_row(
@@ -804,7 +809,7 @@ async def _show_cache_stats(embedding_service):
                 str(count),
                 f"{count / total * 100:.1f}%",
             )
-            
+
         console.print(table)
 
 
@@ -817,17 +822,19 @@ async def _clear_cache_entries(cache, days):
         console=console,
     ) as progress:
         task = progress.add_task("Clearing old cache entries...", total=100)
-        
+
         # Update cache expiration days
         cache._cache_expiration_days = days
-        
+
         # Clear old entries
         progress.update(task, advance=50)
         count = await cache.clear_old_entries()
-        
+
         progress.update(task, completed=100)
-    
-    console.print(f"[bold green]Cleared {count} old entries older than {days} days.[/bold green]")
+
+    console.print(
+        f"[bold green]Cleared {count} old entries older than {days} days.[/bold green]"
+    )
 
 
 @app.command("transform-query")
@@ -839,16 +846,16 @@ def transform_query(
 ):
     """Test query transformation functionality using the LLM."""
     from epic_rag.domain.models.retrieval import Query
-    
+
     # Update the LLM model setting
     settings.llm.model = model
-    
+
     # Setup container with the specified model
     setup_container()
-    
+
     # Get LLM service
     llm_service = container.get("llm_service")
-    
+
     # Transform query
     async def run_transform():
         with Progress(
@@ -857,20 +864,20 @@ def transform_query(
             console=console,
         ) as progress:
             task = progress.add_task("Transforming query", total=100)
-            
+
             # Update progress
             progress.update(task, advance=10, description="Processing with LLM")
-            
+
             # Transform query
             transformed_text = await llm_service.transform_query(query_text)
-            
+
             progress.update(task, completed=100, description="Complete")
             return transformed_text
-    
+
     # Run transformation
     try:
         transformed_text = asyncio.run(run_transform())
-        
+
         # Display results
         console.print()
         console.print(
@@ -898,16 +905,16 @@ def test_bm25(
 ):
     """Test BM25 search functionality."""
     from epic_rag.domain.models.retrieval import Query
-    
+
     # Get BM25 service
     bm25_service = container.get("bm25_search_service")
-    
+
     # Create query
     query = Query(
         text=query_text,
         metadata={"source": "cli"},
     )
-    
+
     # Run search
     async def run_search():
         with Progress(
@@ -916,22 +923,22 @@ def test_bm25(
             console=console,
         ) as progress:
             task = progress.add_task("BM25 search", total=100)
-            
+
             # First, ensure all documents are indexed
             progress.update(task, advance=30, description="Indexing documents")
             await bm25_service.reindex_all()
-            
+
             # Run BM25 search
             progress.update(task, advance=30, description="Searching")
             result = await bm25_service.search(query, limit=limit)
-            
+
             progress.update(task, completed=100, description="Complete")
             return result
-    
+
     # Run search
     try:
         result = asyncio.run(run_search())
-        
+
         # Display results
         console.print()
         console.print(
@@ -941,7 +948,7 @@ def test_bm25(
                 border_style="blue",
             )
         )
-        
+
         # Show all results
         if len(result.chunks) == 0:
             console.print("[yellow]No results found.[/yellow]")
@@ -952,8 +959,10 @@ def test_bm25(
                     content = chunk.content
                 else:
                     # Extract a preview (first 200 chars)
-                    content = chunk.content[:200] + ("..." if len(chunk.content) > 200 else "")
-                
+                    content = chunk.content[:200] + (
+                        "..." if len(chunk.content) > 200 else ""
+                    )
+
                 # Show the result
                 console.print(
                     Panel(
@@ -964,10 +973,10 @@ def test_bm25(
                         border_style="green" if i == 1 else "blue",
                     )
                 )
-        
+
         # Show timing information
         console.print(f"Search completed in {result.latency_ms:.2f}ms")
-                
+
     except Exception as e:
         console.print(f"[bold red]Error:[/bold red] {str(e)}")
 
@@ -993,20 +1002,20 @@ def test_hybrid_search(
 ):
     """Test hybrid search with BM25 and vector search with rank fusion."""
     from epic_rag.domain.models.retrieval import Query, RetrievalResult
-    
+
     # Get required services
     bm25_service = container.get("bm25_search_service")
     embedding_service = container.get("embedding_service")
     vector_repository = container.get("vector_repository")
     document_repository = container.get("document_repository")
     rank_fusion_service = container.get("rank_fusion_service")
-    
+
     # Create query
     query = Query(
         text=query_text,
         metadata={"source": "cli"},
     )
-    
+
     # Run search
     async def run_search():
         with Progress(
@@ -1015,25 +1024,25 @@ def test_hybrid_search(
             console=console,
         ) as progress:
             task = progress.add_task("Hybrid search", total=100)
-            
+
             # Ensure all documents are indexed in BM25
             progress.update(task, advance=20, description="Indexing documents")
             await bm25_service.reindex_all()
-            
+
             # Embed the query for vector search
             progress.update(task, advance=20, description="Embedding query")
             query_with_embedding = await embedding_service.embed_query(query)
-            
+
             # Run BM25 search
             progress.update(task, advance=20, description="BM25 search")
             bm25_results = await bm25_service.search(query, limit=limit)
-            
+
             # Run vector search
             progress.update(task, advance=20, description="Vector search")
             vector_chunks = await vector_repository.search_similar(
                 query=query_with_embedding, limit=limit
             )
-            
+
             # Create vector results
             for chunk in vector_chunks:
                 # Get full chunk content from document repository
@@ -1045,13 +1054,13 @@ def test_hybrid_search(
                     for key, value in full_chunk.metadata.items():
                         if key not in chunk.metadata:
                             chunk.metadata[key] = value
-                            
+
             vector_results = RetrievalResult(
                 query_id=query.id,
                 chunks=vector_chunks,
-                latency_ms=0.0  # Initialize with 0
+                latency_ms=0.0,  # Initialize with 0
             )
-            
+
             # Fuse results
             progress.update(task, advance=20, description="Fusing results")
             fused_results = await rank_fusion_service.fuse_results(
@@ -1060,18 +1069,18 @@ def test_hybrid_search(
                 bm25_weight=bm25_weight,
                 vector_weight=vector_weight,
             )
-            
+
             progress.update(task, completed=100, description="Complete")
             return {
                 "vector": vector_results,
-                "bm25": bm25_results, 
-                "fused": fused_results
+                "bm25": bm25_results,
+                "fused": fused_results,
             }
-    
+
     # Run search
     try:
         results = asyncio.run(run_search())
-        
+
         # Display results
         console.print()
         console.print(
@@ -1086,19 +1095,21 @@ def test_hybrid_search(
                 border_style="blue",
             )
         )
-        
+
         # Show separate results if requested
         if show_separate_results:
             # Show BM25 results
             console.print()
             console.print("[bold blue]BM25 Search Results:[/bold blue]")
-            for i, chunk in enumerate(results['bm25'].chunks[:5], 1):
+            for i, chunk in enumerate(results["bm25"].chunks[:5], 1):
                 # Prepare content
                 if show_full_content:
                     content = chunk.content
                 else:
-                    content = chunk.content[:200] + ("..." if len(chunk.content) > 200 else "")
-                
+                    content = chunk.content[:200] + (
+                        "..." if len(chunk.content) > 200 else ""
+                    )
+
                 console.print(
                     Panel(
                         f"[bold]Score:[/bold] {chunk.relevance_score:.4f}\n"
@@ -1107,17 +1118,19 @@ def test_hybrid_search(
                         border_style="yellow",
                     )
                 )
-            
+
             # Show vector results
             console.print()
             console.print("[bold blue]Vector Search Results:[/bold blue]")
-            for i, chunk in enumerate(results['vector'].chunks[:5], 1):
+            for i, chunk in enumerate(results["vector"].chunks[:5], 1):
                 # Prepare content
                 if show_full_content:
                     content = chunk.content
                 else:
-                    content = chunk.content[:200] + ("..." if len(chunk.content) > 200 else "")
-                
+                    content = chunk.content[:200] + (
+                        "..." if len(chunk.content) > 200 else ""
+                    )
+
                 console.print(
                     Panel(
                         f"[bold]Score:[/bold] {chunk.relevance_score:.4f}\n"
@@ -1126,30 +1139,32 @@ def test_hybrid_search(
                         border_style="cyan",
                     )
                 )
-        
+
         # Show fused results
         console.print()
         console.print("[bold blue]Fused Results:[/bold blue]")
-        for i, chunk in enumerate(results['fused'].chunks, 1):
+        for i, chunk in enumerate(results["fused"].chunks, 1):
             # Prepare the content (full or preview)
             if show_full_content:
                 content = chunk.content
             else:
-                content = chunk.content[:200] + ("..." if len(chunk.content) > 200 else "")
-            
+                content = chunk.content[:200] + (
+                    "..." if len(chunk.content) > 200 else ""
+                )
+
             # Get original rankings
             bm25_rank = "N/A"
-            for j, bm25_chunk in enumerate(results['bm25'].chunks, 1):
+            for j, bm25_chunk in enumerate(results["bm25"].chunks, 1):
                 if bm25_chunk.id == chunk.id:
                     bm25_rank = str(j)
                     break
-                    
+
             vector_rank = "N/A"
-            for j, vector_chunk in enumerate(results['vector'].chunks, 1):
+            for j, vector_chunk in enumerate(results["vector"].chunks, 1):
                 if vector_chunk.id == chunk.id:
                     vector_rank = str(j)
                     break
-            
+
             console.print(
                 Panel(
                     f"[bold]Fused Score:[/bold] {chunk.relevance_score:.4f}\n"
@@ -1161,28 +1176,30 @@ def test_hybrid_search(
                     border_style="green" if i <= 3 else "blue",
                 )
             )
-        
+
         # Show timing information
         console.print()
-        if results['bm25'].latency_ms is not None:
+        if results["bm25"].latency_ms is not None:
             console.print(f"BM25 latency: {results['bm25'].latency_ms:.2f}ms")
         else:
             console.print("BM25 latency: N/A")
-            
-        if results['vector'].latency_ms is not None:
+
+        if results["vector"].latency_ms is not None:
             console.print(f"Vector latency: {results['vector'].latency_ms:.2f}ms")
         else:
             console.print("Vector latency: N/A")
-            
-        if results['fused'].latency_ms is not None:
+
+        if results["fused"].latency_ms is not None:
             console.print(f"Total latency: {results['fused'].latency_ms:.2f}ms")
         else:
             console.print("Total latency: N/A")
-                
+
     except Exception as e:
         console.print(f"[bold red]Error:[/bold red] {str(e)}")
         import traceback
+
         console.print(traceback.format_exc())
+
 
 @app.command("info")
 def show_system_info():
@@ -1190,7 +1207,7 @@ def show_system_info():
     # Get repositories
     document_repository = container.get("document_repository")
     vector_repository = container.get("vector_repository")
-    
+
     # Try to get embedding service with cache stats
     embedding_service = container.get("embedding_service")
     has_cache_stats = hasattr(embedding_service, "get_cache_stats")
@@ -1203,14 +1220,14 @@ def show_system_info():
 
             # Get collection stats
             vector_stats = await vector_repository.get_collection_stats()
-            
+
             # Get cache stats if available
             cache_stats = None
             if has_cache_stats:
                 cache_stats = await embedding_service.get_cache_stats()
 
             return {
-                "db_stats": db_stats, 
+                "db_stats": db_stats,
                 "vector_stats": vector_stats,
                 "cache_stats": cache_stats,
             }
@@ -1225,18 +1242,18 @@ def show_system_info():
     cache_info = ""
     if settings.embedding.cache.enabled:
         cache_status = "Enabled"
-        
+
         # Add cache stats if available
         if stats.get("cache_stats"):
             cache_stats = stats["cache_stats"]
             cache_entries = cache_stats.get("total_entries", 0)
-            cache_size = cache_stats.get("db_size_bytes", 0) / (1024*1024)
+            cache_size = cache_stats.get("db_size_bytes", 0) / (1024 * 1024)
             cache_info = f"\n[cyan]Embedding Cache:[/cyan] {cache_status} ({cache_entries} entries, {cache_size:.2f} MB)"
         else:
             cache_info = f"\n[cyan]Embedding Cache:[/cyan] {cache_status}"
     else:
         cache_info = "\n[cyan]Embedding Cache:[/cyan] Disabled"
-        
+
     # Get appropriate model name based on provider
     model_name = settings.embedding.model
     if settings.embedding.provider.lower() == "openai":
@@ -1245,7 +1262,7 @@ def show_system_info():
         model_name = settings.embedding.gemini_model
     elif settings.embedding.provider.lower() == "huggingface":
         model_name = settings.embedding.huggingface_model
-    
+
     console.print(
         Panel(
             f"[bold]Epic Documentation RAG System[/bold]\n"

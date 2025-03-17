@@ -415,7 +415,7 @@ class SQLiteDocumentRepository(DocumentRepository):
 
     async def get_all_chunks(self, limit: int = 10000) -> List[DocumentChunk]:
         """Get all chunks from all documents.
-        
+
         Args:
             limit: Maximum number of chunks to return
 

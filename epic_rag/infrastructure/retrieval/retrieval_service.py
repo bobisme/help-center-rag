@@ -79,17 +79,17 @@ class ContextualRetrievalService(RetrievalService):
 
         # Run vector search
         vector_results = await self._vector_search(query, limit, filters)
-        
+
         # If BM25 is enabled, run BM25 search and combine with vector results
         if (
-            self.settings and 
-            self.settings.retrieval.enable_bm25 and 
-            self.bm25_service and 
-            self.rank_fusion_service
+            self.settings
+            and self.settings.retrieval.enable_bm25
+            and self.bm25_service
+            and self.rank_fusion_service
         ):
             # Run BM25 search
             bm25_results = await self.bm25_service.search(query, limit, filters)
-            
+
             # Fuse results
             fused_results = await self.rank_fusion_service.fuse_results(
                 vector_results=vector_results,
@@ -97,20 +97,20 @@ class ContextualRetrievalService(RetrievalService):
                 bm25_weight=self.settings.retrieval.bm25_weight,
                 vector_weight=self.settings.retrieval.vector_weight,
             )
-            
+
             # Log results
             logger.info(
                 f"Hybrid search: Vector: {len(vector_results.chunks)} results, "
                 f"BM25: {len(bm25_results.chunks)} results, "
                 f"Fused: {len(fused_results.chunks)} results"
             )
-            
+
             # Use fused results
             result = fused_results
         else:
             # Use vector results only
             result = vector_results
-            
+
             # Fetch full content for chunks (vector DB only stores IDs and metadata)
             for chunk in result.chunks:
                 # Get full chunk content from document repository
@@ -126,10 +126,10 @@ class ContextualRetrievalService(RetrievalService):
         # Calculate latency
         end_time = time.time()
         total_latency_ms = (end_time - start_time) * 1000
-        
+
         # Update the latency in the result
         result.latency_ms = total_latency_ms
-        
+
         return result
 
     async def _vector_search(
@@ -194,23 +194,28 @@ class ContextualRetrievalService(RetrievalService):
         Returns:
             Transformed query with updated text
         """
-        if not self.llm_service or not self.settings.retrieval.enable_query_transformation:
-            logger.info(f"Query transformation disabled. Using original query: {query.text}")
+        if (
+            not self.llm_service
+            or not self.settings.retrieval.enable_query_transformation
+        ):
+            logger.info(
+                f"Query transformation disabled. Using original query: {query.text}"
+            )
             return query
-            
+
         try:
             # Use LLM to transform the query
             logger.info(f"Transforming query: {query.text}")
             transformed_text = await self.llm_service.transform_query(query.text)
-            
+
             # Create a new query with the transformed text but keep the original ID
             # We'll need to re-embed the transformed query
             transformed_query = Query(
                 id=query.id,
                 text=transformed_text,
-                metadata={**query.metadata, "original_query": query.text}
+                metadata={**query.metadata, "original_query": query.text},
             )
-            
+
             logger.info(f"Transformed query: '{query.text}' -> '{transformed_text}'")
             return transformed_query
         except Exception as e:
@@ -234,9 +239,15 @@ class ContextualRetrievalService(RetrievalService):
             Filtered list of relevant chunks
         """
         # Filter chunks based on relevance score
-        relevant_chunks = [chunk for chunk in chunks if chunk.relevance_score and chunk.relevance_score >= min_score]
-        
-        logger.info(f"Filtered {len(chunks)} chunks to {len(relevant_chunks)} relevant chunks")
+        relevant_chunks = [
+            chunk
+            for chunk in chunks
+            if chunk.relevance_score and chunk.relevance_score >= min_score
+        ]
+
+        logger.info(
+            f"Filtered {len(chunks)} chunks to {len(relevant_chunks)} relevant chunks"
+        )
         return relevant_chunks
 
     async def merge_related_chunks(
@@ -256,24 +267,24 @@ class ContextualRetrievalService(RetrievalService):
         """
         if not chunks:
             return []
-            
+
         # Group chunks by document ID
         doc_chunks: Dict[str, List[DocumentChunk]] = {}
         for chunk in chunks:
             if chunk.document_id not in doc_chunks:
                 doc_chunks[chunk.document_id] = []
             doc_chunks[chunk.document_id].append(chunk)
-        
+
         # Sort chunks by chunk_index within each document
         for doc_id in doc_chunks:
             doc_chunks[doc_id].sort(key=lambda c: c.chunk_index)
-        
+
         merged_chunks = []
-        
+
         # Process each document's chunks
         for doc_id, chunks in doc_chunks.items():
             current_merged = None
-            
+
             for chunk in chunks:
                 # Start a new merged chunk if we don't have one
                 if current_merged is None:
@@ -291,7 +302,7 @@ class ContextualRetrievalService(RetrievalService):
                         relevance_score=chunk.relevance_score,
                     )
                     continue
-                
+
                 # Check if this chunk is adjacent to the current merged chunk
                 if chunk.chunk_index == current_merged.chunk_index + 1:
                     # Check if adding this chunk would exceed max size
@@ -307,7 +318,7 @@ class ContextualRetrievalService(RetrievalService):
                                 current_merged.relevance_score, chunk.relevance_score
                             )
                         continue
-                
+
                 # If we get here, we can't merge the current chunk
                 # Add the current merged chunk to results and start a new one
                 merged_chunks.append(current_merged)
@@ -324,11 +335,11 @@ class ContextualRetrievalService(RetrievalService):
                     chunk_index=chunk.chunk_index,
                     relevance_score=chunk.relevance_score,
                 )
-            
+
             # Add the last merged chunk
             if current_merged:
                 merged_chunks.append(current_merged)
-        
+
         logger.info(f"Merged {len(chunks)} chunks into {len(merged_chunks)} chunks")
         return merged_chunks
 
@@ -351,17 +362,17 @@ class ContextualRetrievalService(RetrievalService):
         """
         # Start timing
         start_time = time.time()
-        
+
         # Initialize result
         result = ContextualRetrievalResult(
             query=request.query,
         )
-        
+
         # Step 1: Transform query if enabled
         if request.use_query_context:
             request.query = await self.transform_query(request.query)
             result.query = request.query
-        
+
         # Step 2: Hybrid retrieval (vector + BM25 with rank fusion)
         first_stage_results = await self.retrieve(
             query=request.query,
@@ -369,18 +380,18 @@ class ContextualRetrievalService(RetrievalService):
             filters=request.filter_metadata,
         )
         result.first_stage_results = first_stage_results
-        
+
         # Record retrieval time
         retrieval_time = time.time()
         result.retrieval_latency_ms = (retrieval_time - start_time) * 1000
-        
+
         # Step 3: Filter chunks by relevance
         relevant_chunks = await self.filter_chunks_by_relevance(
             query=request.query,
             chunks=first_stage_results.chunks,
             min_score=request.min_relevance_score,
         )
-        
+
         # Step 4: Merge related chunks if enabled
         if request.merge_related_chunks and relevant_chunks:
             # Combine related chunks for better context
@@ -389,7 +400,7 @@ class ContextualRetrievalService(RetrievalService):
                 max_merged_size=self.settings.retrieval.max_merged_chunk_size,
             )
             result.final_chunks = merged_chunks
-            
+
             # Create merged content by combining all chunks
             if merged_chunks:
                 merged_content = "\n\n---\n\n".join(
@@ -399,21 +410,21 @@ class ContextualRetrievalService(RetrievalService):
         else:
             # No merging, just use the filtered chunks
             result.final_chunks = relevant_chunks
-            
+
             # Create merged content
             if relevant_chunks:
                 merged_content = "\n\n---\n\n".join(
                     [chunk.content for chunk in relevant_chunks]
                 )
                 result.merged_content = merged_content
-        
+
         # Calculate total time
         end_time = time.time()
         processing_time = end_time - retrieval_time
         total_time = end_time - start_time
-        
+
         # Update timing metrics
         result.processing_latency_ms = processing_time * 1000
         result.total_latency_ms = total_time * 1000
-        
+
         return result

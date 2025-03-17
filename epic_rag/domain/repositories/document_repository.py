@@ -53,23 +53,23 @@ class DocumentRepository(ABC):
     async def get_chunk(self, chunk_id: str) -> Optional[DocumentChunk]:
         """Get a specific chunk by ID."""
         pass
-        
+
     @abstractmethod
     async def get_all_chunks(self, limit: int = 10000) -> List[DocumentChunk]:
         """Get all chunks from all documents.
-        
+
         Args:
             limit: Maximum number of chunks to return
-            
+
         Returns:
             List of all document chunks
         """
         pass
-        
+
     @abstractmethod
     async def get_statistics(self) -> Dict[str, Any]:
         """Get repository statistics.
-        
+
         Returns:
             Dictionary of statistics
         """

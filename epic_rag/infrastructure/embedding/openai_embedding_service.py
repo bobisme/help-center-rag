@@ -50,7 +50,7 @@ class OpenAIEmbeddingService(EmbeddingService):
             Vector embedding as a list of floats
         """
         logger.debug(f"Embedding text of length {len(text)}")
-        
+
         try:
             response = await self._client.embeddings.create(
                 model=self._model,
@@ -111,23 +111,25 @@ class OpenAIEmbeddingService(EmbeddingService):
             List of embedded chunks
         """
         logger.info(f"Batch embedding {len(chunks)} chunks")
-        
+
         # Process in batches to avoid API limits
         results = []
         for i in range(0, len(chunks), self._batch_size):
-            batch = chunks[i:i + self._batch_size]
-            logger.debug(f"Processing batch {i//self._batch_size + 1} of {(len(chunks)-1)//self._batch_size + 1}")
-            
+            batch = chunks[i : i + self._batch_size]
+            logger.debug(
+                f"Processing batch {i//self._batch_size + 1} of {(len(chunks)-1)//self._batch_size + 1}"
+            )
+
             # Extract content for batch embedding
             texts = [chunk.content for chunk in batch]
-            
+
             try:
                 response = await self._client.embeddings.create(
                     model=self._model,
                     input=texts,
                     dimensions=self._dimensions,
                 )
-                
+
                 # Create embedded chunks with the results
                 for j, chunk in enumerate(batch):
                     embedding = response.data[j].embedding
@@ -161,7 +163,7 @@ class OpenAIEmbeddingService(EmbeddingService):
                             relevance_score=chunk.relevance_score,
                         )
                     )
-        
+
         return results
 
     async def get_embedding_similarity(
@@ -179,15 +181,15 @@ class OpenAIEmbeddingService(EmbeddingService):
         # Convert to numpy arrays for efficient computation
         vec1 = np.array(embedding1)
         vec2 = np.array(embedding2)
-        
+
         # Calculate cosine similarity
         dot_product = np.dot(vec1, vec2)
         norm1 = np.linalg.norm(vec1)
         norm2 = np.linalg.norm(vec2)
-        
+
         if norm1 == 0 or norm2 == 0:
             return 0.0
-            
+
         return float(dot_product / (norm1 * norm2))
 
     @property

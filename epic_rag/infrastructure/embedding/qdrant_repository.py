@@ -158,10 +158,10 @@ class QdrantVectorRepository(VectorRepository):
                 "with_payload": True,
                 "score_threshold": 0.0,
             }
-            
+
             if filter_obj:
                 search_params["filter"] = filter_obj
-                
+
             results = self.client.search(**search_params)
 
             # Convert results to chunks

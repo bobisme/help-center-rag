@@ -23,7 +23,7 @@ class CachedEmbeddingService(EmbeddingService):
         model_name: str,
     ):
         """Initialize the cached embedding service.
-        
+
         Args:
             wrapped_service: The embedding service to wrap with caching
             settings: Application settings
@@ -34,7 +34,7 @@ class CachedEmbeddingService(EmbeddingService):
         self._settings = settings
         self._provider = provider_name
         self._model = model_name
-        
+
         # Initialize cache if enabled
         self._cache_enabled = settings.embedding.cache.enabled
         if self._cache_enabled:
@@ -43,20 +43,21 @@ class CachedEmbeddingService(EmbeddingService):
                 memory_cache_size=settings.embedding.cache.memory_size,
                 cache_expiration_days=settings.embedding.cache.expiration_days,
             )
-            
+
             # Clear old entries if configured
             if settings.embedding.cache.clear_on_startup:
                 # Schedule clearing old entries without awaiting
                 import asyncio
+
                 asyncio.create_task(self._clear_old_entries())
         else:
             self._cache = None
-            
+
         logger.info(
             f"Initialized cached embedding service for {provider_name}/{model_name} "
             f"(cache {'enabled' if self._cache_enabled else 'disabled'})"
         )
-        
+
     async def _clear_old_entries(self):
         """Clear old entries from the cache."""
         if self._cache:
@@ -65,7 +66,7 @@ class CachedEmbeddingService(EmbeddingService):
 
     async def embed_text(self, text: str, is_query: bool = False) -> List[float]:
         """Generate an embedding vector for a text string.
-        
+
         Checks the cache first, and falls back to the wrapped service if not found.
 
         Args:
@@ -78,19 +79,19 @@ class CachedEmbeddingService(EmbeddingService):
         if self._cache_enabled and self._cache:
             # Try to get from cache
             cached_embedding = await self._cache.get(
-                text=text, 
-                provider=self._provider, 
+                text=text,
+                provider=self._provider,
                 model=self._model,
                 is_query=is_query,
             )
-            
+
             if cached_embedding is not None:
                 logger.debug(f"Cache hit for text: {text[:50]}...")
                 return cached_embedding
-                
+
         # Generate embedding with wrapped service
         embedding = await self._wrapped.embed_text(text, is_query)
-        
+
         # Store in cache
         if self._cache_enabled and self._cache and embedding:
             await self._cache.set(
@@ -100,7 +101,7 @@ class CachedEmbeddingService(EmbeddingService):
                 model=self._model,
                 is_query=is_query,
             )
-            
+
         return embedding
 
     async def embed_query(self, query: Query) -> Query:
@@ -157,7 +158,7 @@ class CachedEmbeddingService(EmbeddingService):
         for chunk in chunks:
             embedded_chunk = await self.embed_chunk(chunk)
             results.append(embedded_chunk)
-            
+
         return results
 
     async def get_embedding_similarity(
@@ -180,10 +181,10 @@ class CachedEmbeddingService(EmbeddingService):
     def embedding_dimensions(self) -> int:
         """Get the dimensions of the embedding vectors."""
         return self._wrapped.embedding_dimensions
-    
+
     async def get_cache_stats(self) -> Optional[Dict[str, Any]]:
         """Get statistics about the cache.
-        
+
         Returns:
             Dictionary of cache statistics or None if cache is disabled
         """

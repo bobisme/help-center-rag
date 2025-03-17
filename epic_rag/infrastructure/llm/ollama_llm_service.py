@@ -35,17 +35,16 @@ class OllamaLLMService(LLMService):
             "model": self._settings.model,
             "prompt": prompt,
             "temperature": kwargs.get("temperature", self._settings.temperature),
-            "stream": False
+            "stream": False,
         }
-        
+
         response = await self._client.post(
-            f"{self._api_base}/api/generate",
-            json=payload
+            f"{self._api_base}/api/generate", json=payload
         )
-        
+
         if response.status_code != 200:
             raise Exception(f"Ollama API error: {response.text}")
-            
+
         result = response.json()
         return result.get("response", "")
 
@@ -74,9 +73,9 @@ class OllamaLLMService(LLMService):
         
         Only return the rewritten query text with no additional explanation or commentary.
         """
-        
+
         return await self.generate_text(prompt, temperature=0.2)
-        
+
     @property
     def model_name(self) -> str:
         """Get the name of the language model being used."""

@@ -44,43 +44,47 @@ class HuggingFaceEmbeddingService(EmbeddingService):
         self._dimensions = dimensions
         self._batch_size = batch_size
         self._max_length = max_length
-        
+
         # Determine device
         if device:
             self._device = device
         else:
             self._device = "cuda" if torch.cuda.is_available() else "cpu"
-        
+
         # Load model and tokenizer
         logger.info(f"Loading {model_name} on {self._device}...")
         self._tokenizer = AutoTokenizer.from_pretrained(model_name)
         self._model = AutoModel.from_pretrained(model_name).to(self._device)
-        
+
         # Log GPU memory if using CUDA
         if self._device == "cuda":
             gpu_info = self._get_gpu_info()
             logger.info(f"GPU memory usage: {gpu_info}")
-        
-        logger.info(f"Initialized HuggingFace embedding service with model {model_name} on {self._device}")
+
+        logger.info(
+            f"Initialized HuggingFace embedding service with model {model_name} on {self._device}"
+        )
 
     def _get_gpu_info(self) -> Dict[str, Any]:
         """Get GPU memory information."""
         if not torch.cuda.is_available():
             return {"status": "CUDA not available"}
-        
+
         try:
             # Get current GPU device
             device = torch.cuda.current_device()
-            
+
             # Get GPU name
             gpu_name = torch.cuda.get_device_name(device)
-            
+
             # Get memory information
-            total_memory = torch.cuda.get_device_properties(device).total_memory / 1024**3  # in GB
+            total_memory = (
+                torch.cuda.get_device_properties(device).total_memory / 1024**3
+            )  # in GB
             reserved_memory = torch.cuda.memory_reserved(device) / 1024**3  # in GB
             allocated_memory = torch.cuda.memory_allocated(device) / 1024**3  # in GB
             free_memory = total_memory - allocated_memory
-            
+
             return {
                 "device": device,
                 "name": gpu_name,
@@ -96,71 +100,80 @@ class HuggingFaceEmbeddingService(EmbeddingService):
         self, last_hidden_states: torch.Tensor, attention_mask: torch.Tensor
     ) -> torch.Tensor:
         """Average pool the hidden states to get embeddings.
-        
+
         Args:
             last_hidden_states: The last hidden states from the model
             attention_mask: The attention mask
-            
+
         Returns:
             The pooled embeddings
         """
-        last_hidden = last_hidden_states.masked_fill(~attention_mask[..., None].bool(), 0.0)
+        last_hidden = last_hidden_states.masked_fill(
+            ~attention_mask[..., None].bool(), 0.0
+        )
         return last_hidden.sum(dim=1) / attention_mask.sum(dim=1)[..., None]
 
     def _prepare_text(self, text: str) -> str:
         """Prepare text for the model.
-        
+
         For E5 models, each input text should start with "query: " or "passage: "
         For RAG purposes, we use "query: " for user queries and "passage: " for document chunks.
-        
+
         Args:
             text: The text to prepare
-            
+
         Returns:
             The prepared text
         """
         # Check if text already has a prefix
         if text.startswith("query: ") or text.startswith("passage: "):
             return text
-        
+
         # Default to passage for document chunks
         return f"passage: {text}"
 
-    def _embed_batch(self, texts: List[str], is_query: bool = False) -> List[List[float]]:
+    def _embed_batch(
+        self, texts: List[str], is_query: bool = False
+    ) -> List[List[float]]:
         """Generate embeddings for a batch of texts.
-        
+
         Args:
             texts: List of texts to embed
             is_query: Whether the texts are queries or passages
-            
+
         Returns:
             List of embedding vectors
         """
         # Prepare texts with the correct prefix
         prefix = "query: " if is_query else "passage: "
         prepared_texts = [
-            text if (text.startswith("query: ") or text.startswith("passage: ")) 
-            else f"{prefix}{text}" 
+            (
+                text
+                if (text.startswith("query: ") or text.startswith("passage: "))
+                else f"{prefix}{text}"
+            )
             for text in texts
         ]
-        
+
         # Tokenize inputs
         inputs = self._tokenizer(
-            prepared_texts, 
-            max_length=self._max_length, 
-            padding=True, 
-            truncation=True, 
-            return_tensors="pt"
+            prepared_texts,
+            max_length=self._max_length,
+            padding=True,
+            truncation=True,
+            return_tensors="pt",
         ).to(self._device)
-        
+
         # Generate embeddings
         with torch.no_grad():
             outputs = self._model(**inputs)
-            embeddings = self._average_pool(outputs.last_hidden_state, inputs["attention_mask"])
-            
+            embeddings = self._average_pool(
+                outputs.last_hidden_state, inputs["attention_mask"]
+            )
+
             # Normalize embeddings
             embeddings = F.normalize(embeddings, p=2, dim=1)
-            
+
         # Convert to list format
         return embeddings.cpu().numpy().tolist()
 
@@ -175,13 +188,12 @@ class HuggingFaceEmbeddingService(EmbeddingService):
             Vector embedding as a list of floats
         """
         logger.debug(f"Embedding text of length {len(text)}")
-        
+
         try:
             # Run in a thread to avoid blocking the event loop
             loop = asyncio.get_event_loop()
             result = await loop.run_in_executor(
-                None, 
-                lambda: self._embed_batch([text], is_query=is_query)[0]
+                None, lambda: self._embed_batch([text], is_query=is_query)[0]
             )
             return result
         except Exception as e:
@@ -237,24 +249,25 @@ class HuggingFaceEmbeddingService(EmbeddingService):
             List of embedded chunks
         """
         logger.info(f"Batch embedding {len(chunks)} chunks")
-        
+
         # Process in batches
         results = []
         for i in range(0, len(chunks), self._batch_size):
-            batch = chunks[i:i + self._batch_size]
-            logger.debug(f"Processing batch {i//self._batch_size + 1} of {(len(chunks)-1)//self._batch_size + 1}")
-            
+            batch = chunks[i : i + self._batch_size]
+            logger.debug(
+                f"Processing batch {i//self._batch_size + 1} of {(len(chunks)-1)//self._batch_size + 1}"
+            )
+
             # Extract content for batch embedding
             texts = [chunk.content for chunk in batch]
-            
+
             try:
                 # Run in a thread to avoid blocking the event loop
                 loop = asyncio.get_event_loop()
                 embeddings = await loop.run_in_executor(
-                    None, 
-                    lambda: self._embed_batch(texts, is_query=False)
+                    None, lambda: self._embed_batch(texts, is_query=False)
                 )
-                
+
                 # Create embedded chunks with the results
                 for j, chunk in enumerate(batch):
                     results.append(
@@ -287,7 +300,7 @@ class HuggingFaceEmbeddingService(EmbeddingService):
                             relevance_score=chunk.relevance_score,
                         )
                     )
-        
+
         return results
 
     async def get_embedding_similarity(
@@ -305,15 +318,15 @@ class HuggingFaceEmbeddingService(EmbeddingService):
         # Convert to numpy arrays for efficient computation
         vec1 = np.array(embedding1)
         vec2 = np.array(embedding2)
-        
+
         # Calculate cosine similarity
         dot_product = np.dot(vec1, vec2)
         norm1 = np.linalg.norm(vec1)
         norm2 = np.linalg.norm(vec2)
-        
+
         if norm1 == 0 or norm2 == 0:
             return 0.0
-            
+
         return float(dot_product / (norm1 * norm2))
 
     @property
