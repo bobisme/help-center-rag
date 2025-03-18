@@ -156,6 +156,22 @@ smolvlm-describe-doc doc="test/samples/renew-a-certificate.md":
 # Compare image descriptions from Gemma and SmolVLM
 compare-descriptions doc="test/samples/renew-a-certificate.md" limit="3":
     python compare_image_descriptions.py --doc-path "{{doc}}" --sample-limit {{limit}}
+    
+# Show chunks for a specific document
+show-doc-chunks title:
+    python show_document_chunks.py "{{title}}"
+    
+# Show chunks for a document with metadata
+show-doc-chunks-meta title:
+    python show_document_chunks.py "{{title}}" --metadata
+    
+# Show only the context added to chunks for a document
+show-doc-context title:
+    python show_document_chunks.py "{{title}}" --context-only
+    
+# Show specific document by ID
+show-doc-by-id id:
+    python show_document_by_id.py "{{id}}" --context-only
 
 # Process help center documents using the custom script
 process-help-center count="10":
