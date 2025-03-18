@@ -44,7 +44,7 @@ def load_from_json_file(
         raise ValueError("Invalid JSON structure - 'pages' list not found")
 
     pages = data["pages"]
-    
+
     if index < 0 or index >= len(pages):
         raise ValueError(f"Index {index} out of range (0-{len(pages)-1})")
 

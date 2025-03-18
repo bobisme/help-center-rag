@@ -109,13 +109,10 @@ def _process_links(soup: BeautifulSoup) -> None:
 
         # If the link is javascript or a local file reference, replace with text
         href = link.get("href", "")
-        is_local_link = (
-            isinstance(href, str)
-            and (
-                href.startswith("javascript:")
-                or href.endswith(".htm")
-                or href.startswith("../")
-            )
+        is_local_link = isinstance(href, str) and (
+            href.startswith("javascript:")
+            or href.endswith(".htm")
+            or href.startswith("../")
         )
         if is_local_link:
             # Preserve the inner text
@@ -191,7 +188,8 @@ def _remove_header_elements(soup: BeautifulSoup) -> None:
 
     # Remove "Click here to see this page in full context" text
     for element in soup.find_all(
-        string=lambda text: bool(text) and "Click here to see this page in full context" in text
+        string=lambda text: bool(text)
+        and "Click here to see this page in full context" in text
     ):
         if element.parent:
             element.parent.decompose()
@@ -235,7 +233,10 @@ def preprocess_html(html: str, images_dir: Optional[str] = None) -> str:
 
 
 def convert_html_to_markdown(
-    html: str, images_dir: Optional[str] = None, heading_style: str = "ATX", wrap: bool = True
+    html: str,
+    images_dir: Optional[str] = None,
+    heading_style: str = "ATX",
+    wrap: bool = True,
 ) -> str:
     """
     Convert HTML to Markdown with preprocessing for Epic documentation.

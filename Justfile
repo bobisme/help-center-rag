@@ -145,6 +145,46 @@ show-chunks-custom doc="test/samples/renew-a-certificate.md" chunk_size="600" ov
 image-standalone doc="test/samples/renew-a-certificate.md":
     python image_description_standalone.py "{{doc}}"
 
+# Process help center documents using the custom script
+process-help-center count="10":
+    python process_help_center.py pipeline --output-dir data/help_center --limit {{count}}
+
+# List help center documents
+list-help-center limit="20":
+    python process_help_center.py list --limit {{limit}}
+
+# Process all help center documents (this will take a while)
+process-all-help-center:
+    python process_help_center.py pipeline --output-dir data/help_center
+
+# Process help center documents using pipeline components
+run-help-center count="10":
+    python run_help_center_pipeline.py --output-dir data/help_center --limit {{count}}
+
+# Process all help center documents using pipeline components
+run-help-center-all:
+    python run_help_center_pipeline.py --output-dir data/help_center
+
+# Process help center documents without enrichment
+run-help-center-no-enrichment count="10":
+    python run_help_center_pipeline.py --output-dir data/help_center --limit {{count}} --no-enrichment
+
+# Test query against help center documents
+query-help-center q:
+    python -m epic_rag.interfaces.cli.main query "{{q}}" --show-details
+
+# BM25 search help center documents
+bm25-help-center q:
+    python -m epic_rag.interfaces.cli.main bm25 "{{q}}" --full-content
+
+# Test help center pipeline with a small sample using non-ZenML implementation
+test-help-center:
+    python test_help_center_pipeline.py --limit 5
+
+# Test help center pipeline without enrichment
+test-help-center-no-enrichment:
+    python test_help_center_pipeline.py --limit 5 --no-enrichment
+
 # Stop ZenML server
 zenml-stop:
     zenml logout --local

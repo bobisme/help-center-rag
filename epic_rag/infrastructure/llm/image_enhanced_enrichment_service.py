@@ -1,6 +1,7 @@
 """Implementation of contextual enrichment service with image descriptions."""
 
 import asyncio
+import os
 import re
 from typing import Dict, List, Optional, Set, Tuple
 

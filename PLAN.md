@@ -104,23 +104,55 @@ The system implements Anthropic's Contextual Retrieval approach, which improves 
 
 ### Phase 6: Image Enrichment for Enhanced Context
 
-- [ ] Implement image description generation using Gemma 27B model
-  - [ ] Create image processing pipeline to extract image context from markdown
-  - [ ] Develop prompt template for Gemma 27B to generate image descriptions
-  - [ ] Build async processing mechanism for batch image description generation
-  - [ ] Create storage mechanism for image descriptions
-  - [ ] Integrate image descriptions into contextual enrichment process
-- [ ] Enhance chunking to preserve image context
-  - [ ] Modify chunking service to keep images with surrounding text
-  - [ ] Implement special handling for image-rich sections
-  - [ ] Create image reference tracking during chunking
-- [ ] Extend contextual enrichment with image descriptions
-  - [ ] Update enrichment prompts to incorporate image descriptions
-  - [ ] Design method to weigh text vs. image context based on content type
-  - [ ] Implement evaluation framework to measure impact of image descriptions
-  - [ ] Add metrics specific to image-enhanced retrieval
+- [x] Implement image description generation using Gemma 27B model
+  - [x] Create image processing pipeline to extract image context from markdown
+  - [x] Develop prompt template for Gemma 27B to generate image descriptions
+  - [x] Build async processing mechanism for batch image description generation
+  - [x] Create storage mechanism for image descriptions
+  - [x] Integrate image descriptions into contextual enrichment process
+- [x] Enhance chunking to preserve image context
+  - [x] Modify chunking service to keep images with surrounding text
+  - [x] Implement special handling for image-rich sections
+  - [x] Create image reference tracking during chunking
+- [x] Extend contextual enrichment with image descriptions
+  - [x] Update enrichment prompts to incorporate image descriptions
+  - [x] Design method to weigh text vs. image context based on content type
+  - [x] Implement evaluation framework to measure impact of image descriptions
+  - [x] Add metrics specific to image-enhanced retrieval
 
-### Phase 7: Deployment and Monitoring
+### Phase 7: Help Center Document Processing Pipeline
+
+- [x] Develop batch processing pipeline for Help Center JSON data
+  - [x] Create script to extract and list all pages from epic-docs.json
+  - [x] Build a batch converter to process all pages to markdown
+  - [x] Set up automatic image path resolution for converted pages
+  - [x] Create output directory structure for processed documents
+  - [x] Generate metadata for processed documents (source page, category, etc.)
+- [x] Implement document ingestion pipeline
+  - [x] Create batch ingestion script to process all markdown documents
+  - [x] Set up chunking with image context preservation
+  - [x] Implement contextual enrichment with image descriptions
+  - [x] Configure vector embedding for all processed chunks
+  - [x] Store processed chunks in document database and vector store
+- [x] Implement ZenML pipeline for Help Center processing
+  - [x] Create step to load and parse JSON help center documents
+  - [x] Implement HTML to markdown conversion step
+  - [x] Add document generation and processing steps
+  - [x] Implement chunking and enrichment in the pipeline
+  - [x] Add embedding and storage steps to complete the pipeline
+  - [x] Add caching and rich progress reporting
+- [ ] Optimize retrieval for Help Center content
+  - [ ] Add domain-specific query transformation prompts
+  - [ ] Calibrate BM25 and vector weights for insurance documentation
+  - [ ] Implement result filtering based on document categories
+  - [ ] Add metadata boosts for query-relevant document types
+- [ ] Add evaluation metrics for Help Center content
+  - [ ] Create test query set based on common insurance agency questions
+  - [ ] Implement relevance scoring specific to insurance documentation
+  - [ ] Compare retrieval with and without image enrichment
+  - [ ] Generate benchmarks for retrieval performance
+
+### Phase 8: Deployment and Monitoring
 
 - [ ] Containerize the application
 - [ ] Set up model and data versioning
