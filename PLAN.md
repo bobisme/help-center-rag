@@ -157,7 +157,25 @@ The system implements Anthropic's Contextual Retrieval approach, which improves 
   - [ ] Compare retrieval with and without image enrichment
   - [ ] Generate benchmarks for retrieval performance
 
-### Phase 8: Deployment and Monitoring
+### Phase 8: Data Management and Versioning
+
+- [x] Implement document overwrite functionality in pipeline
+  - [x] Add logic to detect existing documents by epic_page_id
+  - [x] Create functionality to delete old document versions before saving new ones
+  - [x] Update the ingest step to handle document replacement
+  - [x] Ensure all associated chunks are properly cleaned up during replacement
+  - [x] Add performance optimization to batch delete operations
+- [x] Add database maintenance utilities
+  - [x] Create CLI command to clean up orphaned chunks
+  - [x] Implement database backup functionality
+  - [x] Add database compression/vacuum operations
+  - [x] Create document metadata inspection tools
+- [x] Improve pipeline statistics tracking
+  - [x] Add metrics for document replacement vs. new documents
+  - [x] Track version history counts
+  - [x] Implement detailed logging for data operations
+
+### Phase 9: Deployment and Monitoring
 
 - [ ] Containerize the application
 - [ ] Set up model and data versioning
@@ -165,16 +183,37 @@ The system implements Anthropic's Contextual Retrieval approach, which improves 
 - [ ] Create deployment pipeline for continuous updates
 - [ ] Develop user interface for querying the system
 
-## Initial Implementation Plan
+## Document Overwrite Implementation
 
-1. Start with domain model definition
-2. Implement the data processing layer
-3. Set up the document store
-4. Integrate with Qdrant
-5. Implement the core retrieval logic
-6. Create ZenML pipelines
-7. Develop evaluation framework
-8. Build deployment mechanisms
+To implement document replacement strategy (Option 1):
+
+1. **Update SQLiteDocumentRepository**:
+   - Add a `find_document_by_epic_page_id(epic_page_id)` method to locate existing documents
+   - Create a `replace_document(document)` method that:
+     - Checks if a document with the same epic_page_id exists
+     - If exists, deletes the old document and all its chunks
+     - Saves the new document with fresh UUIDs
+     - Returns the saved document with updated IDs
+
+2. **Modify the IngestDocumentUseCase**:
+   - Update to use the new replace_document method
+   - Detect if a document should replace an existing one
+   - Maintain chunk relationships after replacement
+
+3. **Update Document Processing Pipeline**:
+   - Modify the ingest_documents step to use document replacement
+   - Add tracking of replaced vs. new documents in statistics
+   - Ensure vector store properly handles deleted embeddings
+
+4. **Optimize for Performance**:
+   - Add batch operations for document replacement
+   - Create transaction support for atomicity
+   - Add logging for replacement operations
+
+5. **Add Database Utilities**:
+   - Create command to clean orphaned chunks
+   - Add database integrity check
+   - Implement maintenance operations (vacuum)
 
 ## Design Principles
 

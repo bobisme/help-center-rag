@@ -1,7 +1,7 @@
 """Document repository interface."""
 
 from abc import ABC, abstractmethod
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict, Any, Tuple
 
 from ..models.document import Document, DocumentChunk
 
@@ -40,6 +40,18 @@ class DocumentRepository(ABC):
         pass
 
     @abstractmethod
+    async def find_document_by_epic_page_id(
+        self, epic_page_id: str
+    ) -> Optional[Document]:
+        """Find a document by its Epic page ID."""
+        pass
+
+    @abstractmethod
+    async def replace_document(self, document: Document) -> Document:
+        """Replace a document by its Epic page ID, deleting all existing chunks."""
+        pass
+
+    @abstractmethod
     async def save_chunk(self, chunk: DocumentChunk) -> DocumentChunk:
         """Save a document chunk."""
         pass
@@ -63,6 +75,33 @@ class DocumentRepository(ABC):
 
         Returns:
             List of all document chunks
+        """
+        pass
+
+    @abstractmethod
+    async def find_orphaned_chunks(self) -> List[str]:
+        """Find chunks that don't have a parent document.
+
+        Returns:
+            List of chunk IDs that are orphaned
+        """
+        pass
+
+    @abstractmethod
+    async def delete_orphaned_chunks(self) -> int:
+        """Delete chunks that don't have a parent document.
+
+        Returns:
+            Number of chunks deleted
+        """
+        pass
+
+    @abstractmethod
+    async def vacuum_database(self) -> Tuple[float, float]:
+        """Run vacuum operation on the database to reclaim unused space.
+
+        Returns:
+            Tuple of (size_before_mb, size_after_mb)
         """
         pass
 

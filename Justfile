@@ -72,6 +72,30 @@ benchmark-bm25-custom q iters docs:
 # Show system information
 info:
     python -m epic_rag.interfaces.cli.main info
+    
+# Show database statistics
+db-info:
+    python -m epic_rag.interfaces.cli.main db info
+    
+# Clean up orphaned chunks
+db-cleanup:
+    python -m epic_rag.interfaces.cli.main db cleanup-orphans
+    
+# Backup database
+db-backup:
+    python -m epic_rag.interfaces.cli.main db backup
+    
+# Vacuum database
+db-vacuum:
+    python -m epic_rag.interfaces.cli.main db vacuum
+
+# List all documents
+db-list:
+    python -m epic_rag.interfaces.cli.main db list-documents
+
+# Inspect a document by title
+db-inspect title:
+    python -m epic_rag.interfaces.cli.main db inspect-document --title "{{title}}" --chunks --metadata
 
 # Test document processing pipeline with contextual enrichment
 zenml-docs-enriched:

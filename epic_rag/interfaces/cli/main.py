@@ -2,13 +2,21 @@
 
 import asyncio
 import time
-from typing import Optional
+import os
+import shutil
+import datetime
+import aiosqlite
+from typing import Optional, List, Tuple
 
 import typer
 from rich.console import Console
 from rich.table import Table
 from rich.progress import Progress, TextColumn, BarColumn, TaskProgressColumn
 from rich.panel import Panel
+from rich.tree import Tree
+from rich.markdown import Markdown
+from rich.prompt import Confirm
+from loguru import logger
 
 from ...domain.models.document import Document
 from ...infrastructure.config.settings import settings
@@ -16,15 +24,30 @@ from ...infrastructure.container import container, setup_container
 from ...application.use_cases.ingest_document import IngestDocumentUseCase
 from ...application.use_cases.retrieve_context import RetrieveContextUseCase
 
-# Create Typer app
+# Create Typer app with subcommands
 app = typer.Typer(
     name="epic-rag",
     help="Epic Documentation RAG System",
     add_completion=False,
 )
 
+# Create database subcommand group
+db_app = typer.Typer(help="Database maintenance commands")
+app.add_typer(db_app, name="db", short_help="Database maintenance and utilities")
+
 # Rich console for pretty output
 console = Console()
+
+# Configure loguru
+logger.configure(
+    handlers=[
+        {
+            "sink": lambda msg: console.print(
+                f"[dim]{msg}[/dim]", markup=True, highlight=False
+            )
+        }
+    ]
+)
 
 
 @app.callback()
@@ -2754,6 +2777,284 @@ def show_system_info():
         table.add_row("Vector DB Size", f"{size_mb:.2f} MB")
 
     console.print(table)
+
+
+@db_app.command("info")
+def db_info():
+    """Show detailed information about the database."""
+
+    # Create a function that will run the async code properly
+    async def _show_info():
+        document_repository = container.get("document_repository")
+        stats = await document_repository.get_statistics()
+
+        # Create a table to display stats
+        table = Table(title="Database Statistics")
+        table.add_column("Metric", style="cyan")
+        table.add_column("Value", style="green")
+        table.add_column("Last Updated", style="blue")
+
+        for key, data in stats.items():
+            # Format values for better readability
+            if key == "database_size" and "value" in data:
+                # Convert bytes to KB/MB/GB as appropriate
+                size_bytes = data["value"]
+                if size_bytes < 1024:
+                    formatted_value = f"{size_bytes} bytes"
+                elif size_bytes < 1024 * 1024:
+                    formatted_value = f"{size_bytes / 1024:.2f} KB"
+                elif size_bytes < 1024 * 1024 * 1024:
+                    formatted_value = f"{size_bytes / (1024 * 1024):.2f} MB"
+                else:
+                    formatted_value = f"{size_bytes / (1024 * 1024 * 1024):.2f} GB"
+            else:
+                formatted_value = str(data["value"])
+
+            table.add_row(
+                key.replace("_", " ").title(),
+                formatted_value,
+                data.get("updated_at", "N/A"),
+            )
+
+        console.print(table)
+
+        # Database file info
+        try:
+            db_path = document_repository.db_path
+            if os.path.exists(db_path):
+                db_info_panel = Panel(
+                    f"Path: [cyan]{db_path}[/cyan]\n"
+                    f"Size: [green]{os.path.getsize(db_path) / (1024 * 1024):.2f} MB[/green]\n"
+                    f"Created: [blue]{datetime.datetime.fromtimestamp(os.path.getctime(db_path))}[/blue]\n"
+                    f"Modified: [blue]{datetime.datetime.fromtimestamp(os.path.getmtime(db_path))}[/blue]",
+                    title="Database File Information",
+                    expand=False,
+                )
+                console.print(db_info_panel)
+        except Exception as e:
+            console.print(f"[red]Error getting database file info: {str(e)}[/red]")
+
+    # Simplify the async execution to use asyncio.run directly
+    def run_db_info():
+        asyncio.run(_show_info())
+
+    # Run the function
+    run_db_info()
+
+
+@db_app.command("cleanup-orphans")
+def cleanup_orphaned_chunks():
+    """Clean up orphaned chunks (chunks without a parent document)."""
+
+    async def _cleanup():
+        document_repository = container.get("document_repository")
+
+        with console.status("[bold green]Finding orphaned chunks..."):
+            orphaned_chunks = await document_repository.find_orphaned_chunks()
+
+        if not orphaned_chunks:
+            console.print("[green]No orphaned chunks found![/green]")
+            return
+
+        if not Confirm.ask(
+            f"Found {len(orphaned_chunks)} orphaned chunks. Delete them?"
+        ):
+            console.print("[yellow]Operation canceled.[/yellow]")
+            return
+
+        with console.status("[bold green]Deleting orphaned chunks..."):
+            deleted_count = await document_repository.delete_orphaned_chunks()
+
+        console.print(
+            f"[green]Successfully deleted {deleted_count} orphaned chunks[/green]"
+        )
+
+    # Simplify the async execution to use asyncio.run directly
+    def run_cleanup():
+        asyncio.run(_cleanup())
+
+    run_cleanup()
+
+
+@db_app.command("backup")
+def backup_database(
+    output_path: Optional[str] = typer.Option(
+        None, "--output", "-o", help="Output path for backup file"
+    )
+):
+    """Backup the SQLite database."""
+
+    async def _backup():
+        document_repository = container.get("document_repository")
+        db_path = document_repository.db_path
+
+        # Generate backup filename if not provided
+        if not output_path:
+            timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+            output_dir = os.path.dirname(db_path)
+            output_filename = f"{os.path.basename(db_path)}_{timestamp}.backup"
+            backup_path = os.path.join(output_dir, output_filename)
+        else:
+            backup_path = output_path
+
+        # Ensure output directory exists
+        os.makedirs(os.path.dirname(os.path.abspath(backup_path)), exist_ok=True)
+
+        console.print(f"[bold]Backing up database to:[/bold] {backup_path}")
+
+        try:
+            # Create a backup using SQLite's backup API
+            async with aiosqlite.connect(db_path) as source_db:
+                async with aiosqlite.connect(backup_path) as dest_db:
+                    with console.status("[bold green]Creating backup..."):
+                        await source_db.backup(dest_db)
+
+            # Verify backup was created
+            if os.path.exists(backup_path):
+                source_size = os.path.getsize(db_path)
+                backup_size = os.path.getsize(backup_path)
+                console.print(f"[green]Backup completed successfully![/green]")
+                console.print(
+                    f"Source database size: {source_size / (1024 * 1024):.2f} MB"
+                )
+                console.print(
+                    f"Backup database size: {backup_size / (1024 * 1024):.2f} MB"
+                )
+            else:
+                console.print(
+                    "[bold red]Backup file was not created properly[/bold red]"
+                )
+        except Exception as e:
+            console.print(
+                f"[bold red]Error backing up database:[/bold red] {str(e)}"
+            )
+
+    # Simplify the async execution to use asyncio.run directly
+    def run_backup():
+        asyncio.run(_backup())
+
+    run_backup()
+
+
+@db_app.command("vacuum")
+def vacuum_database():
+    """Run vacuum operation on the SQLite database to reclaim unused space."""
+
+    async def _vacuum():
+        document_repository = container.get("document_repository")
+
+        if not Confirm.ask(
+            "This operation may take some time for large databases. Continue?"
+        ):
+            console.print("[yellow]Operation canceled.[/yellow]")
+            return
+
+        console.print("[bold]Running VACUUM operation...[/bold]")
+        start_time = time.time()
+
+        with console.status(
+            "[bold green]Vacuuming database (this may take a while)..."
+        ):
+            size_before, size_after = await document_repository.vacuum_database()
+
+        elapsed_time = time.time() - start_time
+        console.print(
+            f"[green]VACUUM completed in {elapsed_time:.2f} seconds[/green]"
+        )
+        console.print(f"Database size before: {size_before:.2f} MB")
+        console.print(f"Database size after: {size_after:.2f} MB")
+
+        if size_before > 0:  # Avoid division by zero
+            space_saved = size_before - size_after
+            percent_saved = (space_saved / size_before) * 100
+            console.print(
+                f"Space saved: {space_saved:.2f} MB ({percent_saved:.2f}%)"
+            )
+
+    # Simplify the async execution to use asyncio.run directly
+    def run_vacuum():
+        asyncio.run(_vacuum())
+
+    run_vacuum()
+
+
+@db_app.command("inspect-document")
+def inspect_document(
+    document_id: Optional[str] = typer.Option(
+        None, "--id", help="Document ID to inspect"
+    ),
+    title: Optional[str] = typer.Option(
+        None, "--title", help="Document title to search for"
+    ),
+    epic_page_id: Optional[str] = typer.Option(
+        None, "--epic-id", help="Epic page ID to search for"
+    ),
+    show_chunks: bool = typer.Option(
+        False, "--chunks", "-c", help="Show document chunks"
+    ),
+    show_metadata: bool = typer.Option(
+        False, "--metadata", "-m", help="Show detailed metadata"
+    ),
+):
+    """Inspect a document and its metadata."""
+    # Use the script we created for this purpose
+    import sys
+    import subprocess
+    
+    cmd = [
+        sys.executable, 
+        "db_inspect_document.py"
+    ]
+    
+    # Add arguments
+    if document_id:
+        cmd.extend(["--id", document_id])
+    if title:
+        cmd.extend(["--title", title])
+    if epic_page_id:
+        cmd.extend(["--epic-id", epic_page_id])
+    if show_chunks:
+        cmd.append("--chunks")
+    if show_metadata:
+        cmd.append("--metadata")
+    
+    # Execute the script
+    subprocess.run(cmd)
+
+
+@db_app.command("list-documents")
+def list_documents(
+    limit: int = typer.Option(
+        20, "--limit", "-l", help="Maximum number of documents to list"
+    ),
+    offset: int = typer.Option(
+        0, "--offset", "-o", help="Offset to start listing from"
+    ),
+    sort_by: str = typer.Option(
+        "updated_at", "--sort", "-s", help="Sort field (title, created_at, updated_at)"
+    ),
+    descending: bool = typer.Option(
+        True, "--desc/--asc", help="Sort in descending order"
+    ),
+):
+    """List documents in the database."""
+    # Use the script we created for this purpose
+    import sys
+    import subprocess
+    
+    cmd = [
+        sys.executable, 
+        "db_list_documents.py"
+    ]
+    
+    # Add arguments
+    if limit != 20:  # Only add if not default
+        cmd.extend(["--limit", str(limit)])
+    if offset != 0:  # Only add if not default
+        cmd.extend(["--offset", str(offset)])
+    
+    # Execute the script
+    subprocess.run(cmd)
 
 
 if __name__ == "__main__":

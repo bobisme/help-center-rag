@@ -33,6 +33,7 @@ dependencies = [
   "bm25s>=0.2.9",
   "sentence-transformers>=3.4.1",
   "pillow>=11.1.0",
+  "loguru>=0.7.3",
 ]
 
 [dependency-groups]

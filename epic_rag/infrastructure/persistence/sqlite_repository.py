@@ -3,8 +3,9 @@
 import json
 import asyncio
 from datetime import datetime
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict, Any, Tuple
 import aiosqlite
+from loguru import logger
 
 from ...domain.models.document import Document, DocumentChunk
 from ...domain.repositories.document_repository import DocumentRepository
@@ -22,9 +23,25 @@ class SQLiteDocumentRepository(DocumentRepository):
         """
         self.db_path = db_path
         self.enable_json = enable_json
+        logger.debug(f"Initializing SQLiteDocumentRepository with db_path: {db_path}")
 
         # Initialize database schema
-        asyncio.run(self._initialize_db())
+        try:
+            # With Python 3.10+, use a more future-proof approach
+            try:
+                # This is the modern way to get the running loop
+                loop = asyncio.get_running_loop()
+                # If we're in a running event loop, we need to use a different approach
+                logger.debug("Using running event loop for database initialization")
+                asyncio.create_task(self._initialize_db())
+            except RuntimeError:
+                # No running event loop
+                logger.debug("Creating new event loop for database initialization")
+                asyncio.run(self._initialize_db())
+        except Exception as e:
+            # Fall back if anything goes wrong
+            logger.debug(f"Error in event loop handling: {str(e)}. Using asyncio.run()")
+            asyncio.run(self._initialize_db())
 
     async def _initialize_db(self):
         """Initialize the database schema."""
@@ -454,8 +471,214 @@ class SQLiteDocumentRepository(DocumentRepository):
 
             return chunks
 
+    async def find_document_by_epic_page_id(
+        self, epic_page_id: str
+    ) -> Optional[Document]:
+        """Find a document by its Epic page ID.
+
+        Args:
+            epic_page_id: The Epic page ID to search for
+
+        Returns:
+            Document object if found, None otherwise
+        """
+        logger.debug(f"Finding document by epic_page_id: {epic_page_id}")
+        async with aiosqlite.connect(self.db_path) as db:
+            async with db.execute(
+                "SELECT id FROM documents WHERE epic_page_id = ?", (epic_page_id,)
+            ) as cursor:
+                row = await cursor.fetchone()
+                if not row:
+                    logger.debug(f"No document found with epic_page_id: {epic_page_id}")
+                    return None
+
+                logger.debug(
+                    f"Found document with id: {row[0]} for epic_page_id: {epic_page_id}"
+                )
+                return await self.get_document(row[0])
+
+    async def replace_document(self, document: Document) -> Document:
+        """Replace a document by its Epic page ID, deleting all existing chunks.
+
+        Args:
+            document: The document to replace an existing one
+
+        Returns:
+            The saved document
+        """
+        if not document.epic_page_id:
+            logger.warning("Cannot replace document without epic_page_id")
+            return await self.save_document(document)
+
+        logger.info(f"Replacing document with epic_page_id: {document.epic_page_id}")
+
+        async with aiosqlite.connect(self.db_path) as db:
+            await db.execute("BEGIN TRANSACTION")
+            try:
+                # Find existing document by epic_page_id
+                existing_doc = None
+                async with db.execute(
+                    "SELECT id FROM documents WHERE epic_page_id = ?",
+                    (document.epic_page_id,),
+                ) as cursor:
+                    row = await cursor.fetchone()
+                    if row:
+                        existing_doc_id = row[0]
+
+                        # Count chunks for statistics update
+                        async with db.execute(
+                            "SELECT COUNT(*) FROM chunks WHERE document_id = ?",
+                            (existing_doc_id,),
+                        ) as count_cursor:
+                            chunk_count = (await count_cursor.fetchone())[0]
+
+                        logger.info(
+                            f"Found existing document with id: {existing_doc_id} and {chunk_count} chunks"
+                        )
+
+                        # Delete the document (will cascade to chunks with ON DELETE CASCADE)
+                        await db.execute(
+                            "DELETE FROM documents WHERE id = ?", (existing_doc_id,)
+                        )
+
+                        # Update statistics
+                        await db.execute(
+                            """
+                            UPDATE statistics
+                            SET value = CAST(CAST(value AS INTEGER) - ? AS TEXT),
+                                updated_at = datetime('now')
+                            WHERE key = 'chunk_count'
+                            """,
+                            (chunk_count,),
+                        )
+
+                        # Update statistics for document count
+                        await db.execute(
+                            """
+                            UPDATE statistics
+                            SET value = CAST(CAST(value AS INTEGER) - 1 AS TEXT),
+                                updated_at = datetime('now')
+                            WHERE key = 'document_count'
+                            """
+                        )
+
+                        logger.info(
+                            f"Deleted existing document with id: {existing_doc_id}"
+                        )
+
+                # Save new document with fresh UUID
+                saved_doc = await self.save_document(document)
+                await db.commit()
+                logger.info(f"Saved replacement document with id: {saved_doc.id}")
+                return saved_doc
+
+            except Exception as e:
+                logger.error(f"Error replacing document: {str(e)}")
+                await db.execute("ROLLBACK")
+                raise e
+
+    async def find_orphaned_chunks(self) -> List[str]:
+        """Find chunks that don't have a parent document.
+
+        Returns:
+            List of chunk IDs that are orphaned
+        """
+        logger.debug("Finding orphaned chunks")
+        orphaned_chunks = []
+
+        async with aiosqlite.connect(self.db_path) as db:
+            # Find orphaned chunks - chunks where the document_id doesn't exist in documents table
+            async with db.execute(
+                """
+                SELECT c.id FROM chunks c 
+                LEFT JOIN documents d ON c.document_id = d.id 
+                WHERE d.id IS NULL
+            """
+            ) as cursor:
+                async for row in cursor:
+                    orphaned_chunks.append(row[0])
+
+        logger.info(f"Found {len(orphaned_chunks)} orphaned chunks")
+        return orphaned_chunks
+
+    async def delete_orphaned_chunks(self) -> int:
+        """Delete chunks that don't have a parent document.
+
+        Returns:
+            Number of chunks deleted
+        """
+        logger.info("Deleting orphaned chunks")
+        orphaned_chunks = await self.find_orphaned_chunks()
+
+        if not orphaned_chunks:
+            logger.info("No orphaned chunks found")
+            return 0
+
+        async with aiosqlite.connect(self.db_path) as db:
+            # Delete orphaned chunks in a single transaction for performance
+            await db.execute("BEGIN TRANSACTION")
+            try:
+                for chunk_id in orphaned_chunks:
+                    await db.execute("DELETE FROM chunks WHERE id = ?", (chunk_id,))
+
+                # Update statistics
+                await db.execute(
+                    """
+                    UPDATE statistics
+                    SET value = (SELECT COUNT(*) FROM chunks),
+                        updated_at = datetime('now')
+                    WHERE key = 'chunk_count'
+                """
+                )
+
+                await db.commit()
+                logger.info(
+                    f"Successfully deleted {len(orphaned_chunks)} orphaned chunks"
+                )
+                return len(orphaned_chunks)
+
+            except Exception as e:
+                logger.error(f"Error deleting orphaned chunks: {str(e)}")
+                await db.execute("ROLLBACK")
+                raise e
+
+    async def vacuum_database(self) -> Tuple[float, float]:
+        """Run vacuum operation on the database to reclaim unused space.
+
+        Returns:
+            Tuple of (size_before_mb, size_after_mb)
+        """
+        logger.info("Running VACUUM operation on database")
+
+        async with aiosqlite.connect(self.db_path) as db:
+            # Get database size before vacuum
+            async with db.execute("PRAGMA page_count") as cursor:
+                page_count_before = (await cursor.fetchone())[0]
+
+            async with db.execute("PRAGMA page_size") as cursor:
+                page_size = (await cursor.fetchone())[0]
+
+            size_before = page_count_before * page_size / (1024 * 1024)  # in MB
+            logger.info(f"Database size before vacuum: {size_before:.2f} MB")
+
+            # Run vacuum
+            await db.execute("VACUUM")
+
+            # Get database size after vacuum
+            async with db.execute("PRAGMA page_count") as cursor:
+                page_count_after = (await cursor.fetchone())[0]
+
+            size_after = page_count_after * page_size / (1024 * 1024)  # in MB
+            logger.info(f"Database size after vacuum: {size_after:.2f} MB")
+            logger.info(
+                f"Space saved: {size_before - size_after:.2f} MB ({((size_before - size_after) / size_before) * 100:.2f}%)"
+            )
+
+            return (size_before, size_after)
+
     async def get_statistics(self) -> Dict[str, Any]:
         """Get repository statistics."""
+        logger.debug("Getting repository statistics")
         async with aiosqlite.connect(self.db_path) as db:
             stats = {}
 
@@ -494,6 +717,27 @@ class SQLiteDocumentRepository(DocumentRepository):
                 if row and row[0]:
                     stats["avg_chunk_size"] = {
                         "value": int(row[0]),
+                        "updated_at": datetime.now().isoformat(),
+                    }
+
+            # Get database file size
+            import os
+
+            if os.path.exists(self.db_path):
+                file_size = os.path.getsize(self.db_path)
+                stats["database_size"] = {
+                    "value": file_size,
+                    "updated_at": datetime.now().isoformat(),
+                }
+
+            # Get document replacement metrics
+            async with db.execute(
+                "SELECT COUNT(*) FROM documents WHERE epic_page_id IS NOT NULL"
+            ) as cursor:
+                row = await cursor.fetchone()
+                if row:
+                    stats["replaceable_documents"] = {
+                        "value": row[0],
                         "updated_at": datetime.now().isoformat(),
                     }
 
