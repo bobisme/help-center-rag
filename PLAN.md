@@ -110,6 +110,11 @@ The system implements Anthropic's Contextual Retrieval approach, which improves 
   - [x] Build async processing mechanism for batch image description generation
   - [x] Create storage mechanism for image descriptions
   - [x] Integrate image descriptions into contextual enrichment process
+- [x] Add support for alternative image description models
+  - [x] Implement SmolVLM-Synthetic as a lightweight vision-language model
+  - [x] Create swappable image description service interface
+  - [x] Build configuration options to select the active model
+  - [x] Create comparison scripts to evaluate model outputs 
 - [x] Enhance chunking to preserve image context
   - [x] Modify chunking service to keep images with surrounding text
   - [x] Implement special handling for image-rich sections

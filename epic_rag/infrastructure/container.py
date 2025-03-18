@@ -140,6 +140,9 @@ def setup_container():
     from epic_rag.infrastructure.llm.ollama_image_description_service import (
         OllamaImageDescriptionService,
     )
+    from epic_rag.infrastructure.llm.smolvlm_image_description_service import (
+        SmolVLMImageDescriptionService,
+    )
     from epic_rag.infrastructure.llm.image_enhanced_enrichment_service import (
         ImageEnhancedEnrichmentService,
     )
@@ -159,15 +162,25 @@ def setup_container():
         lambda c: OllamaLLMService(settings=settings.llm),
     )
 
-    # Register image description service
-    container.register_factory(
-        "image_description_service",
-        lambda c: OllamaImageDescriptionService(
-            settings=settings.llm,
-            model=settings.llm.image_model,
-            min_image_size=settings.llm.min_image_size,
-        ),
-    )
+    # Register image description service based on configuration
+    if settings.llm.image_service_type == "smolvlm":
+        container.register_factory(
+            "image_description_service",
+            lambda c: SmolVLMImageDescriptionService(
+                settings=settings.llm,
+                model_name=settings.llm.smolvlm_model,
+                min_image_size=settings.llm.min_image_size,
+            ),
+        )
+    else:
+        container.register_factory(
+            "image_description_service",
+            lambda c: OllamaImageDescriptionService(
+                settings=settings.llm,
+                model=settings.llm.image_model,
+                min_image_size=settings.llm.min_image_size,
+            ),
+        )
 
     # Register contextual enrichment service based on configuration
     if settings.llm.enable_image_enrichment:

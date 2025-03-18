@@ -145,6 +145,18 @@ show-chunks-custom doc="test/samples/renew-a-certificate.md" chunk_size="600" ov
 image-standalone doc="test/samples/renew-a-certificate.md":
     python image_description_standalone.py "{{doc}}"
 
+# Run SmolVLM image description demo
+smolvlm-describe:
+    python smolvlm_image_description_demo.py --sample-limit 5
+
+# Run SmolVLM image description with a specific document
+smolvlm-describe-doc doc="test/samples/renew-a-certificate.md":
+    python smolvlm_image_description_demo.py --doc-path "{{doc}}"
+
+# Compare image descriptions from Gemma and SmolVLM
+compare-descriptions doc="test/samples/renew-a-certificate.md" limit="3":
+    python compare_image_descriptions.py --doc-path "{{doc}}" --sample-limit {{limit}}
+
 # Process help center documents using the custom script
 process-help-center count="10":
     python process_help_center.py pipeline --output-dir data/help_center --limit {{count}}
