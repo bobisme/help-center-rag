@@ -1825,8 +1825,8 @@ def test_reranker(
 
 @app.command("zenml-run")
 def run_zenml_pipeline(
-    source_dir: str = typer.Option(
-        ..., "--source-dir", "-s", help="Directory containing markdown files"
+    source_dir: Optional[str] = typer.Option(
+        None, "--source-dir", "-s", help="Directory containing markdown files"
     ),
     pattern: str = typer.Option(
         "*.md", "--pattern", "-p", help="Pattern to match markdown files"
@@ -1858,7 +1858,7 @@ def run_zenml_pipeline(
         "orchestration",
         "--pipeline",
         "-p",
-        help="Pipeline to run (orchestration, document_processing, query_evaluation)",
+        help="Pipeline to run (orchestration, document_processing, query_evaluation, help_center)",
     ),
 ):
     """Run the ZenML pipeline for the Epic Documentation RAG system."""
@@ -1890,6 +1890,13 @@ def run_zenml_pipeline(
                 orchestration_pipeline,
             )
 
+            # Check if source_dir is provided
+            if source_dir is None:
+                console.print(
+                    "[bold red]Error:[/bold red] Source directory is required for orchestration pipeline."
+                )
+                return
+
             # Run the pipeline
             console.print("[bold blue]Running orchestration pipeline...[/bold blue]")
             orchestration_pipeline(
@@ -1907,6 +1914,13 @@ def run_zenml_pipeline(
             from ...application.pipelines.document_processing_pipeline import (
                 document_processing_pipeline,
             )
+
+            # Check if source_dir is provided
+            if source_dir is None:
+                console.print(
+                    "[bold red]Error:[/bold red] Source directory is required for document processing pipeline."
+                )
+                return
 
             # Run the pipeline
             console.print(
@@ -1939,12 +1953,45 @@ def run_zenml_pipeline(
             query_evaluation_pipeline(
                 query_file=query_file,
             )
+        elif pipeline_name.lower() == "help_center":
+            from ...application.pipelines.help_center_pipeline import (
+                help_center_processing_pipeline,
+            )
+
+            # Default values for help center specific options
+            json_path = typer.prompt(
+                "Path to input JSON file", default="output/epic-docs.json"
+            )
+            output_dir = typer.prompt(
+                "Output directory for markdown files", default="data/help_center"
+            )
+            images_dir = typer.prompt(
+                "Directory containing images", default="output/images"
+            )
+            start_index = typer.prompt("Start index", default=0, type=int)
+
+            # Run the pipeline
+            console.print(
+                "[bold blue]Running help center processing pipeline...[/bold blue]"
+            )
+            help_center_processing_pipeline(
+                json_path=json_path,
+                output_dir=output_dir,
+                images_dir=images_dir,
+                start_index=start_index,
+                limit=limit,
+                dynamic_chunking=dynamic_chunking,
+                min_chunk_size=min_chunk_size,
+                max_chunk_size=max_chunk_size,
+                chunk_overlap=chunk_overlap,
+                apply_enrichment=apply_enrichment,
+            )
         else:
             console.print(
                 f"[bold red]Error:[/bold red] Unknown pipeline: {pipeline_name}"
             )
             console.print(
-                "Available pipelines: orchestration, document_processing, query_evaluation"
+                "Available pipelines: orchestration, document_processing, query_evaluation, help_center"
             )
             return
 

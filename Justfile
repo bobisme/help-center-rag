@@ -169,17 +169,25 @@ list-help-center limit="20":
 process-all-help-center:
     python process_help_center.py pipeline --output-dir data/help_center
 
-# Process help center documents using pipeline components
+# Process help center documents using pipeline components (non-ZenML)
 run-help-center count="10":
     python run_help_center_pipeline.py --output-dir data/help_center --limit {{count}}
 
-# Process all help center documents using pipeline components
+# Process all help center documents using pipeline components (non-ZenML)
 run-help-center-all:
     python run_help_center_pipeline.py --output-dir data/help_center
 
-# Process help center documents without enrichment
+# Process help center documents without enrichment (non-ZenML)
 run-help-center-no-enrichment count="10":
     python run_help_center_pipeline.py --output-dir data/help_center --limit {{count}} --no-enrichment
+
+# Process help center documents using ZenML pipeline
+zenml-help-center count="10":
+    python -m epic_rag.interfaces.cli.main zenml-run --pipeline help_center --limit {{count}} --apply-enrichment
+
+# Process help center documents using ZenML pipeline without enrichment
+zenml-help-center-no-enrichment count="10":
+    python -m epic_rag.interfaces.cli.main zenml-run --pipeline help_center --limit {{count}} --skip-enrichment
 
 # Test query against help center documents
 query-help-center q:

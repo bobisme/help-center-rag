@@ -97,7 +97,8 @@ def convert_pages_to_markdown(
     for i, page in enumerate(pages):
         try:
             title = page.get("title", f"Untitled_Page_{i}")
-            raw_html = page.get("html", "")
+            # Check for both "html" and "rawHtml" keys since the format may vary
+            raw_html = page.get("html", "") or page.get("rawHtml", "")
 
             if not raw_html:
                 print(f"Warning: Empty HTML content for page {i}")
@@ -123,7 +124,9 @@ def convert_pages_to_markdown(
                     "title": title,
                     "path": markdown_path,
                     "url": page.get("url", ""),
-                    "original_index": i,
+                    "original_index": str(
+                        i
+                    ),  # Convert to string to fix pydantic validation
                 }
             )
 
@@ -395,20 +398,59 @@ def help_center_processing_pipeline(
     # Step 5: Ingest documents
     ingestion_stats = ingest_documents(documents=processed_documents)
 
-    # Since ZenML wraps our output in StepArtifact which doesn't support update(),
-    # we need to create a new dictionary with all the statistics
+    # Since ZenML wraps our output in StepArtifact which doesn't support .get(),
+    # we need to create a new dictionary with all the statistics using direct key access
     final_stats = {
-        # Copy metadata stats
-        "total_pages": metadata.get("total_pages", 0),
-        "selected_pages": metadata.get("selected_pages", 0),
-        "start_index": metadata.get("start_index", 0),
-        "end_index": metadata.get("end_index", 0),
-        "converted_count": metadata.get("converted_count", 0),
-        "success_rate": metadata.get("success_rate", 0),
-        # Add ingestion stats
-        "processed_document_count": ingestion_stats.get("processed_document_count", 0),
-        "total_chunk_count": ingestion_stats.get("total_chunk_count", 0),
-        "avg_chunks_per_document": ingestion_stats.get("avg_chunks_per_document", 0),
+        # Copy metadata stats (safely with dict access)
+        "total_pages": (
+            metadata["total_pages"]
+            if isinstance(metadata, dict) and "total_pages" in metadata
+            else 0
+        ),
+        "selected_pages": (
+            metadata["selected_pages"]
+            if isinstance(metadata, dict) and "selected_pages" in metadata
+            else 0
+        ),
+        "start_index": (
+            metadata["start_index"]
+            if isinstance(metadata, dict) and "start_index" in metadata
+            else 0
+        ),
+        "end_index": (
+            metadata["end_index"]
+            if isinstance(metadata, dict) and "end_index" in metadata
+            else 0
+        ),
+        "converted_count": (
+            metadata["converted_count"]
+            if isinstance(metadata, dict) and "converted_count" in metadata
+            else 0
+        ),
+        "success_rate": (
+            metadata["success_rate"]
+            if isinstance(metadata, dict) and "success_rate" in metadata
+            else 0
+        ),
+        # Add ingestion stats (safely with dict access)
+        "processed_document_count": (
+            ingestion_stats["processed_document_count"]
+            if isinstance(ingestion_stats, dict)
+            and "processed_document_count" in ingestion_stats
+            else 0
+        ),
+        "total_chunk_count": (
+            ingestion_stats["total_chunk_count"]
+            if isinstance(ingestion_stats, dict)
+            and "total_chunk_count" in ingestion_stats
+            else 0
+        ),
+        "avg_chunks_per_document": (
+            ingestion_stats["avg_chunks_per_document"]
+            if isinstance(ingestion_stats, dict)
+            and "avg_chunks_per_document" in ingestion_stats
+            else 0
+        ),
     }
 
     return final_stats

@@ -48,13 +48,20 @@ class SmolVLMImageDescriptionService(ImageDescriptionService):
 
         # Initialize processor and model
         self._processor = AutoProcessor.from_pretrained(model_name)
+
+        # First initialize the model, then move it to GPU
         self._model = AutoModelForVision2Seq.from_pretrained(
             model_name,
             torch_dtype=torch.bfloat16 if self._device == "cuda" else torch.float32,
-            _attn_implementation=(
-                "flash_attention_2" if self._device == "cuda" else "eager"
-            ),
-        ).to(self._device)
+        )
+
+        # Move model to device first, before setting attention implementation
+        self._model = self._model.to(self._device)
+
+        # Set Flash Attention only after moving to GPU
+        if self._device == "cuda":
+            self._model.config._attn_implementation = "flash_attention_2"
+            print(f"Using Flash Attention 2.0 on {self._device}")
 
         # Set model to evaluation mode
         self._model.eval()
