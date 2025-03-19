@@ -7,33 +7,42 @@ from rich.panel import Panel
 
 sys.path.insert(0, os.getcwd())
 from epic_rag.infrastructure.container import container, setup_container
+
 setup_container()
 
 console = Console()
 
+
 async def main():
     # Parse arguments
     import argparse
+
     parser = argparse.ArgumentParser(description="Inspect a document and its metadata")
     parser.add_argument("--id", help="Document ID to inspect")
     parser.add_argument("--title", help="Document title to search for")
     parser.add_argument("--epic-id", help="Epic page ID to search for")
-    parser.add_argument("--chunks", "-c", action="store_true", help="Show document chunks")
-    parser.add_argument("--metadata", "-m", action="store_true", help="Show detailed metadata")
+    parser.add_argument(
+        "--chunks", "-c", action="store_true", help="Show document chunks"
+    )
+    parser.add_argument(
+        "--metadata", "-m", action="store_true", help="Show detailed metadata"
+    )
     args = parser.parse_args()
-    
+
     if not any([args.id, args.title, args.epic_id]):
         print("Please provide at least one of: --id, --title, or --epic-id")
         return
-    
+
     document_repository = container.get("document_repository")
     document = None
-    
+
     with console.status("[bold green]Finding document..."):
         if args.id:
             document = await document_repository.get_document(args.id)
         elif args.epic_id:
-            document = await document_repository.find_document_by_epic_page_id(args.epic_id)
+            document = await document_repository.find_document_by_epic_page_id(
+                args.epic_id
+            )
         elif args.title:
             # Search by title (partial match)
             filters = {"title": args.title}
@@ -47,9 +56,7 @@ async def main():
                         f"[yellow]Found {len(documents)} documents matching '{args.title}':[/yellow]"
                     )
                     for i, doc in enumerate(documents, 1):
-                        console.print(
-                            f"{i}. [cyan]{doc.title}[/cyan] (ID: {doc.id})"
-                        )
+                        console.print(f"{i}. [cyan]{doc.title}[/cyan] (ID: {doc.id})")
 
                     # Let user choose one
                     try:
@@ -72,9 +79,7 @@ async def main():
     # Display document info
     console.print(f"[bold green]Document:[/bold green] {document.title}")
     console.print(f"[bold]ID:[/bold] {document.id}")
-    console.print(
-        f"[bold]Epic Page ID:[/bold] {document.epic_page_id or 'N/A'}"
-    )
+    console.print(f"[bold]Epic Page ID:[/bold] {document.epic_page_id or 'N/A'}")
     console.print(f"[bold]Epic Path:[/bold] {document.epic_path or 'N/A'}")
     console.print(f"[bold]Created:[/bold] {document.created_at}")
     console.print(f"[bold]Updated:[/bold] {document.updated_at}")
@@ -110,15 +115,12 @@ async def main():
             if args.metadata and chunk.metadata:
                 console.print("[bold]Chunk Metadata:[/bold]")
                 for key, value in chunk.metadata.items():
-                    if (
-                        key == "context"
-                        and isinstance(value, str)
-                        and len(value) > 100
-                    ):
+                    if key == "context" and isinstance(value, str) and len(value) > 100:
                         # Truncate long context values
                         console.print(f"  [cyan]{key}:[/cyan] {value[:100]}...")
                     else:
                         console.print(f"  [cyan]{key}:[/cyan] {value}")
+
 
 if __name__ == "__main__":
     asyncio.run(main())

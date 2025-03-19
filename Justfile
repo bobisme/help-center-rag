@@ -131,95 +131,95 @@ evaluate-enrichment:
 
 # Run evaluation of contextual enrichment impact
 evaluate:
-    python manual_evaluation.py
+    python -m epic_rag.interfaces.cli.main manual-evaluation
 
 # Generate enriched contexts for sample insurance docs
 enrich-insurance:
-    python insurance_enrichment.py
+    python -m epic_rag.interfaces.cli.main testing enrichment-demo
 
 # Run interactive demo of contextual enrichment
 demo:
-    python demo_enrichment.py
+    python -m epic_rag.interfaces.cli.main enrichment-demo
 
 # Test image description generation
 image-describe:
-    python image_description_demo.py --sample-limit 5
+    python -m epic_rag.interfaces.cli.main image-describe --sample-limit 5
 
 # Test image description with a specific document
 image-describe-doc doc="test/samples/renew-a-certificate.md":
-    python image_description_demo.py --doc-path "{{doc}}"
+    python -m epic_rag.interfaces.cli.main image-describe --doc-path "{{doc}}"
 
 # Test image-enhanced contextual enrichment
 image-enrich doc="test/samples/renew-a-certificate.md":
-    python image_enrichment_demo.py "{{doc}}"
+    python -m epic_rag.interfaces.cli.main images describe --doc-path "{{doc}}"
 
 # Test image enrichment with custom image size
 image-enrich-custom doc="test/samples/renew-a-certificate.md" size="128":
-    python image_enrichment_demo.py "{{doc}}" --min-image-size "{{size}}"
+    python -m epic_rag.interfaces.cli.main images describe --doc-path "{{doc}}" --min-size "{{size}}"
 
 # Show full enriched chunks for a document
 show-chunks doc="test/samples/renew-a-certificate.md":
-    python show_enriched_chunks.py "{{doc}}"
+    python -m epic_rag.interfaces.cli.main vis chunks --title "Certificate" --context-only
 
 # Show full enriched chunks with custom parameters
 show-chunks-custom doc="test/samples/renew-a-certificate.md" chunk_size="600" overlap="50":
-    python show_enriched_chunks.py "{{doc}}" --chunk-size "{{chunk_size}}" --chunk-overlap "{{overlap}}"
+    python -m epic_rag.interfaces.cli.main vis chunks --title "Certificate" --limit 10 --metadata
 
 # Run standalone image description demo
 image-standalone doc="test/samples/renew-a-certificate.md":
-    python image_description_standalone.py "{{doc}}"
+    python -m epic_rag.interfaces.cli.main images describe --doc-path "{{doc}}"
 
 # Run SmolVLM image description demo
 smolvlm-describe:
-    python smolvlm_image_description_demo.py --sample-limit 5
+    python -m epic_rag.interfaces.cli.main smolvlm-describe --sample-limit 5
 
 # Run SmolVLM image description with a specific document
 smolvlm-describe-doc doc="test/samples/renew-a-certificate.md":
-    python smolvlm_image_description_demo.py --doc-path "{{doc}}"
+    python -m epic_rag.interfaces.cli.main smolvlm-describe --doc-path "{{doc}}"
 
 # Compare image descriptions from Gemma and SmolVLM
 compare-descriptions doc="test/samples/renew-a-certificate.md" limit="3":
-    python compare_image_descriptions.py --doc-path "{{doc}}" --sample-limit {{limit}}
+    python -m epic_rag.interfaces.cli.main compare-descriptions --doc-path "{{doc}}" --sample-limit {{limit}}
     
 # Show chunks for a specific document
 show-doc-chunks title:
-    python show_document_chunks.py "{{title}}"
+    python -m epic_rag.interfaces.cli.main show-doc-chunks "{{title}}"
     
 # Show chunks for a document with metadata
 show-doc-chunks-meta title:
-    python show_document_chunks.py "{{title}}" --metadata
+    python -m epic_rag.interfaces.cli.main show-doc-chunks "{{title}}" --metadata
     
 # Show only the context added to chunks for a document
 show-doc-context title:
-    python show_document_chunks.py "{{title}}" --context-only
+    python -m epic_rag.interfaces.cli.main show-doc-chunks "{{title}}" --context-only
     
 # Show specific document by ID
 show-doc-by-id id:
-    python show_document_by_id.py "{{id}}" --context-only
+    python -m epic_rag.interfaces.cli.main show-doc-by-id "{{id}}" --context-only
 
-# Process help center documents using the custom script
+# Process help center documents using the CLI
 process-help-center count="10":
-    python process_help_center.py pipeline --output-dir data/help_center --limit {{count}}
+    python -m epic_rag.interfaces.cli.main process-help-center --output-dir data/help_center --limit {{count}}
 
 # List help center documents
 list-help-center limit="20":
-    python process_help_center.py list --limit {{limit}}
+    python -m epic_rag.interfaces.cli.main list-help-center --limit {{limit}}
 
 # Process all help center documents (this will take a while)
 process-all-help-center:
-    python process_help_center.py pipeline --output-dir data/help_center
+    python -m epic_rag.interfaces.cli.main process-help-center --output-dir data/help_center
 
-# Process help center documents using pipeline components (non-ZenML)
+# Process help center documents using pipeline components
 run-help-center count="10":
-    python run_help_center_pipeline.py --output-dir data/help_center --limit {{count}}
+    python -m epic_rag.interfaces.cli.main run-help-center --output-dir data/help_center --limit {{count}}
 
-# Process all help center documents using pipeline components (non-ZenML)
+# Process all help center documents using pipeline components
 run-help-center-all:
-    python run_help_center_pipeline.py --output-dir data/help_center
+    python -m epic_rag.interfaces.cli.main run-help-center --output-dir data/help_center
 
-# Process help center documents without enrichment (non-ZenML)
+# Process help center documents without enrichment
 run-help-center-no-enrichment count="10":
-    python run_help_center_pipeline.py --output-dir data/help_center --limit {{count}} --no-enrichment
+    python -m epic_rag.interfaces.cli.main run-help-center --output-dir data/help_center --limit {{count}} --no-enrichment
 
 # Process help center documents using ZenML pipeline
 zenml-help-center count="10":
