@@ -43,6 +43,7 @@ async def process_help_center_page(
     output_dir: str,
     convert_to_markdown: bool = True,
     save_intermediate: bool = False,
+    page_index: int = 0,
 ) -> Dict[str, Any]:
     """Process a help center page from JSON to markdown.
 
@@ -51,21 +52,44 @@ async def process_help_center_page(
         output_dir: Path to the output directory
         convert_to_markdown: Whether to convert HTML to markdown
         save_intermediate: Whether to save intermediate files
+        page_index: Index of the page to process (for consolidated JSON files)
 
     Returns:
         Dict containing the processed document data
     """
     # Load the JSON file
-    data = load_from_json_file(input_file)
+    with open(input_file, "r", encoding="utf-8") as f:
+        json_data = json.load(f)
 
-    # Extract metadata
-    title = data.get("title", "Untitled")
-    page_id = data.get("id", None)
-    category = data.get("category", {}).get("name", "Uncategorized")
-    updated_at = data.get("updated_at", None)
+    # Check if this is a consolidated file with multiple pages
+    if "pages" in json_data and isinstance(json_data["pages"], list):
+        # This is a consolidated file - extract the specified page
+        if page_index >= len(json_data["pages"]):
+            raise ValueError(
+                f"Page index {page_index} is out of range (0-{len(json_data['pages'])-1})"
+            )
 
-    # Process HTML content if present
-    content = data.get("body", "")
+        page = json_data["pages"][page_index]
+
+        # Extract metadata
+        title = page.get("title", f"Untitled_Page_{page_index}")
+        page_id = page_index  # Use index as ID
+        category = page.get("metadata", {}).get("path", ["Uncategorized"])[0]
+        updated_at = page.get("metadata", {}).get("crawlDate")
+
+        # Process HTML content
+        content = page.get("rawHtml", "")
+    else:
+        # This is an individual page file
+        # Extract metadata
+        title = json_data.get("title", "Untitled")
+        page_id = json_data.get("id", None)
+        category = json_data.get("category", {}).get("name", "Uncategorized")
+        updated_at = json_data.get("updated_at", None)
+
+        # Process HTML content
+        content = json_data.get("body", "")
+
     content_html = content
 
     if convert_to_markdown:
@@ -162,7 +186,17 @@ def process_help_center(
     # Initialize container for RAG system
     if ingest:
         setup_container()
-        ingest_use_case = container.resolve(IngestDocumentUseCase)
+        document_repository = container.get("document_repository")
+        vector_repository = container.get("vector_repository")
+        chunking_service = container.get("chunking_service")
+        embedding_service = container.get("embedding_service")
+
+        ingest_use_case = IngestDocumentUseCase(
+            document_repository=document_repository,
+            vector_repository=vector_repository,
+            chunking_service=chunking_service,
+            embedding_service=embedding_service,
+        )
 
     # Define the processing function
     async def process_files():
@@ -185,10 +219,59 @@ def process_help_center(
                 )
 
                 try:
-                    # Process the file
-                    doc_data = await process_help_center_page(
-                        input_file, output_dir, True, save_files
-                    )
+                    # Check if this is a consolidated file
+                    is_consolidated = False
+                    page_count = 0
+                    try:
+                        with open(input_file, "r", encoding="utf-8") as f:
+                            data = json.load(f)
+                            is_consolidated = "pages" in data and isinstance(
+                                data["pages"], list
+                            )
+                            if is_consolidated:
+                                page_count = len(data["pages"])
+                    except Exception as e:
+                        console.print(f"[red]Error checking file type: {str(e)}[/red]")
+
+                    if is_consolidated:
+                        # For consolidated files, process multiple pages
+                        console.print(
+                            f"[yellow]Detected consolidated file with {page_count} pages[/yellow]"
+                        )
+
+                        # Limit the number of pages to process based on the limit parameter
+                        pages_to_process = page_count
+                        if limit is not None and limit > 0 and limit < page_count:
+                            pages_to_process = limit
+
+                        console.print(
+                            f"[green]Processing {pages_to_process} pages from consolidated file[/green]"
+                        )
+
+                        # Process only the requested page index for this iteration
+                        # Extract the page index from the filename if it's in the format "NNN_filename.json"
+                        if filename.split("_")[0].isdigit():
+                            page_index = int(filename.split("_")[0])
+                        else:
+                            page_index = 0
+
+                        # Use the real input file path, not the virtual one
+                        real_input_file = input_file
+                        if "_" in input_file:
+                            real_input_file = input_file.split("_", 1)[1]
+
+                        doc_data = await process_help_center_page(
+                            real_input_file,
+                            output_dir,
+                            True,
+                            save_files,
+                            page_index=page_index,
+                        )
+                    else:
+                        # For individual files
+                        doc_data = await process_help_center_page(
+                            input_file, output_dir, True, save_files
+                        )
                     processed_docs.append(doc_data)
 
                     # Ingest the document into the RAG system
@@ -197,11 +280,11 @@ def process_help_center(
                         document = Document(
                             title=doc_data["title"],
                             content=doc_data["content"],
-                            source_path=input_file,
                             epic_page_id=doc_data["id"],
                             metadata={
                                 "category": doc_data["category"],
                                 "updated_at": doc_data["updated_at"],
+                                "source_path": input_file,
                             },
                         )
 
@@ -330,8 +413,18 @@ def run_help_center_pipeline(
         )
     )
 
-    # Get required services
-    ingest_use_case = container.resolve(IngestDocumentUseCase)
+    # Get IngestDocumentUseCase by constructing it with required services
+    document_repository = container.get("document_repository")
+    vector_repository = container.get("vector_repository")
+    chunking_service = container.get("chunking_service")
+    embedding_service = container.get("embedding_service")
+
+    ingest_use_case = IngestDocumentUseCase(
+        document_repository=document_repository,
+        vector_repository=vector_repository,
+        chunking_service=chunking_service,
+        embedding_service=embedding_service,
+    )
 
     async def run_pipeline():
         from epic_rag.domain.services.contextual_enrichment_service import (
@@ -341,22 +434,106 @@ def run_help_center_pipeline(
         # Get contextual enrichment service if needed
         enrichment_service = None
         if apply_enrichment:
-            enrichment_service = container.resolve(ContextualEnrichmentService)
+            enrichment_service = container.get("contextual_enrichment_service")
 
-        # Find input files
-        input_dir = "data/help_center_raw"
-        input_files = glob.glob(os.path.join(input_dir, "*.json"))
+        # Use a specific input file
+        input_file = "output/epic-docs.json"
 
-        if not input_files:
-            console.print(f"[bold red]No JSON files found in {input_dir}[/bold red]")
+        if not os.path.exists(input_file):
+            console.print(f"[bold red]Input file {input_file} not found[/bold red]")
             return
 
-        # Sort files
-        input_files.sort()
+        # Check for a consolidated file and get page count
+        page_count = 0
+        try:
+            with open(input_file, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                if "pages" in data and isinstance(data["pages"], list):
+                    page_count = len(data["pages"])
+                    console.print(
+                        f"[green]Found consolidated file with {page_count} pages[/green]"
+                    )
+                else:
+                    console.print(
+                        "[yellow]Input file is not a consolidated file[/yellow]"
+                    )
+                    page_count = 1
+        except Exception as e:
+            console.print(f"[bold red]Error reading input file: {str(e)}[/bold red]")
+            return
 
-        # Limit if requested
-        if limit:
-            input_files = input_files[:limit]
+        # Apply limit if specified
+        pages_to_process = page_count
+        if limit is not None and limit > 0 and limit < page_count:
+            pages_to_process = limit
+
+        console.print(f"[green]Will process {pages_to_process} pages[/green]")
+
+        # Process each page separately
+        true_input_file = input_file
+        processed_count = 0
+
+        with Progress(
+            TextColumn("[bold blue]{task.description}"),
+            BarColumn(),
+            TaskProgressColumn(),
+            TextColumn("[cyan]{task.fields[status]}"),
+        ) as progress:
+            process_task = progress.add_task(
+                "Processing pages", total=pages_to_process, status=""
+            )
+
+            for page_index in range(pages_to_process):
+                progress.update(
+                    process_task,
+                    advance=0,
+                    status=f"Processing page {page_index+1}/{pages_to_process}",
+                )
+
+                try:
+                    # Process the page
+                    doc_data = await process_help_center_page(
+                        true_input_file, output_dir, True, True, page_index=page_index
+                    )
+
+                    # Create document
+                    document = Document(
+                        title=doc_data["title"],
+                        content=doc_data["content"],
+                        epic_page_id=doc_data["id"],
+                        metadata={
+                            "category": doc_data["category"],
+                            "updated_at": doc_data["updated_at"],
+                            "source_path": true_input_file,
+                            "page_index": page_index,
+                        },
+                    )
+
+                    # Ingest document with options
+                    chunking_options = {
+                        "dynamic_chunking": True,
+                        "min_chunk_size": 300,
+                        "max_chunk_size": 800,
+                        "chunk_overlap": 50,
+                        "apply_enrichment": apply_enrichment,
+                    }
+
+                    await ingest_use_case.execute(document, chunking_options)
+                    processed_count += 1
+
+                except Exception as e:
+                    console.print(
+                        f"[bold red]Error processing page {page_index}: {str(e)}[/bold red]"
+                    )
+
+                progress.update(process_task, advance=1)
+
+        console.print(
+            f"[bold green]Successfully processed {processed_count} pages[/bold green]"
+        )
+
+        # We've directly processed all pages, so we're done
+        return
 
         console.print(f"Processing {len(input_files)} help center documents")
 
@@ -378,20 +555,69 @@ def run_help_center_pipeline(
                 )
 
                 try:
-                    # Process help center page
-                    doc_data = await process_help_center_page(
-                        input_file, output_dir, True, True
-                    )
+                    # Check if this is a consolidated file
+                    is_consolidated = False
+                    page_count = 0
+                    try:
+                        with open(input_file, "r", encoding="utf-8") as f:
+                            data = json.load(f)
+                            is_consolidated = "pages" in data and isinstance(
+                                data["pages"], list
+                            )
+                            if is_consolidated:
+                                page_count = len(data["pages"])
+                    except Exception as e:
+                        console.print(f"[red]Error checking file type: {str(e)}[/red]")
+
+                    if is_consolidated:
+                        # For consolidated files, process multiple pages
+                        console.print(
+                            f"[yellow]Detected consolidated file with {page_count} pages[/yellow]"
+                        )
+
+                        # Limit the number of pages to process based on the limit parameter
+                        pages_to_process = page_count
+                        if limit is not None and limit > 0 and limit < page_count:
+                            pages_to_process = limit
+
+                        console.print(
+                            f"[green]Processing {pages_to_process} pages from consolidated file[/green]"
+                        )
+
+                        # Process only the requested page index for this iteration
+                        # Extract the page index from the filename if it's in the format "NNN_filename.json"
+                        if filename.split("_")[0].isdigit():
+                            page_index = int(filename.split("_")[0])
+                        else:
+                            page_index = 0
+
+                        # Use the real input file path, not the virtual one
+                        real_input_file = input_file
+                        if "_" in input_file:
+                            real_input_file = input_file.split("_", 1)[1]
+
+                        doc_data = await process_help_center_page(
+                            real_input_file,
+                            output_dir,
+                            True,
+                            True,
+                            page_index=page_index,
+                        )
+                    else:
+                        # For individual files
+                        doc_data = await process_help_center_page(
+                            input_file, output_dir, True, True
+                        )
 
                     # Create document
                     document = Document(
                         title=doc_data["title"],
                         content=doc_data["content"],
-                        source_path=input_file,
                         epic_page_id=doc_data["id"],
                         metadata={
                             "category": doc_data["category"],
                             "updated_at": doc_data["updated_at"],
+                            "source_path": input_file,
                         },
                     )
 

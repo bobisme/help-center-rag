@@ -28,13 +28,34 @@ async def main():
     parser.add_argument(
         "--offset", "-o", type=int, default=0, help="Offset to start listing from"
     )
+    parser.add_argument(
+        "--sort-by",
+        "-s",
+        type=str,
+        default="created_at",
+        help="Field to sort by",
+    )
+    parser.add_argument(
+        "--asc",
+        action="store_true",
+        help="Sort in ascending order (default is descending)",
+    )
     args = parser.parse_args()
 
     document_repository = container.get("document_repository")
     print("Fetching documents...")
+
+    # SQLiteDocumentRepository.list_documents() doesn't have sort_by/descending parameters
+    # So we'll just use the basic parameters and sort afterwards
     documents = await document_repository.list_documents(
         limit=args.limit, offset=args.offset
     )
+
+    # Sort the documents based on the requested sort field and direction
+    sort_key = lambda doc: (
+        getattr(doc, args.sort_by) if hasattr(doc, args.sort_by) else ""
+    )
+    documents.sort(key=sort_key, reverse=not args.asc)
 
     if not documents:
         print("No documents found in the database")

@@ -151,6 +151,9 @@ class Settings:
     app_name: str = "Epic Documentation RAG"
     debug: bool = False
     environment: str = "development"  # development, testing, production
+    project_root: str = os.path.dirname(
+        os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+    )
 
     # Data paths
     data_dir: str = "data"

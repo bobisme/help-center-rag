@@ -240,7 +240,7 @@ def inspect_document(
 
 @db_app.command("list-documents")
 def list_documents(
-    limit: int = typer.Option(10, "--limit", "-l", help="Number of documents to list"),
+    limit: int = typer.Option(20, "--limit", "-l", help="Number of documents to list"),
     offset: int = typer.Option(0, "--offset", "-o", help="Offset for pagination"),
     sort_by: str = typer.Option(
         "created_at",
