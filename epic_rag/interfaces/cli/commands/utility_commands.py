@@ -19,16 +19,19 @@ def show_info():
     # Display system settings
     console.print("[bold]System Information:[/bold]")
     console.print(f"Project Root: {settings.project_root}")
-    console.print(f"SQLite DB Path: {settings.sqlite_db_path}")
-    console.print(f"Vector Store URL: {settings.vector_store_url}")
-    console.print(f"Vector Store Collection: {settings.vector_store_collection}")
-    console.print(f"Embedding Service: {settings.embedding_service}")
-    console.print(f"LLM Service: {settings.llm_service}")
-    console.print(f"Reranker Model: {settings.reranker_model}")
+    console.print(f"SQLite DB Path: {settings.database.path}")
+    console.print(f"Vector Store URL: {settings.qdrant.url or 'Local'}")
+    console.print(f"Vector Store Collection: {settings.qdrant.collection_name}")
+    console.print(f"Embedding Provider: {settings.embedding.provider}")
+    console.print(f"Embedding Model: {settings.embedding.model}")
+    console.print(f"LLM Provider: {settings.llm.provider}")
+    console.print(f"LLM Model: {settings.llm.model}")
+    console.print(f"Reranker Model: {settings.retrieval.reranker.model_name if settings.retrieval.reranker.enabled else 'Disabled'}")
 
     # Check for database file
-    db_exists = os.path.exists(settings.sqlite_db_path)
-    db_size = os.path.getsize(settings.sqlite_db_path) if db_exists else 0
+    db_path = settings.database.path
+    db_exists = os.path.exists(db_path)
+    db_size = os.path.getsize(db_path) if db_exists else 0
     db_size_mb = db_size / (1024 * 1024) if db_exists else 0
 
     console.print()
@@ -74,7 +77,7 @@ def test_db():
     """Test database connection and display table schema."""
 
     async def test_database():
-        db_path = settings.sqlite_db_path
+        db_path = settings.database.path
 
         if not os.path.exists(db_path):
             console.print(f"[bold red]Database file not found: {db_path}[/bold red]")
