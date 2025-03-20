@@ -3,14 +3,15 @@
 from dataclasses import dataclass, field
 from typing import List, Dict, Optional, Any
 from datetime import datetime
-import uuid
+
+from .ident import new_id
 
 
 @dataclass
 class DocumentChunk:
     """A chunk of a document used for retrieval."""
 
-    id: str = field(default_factory=lambda: str(uuid.uuid4()))
+    id: str = field(default_factory=lambda: new_id("chunk"))
     content: str = ""
     metadata: Dict[str, Any] = field(default_factory=dict)
     embedding: Optional[List[float]] = None
@@ -31,7 +32,7 @@ class DocumentChunk:
 class Document:
     """Represents a document in the system."""
 
-    id: str = field(default_factory=lambda: str(uuid.uuid4()))
+    id: str = field(default_factory=lambda: new_id("doc"))
     title: str = ""
     content: str = ""
     metadata: Dict[str, Any] = field(default_factory=dict)

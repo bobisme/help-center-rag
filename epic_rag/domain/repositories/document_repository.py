@@ -2,6 +2,7 @@
 
 from abc import ABC, abstractmethod
 from typing import List, Optional, Dict, Any, Tuple
+from datetime import datetime
 
 from ..models.document import Document, DocumentChunk
 
@@ -111,5 +112,45 @@ class DocumentRepository(ABC):
 
         Returns:
             Dictionary of statistics
+        """
+        pass
+        
+    @abstractmethod
+    async def save_query(
+        self, 
+        query_text: str, 
+        transformed_query: Optional[str] = None,
+        metadata: Optional[Dict[str, Any]] = None
+    ) -> str:
+        """Save a query to the query history.
+        
+        Args:
+            query_text: The original query text
+            transformed_query: Optional transformed query text
+            metadata: Optional metadata about the query (results, etc)
+            
+        Returns:
+            The ID of the saved query
+        """
+        pass
+    
+    @abstractmethod
+    async def get_query_history(
+        self, 
+        limit: int = 100, 
+        offset: int = 0,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None
+    ) -> List[Dict[str, Any]]:
+        """Get query history with optional date filtering.
+        
+        Args:
+            limit: Maximum number of queries to return
+            offset: Offset for pagination
+            start_date: Optional start date for filtering
+            end_date: Optional end date for filtering
+            
+        Returns:
+            List of query history records
         """
         pass

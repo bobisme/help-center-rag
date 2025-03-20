@@ -86,7 +86,7 @@ db-vacuum:
 
 # List all documents
 db-list:
-    python -m epic_rag.interfaces.cli.main db list-documents
+    python -m epic_rag.interfaces.cli.main list-help-center
 
 # Inspect a document by title
 db-inspect title:
