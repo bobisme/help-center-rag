@@ -7,7 +7,7 @@ from typing import Optional
 from ....infrastructure.container import container
 from .common import console, logger
 
-pipeline_app = typer.Typer()
+pipeline_app = typer.Typer(pretty_exceptions_enable=False)
 
 
 @pipeline_app.command("zenml-run")

@@ -11,13 +11,8 @@ reset:
     #!/usr/bin/env bash
     echo "Removing existing databases..."
     rm -rf data/epic_rag.db qdrant_data
-    
     echo "Creating data directories if they don't exist..."
     mkdir -p data/markdown data/output
-    
-    echo "Ingesting markdown documents..."
-    python -m epic_rag.interfaces.cli.main ingest --source-dir data/markdown --pattern "*.md"
-    
     echo "Database reset complete."
 
 # Test query transformation with default model

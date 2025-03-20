@@ -18,7 +18,7 @@ from .....infrastructure.container import container, setup_container
 from ...common import console
 
 # Create a Typer app for document visualization commands
-vis_app = typer.Typer()
+vis_app = typer.Typer(pretty_exceptions_enable=False)
 
 
 def get_documents_by_title(title: str):

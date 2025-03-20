@@ -16,7 +16,7 @@ from rich.prompt import Confirm
 from ....infrastructure.config.settings import settings
 from .common import console
 
-db_app = typer.Typer()
+db_app = typer.Typer(pretty_exceptions_enable=False)
 
 
 @db_app.command("info")

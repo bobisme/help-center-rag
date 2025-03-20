@@ -27,7 +27,7 @@ class SearchResult:
     metadata: Dict[str, Any] = field(default_factory=dict)
 
 
-query_app = typer.Typer()
+query_app = typer.Typer(pretty_exceptions_enable=False)
 
 
 @query_app.command("query")

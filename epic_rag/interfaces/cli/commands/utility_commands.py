@@ -10,7 +10,7 @@ from ....infrastructure.config.settings import settings
 from ....infrastructure.container import container
 from .common import console
 
-utility_app = typer.Typer()
+utility_app = typer.Typer(pretty_exceptions_enable=False)
 
 
 @utility_app.command("info")

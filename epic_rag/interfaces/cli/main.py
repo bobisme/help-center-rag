@@ -21,6 +21,7 @@ app = typer.Typer(
     name="epic-rag",
     help="Epic Documentation RAG System",
     add_completion=False,
+    pretty_exceptions_enable=False,
 )
 
 

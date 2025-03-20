@@ -20,7 +20,7 @@ from .....application.use_cases.ingest_document import IngestDocumentUseCase
 from ...common import console
 
 # Create a Typer app for testing commands
-testing_app = typer.Typer()
+testing_app = typer.Typer(pretty_exceptions_enable=False)
 
 # Import sample data for demo enrichment
 try:

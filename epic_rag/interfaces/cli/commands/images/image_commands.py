@@ -28,7 +28,7 @@ from .....infrastructure.llm.smolvlm_image_description_service import (
 from ...common import console
 
 # Create Typer app for image commands
-image_app = typer.Typer()
+image_app = typer.Typer(pretty_exceptions_enable=False)
 
 
 @image_app.command("describe")

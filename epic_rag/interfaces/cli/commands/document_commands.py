@@ -12,7 +12,7 @@ from ....infrastructure.container import container
 from ....application.use_cases.ingest_document import IngestDocumentUseCase
 from .common import console, create_progress_bar, display_document_info
 
-document_app = typer.Typer()
+document_app = typer.Typer(pretty_exceptions_enable=False)
 
 
 @document_app.command("ingest")

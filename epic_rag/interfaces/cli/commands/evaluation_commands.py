@@ -14,7 +14,7 @@ from ....domain.services.contextual_enrichment_service import (
 from ....domain.services.reranker_service import RerankerService
 from .common import console, create_progress_bar
 
-evaluation_app = typer.Typer()
+evaluation_app = typer.Typer(pretty_exceptions_enable=False)
 
 
 @evaluation_app.command("test-enrichment")

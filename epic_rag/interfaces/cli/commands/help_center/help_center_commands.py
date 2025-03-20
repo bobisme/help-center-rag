@@ -24,7 +24,7 @@ from .....application.use_cases.ingest_document import IngestDocumentUseCase
 from ...common import console
 
 # Create Typer app for help center commands
-help_center_app = typer.Typer()
+help_center_app = typer.Typer(pretty_exceptions_enable=False)
 
 
 def initialize_directories(output_dir: str) -> None:
