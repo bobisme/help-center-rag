@@ -5,6 +5,7 @@ import time
 from dataclasses import dataclass, field
 from typing import Any, Dict
 
+from ....domain.models.document import DocumentChunk
 from ....domain.models.retrieval import Query, RetrievalResult
 
 import typer
@@ -100,36 +101,37 @@ def query(
     overall_start = time.time()
     metrics["timestamps"]["start"] = overall_start
 
-    transformed_query = query_text
-
-    # Transform query if enabled
-    if transform_query and not (vector_only or bm25_only):
-        transform_start = time.time()
-        prompt = f"""
-        You are a query transformation system for a help desk knowledge base.
-        Your task is to transform the user's query into a more effective search query.
-        Consider what the user's intent might be and create a query that will be more likely to retrieve relevant information.
+    # We'll move query transformation inside the async function
+    async def transform_query_async():
+        if transform_query and not (vector_only or bm25_only):
+            transform_start = time.time()
+            try:
+                # Use the dedicated transform_query method from the LLM service
+                transformed = await llm_service.transform_query(query_text)
+                transform_time = (time.time() - transform_start) * 1000
+                
+                metrics["transformed_query"] = transformed
+                metrics["durations_ms"]["transform"] = transform_time
+                
+                if show_details:
+                    console.print(f"[bold]Transformed Query:[/bold] {transformed}")
+                    console.print(f"[dim]Transform time: {transform_time:.2f}ms[/dim]")
+                    console.print()
+                
+                return transformed
+            except Exception as e:
+                console.print(f"[bold red]Error transforming query:[/bold red] {str(e)}")
+                return query_text
+        return query_text
         
-        Original Query: {query_text}
-        
-        Transformed Query:
-        """
-
-        # Transform the query
-        transformed_query = asyncio.run(llm_service.generate_text(prompt)).strip()
-        transform_time = (time.time() - transform_start) * 1000
-
-        metrics["transformed_query"] = transformed_query
-        metrics["durations_ms"]["transform"] = transform_time
-
-        if show_details:
-            console.print(f"[bold]Transformed Query:[/bold] {transformed_query}")
-            console.print(f"[dim]Transform time: {transform_time:.2f}ms[/dim]")
-            console.print()
+    # We'll handle the transformation in the main async function
 
     async def perform_search():
         from ....domain.models.retrieval import Query
 
+        # First transform the query if needed
+        transformed_query = await transform_query_async()
+        
         # Create a proper Query object
         query_obj = Query(text=transformed_query)
 
@@ -274,17 +276,33 @@ def query(
         if rerank and reranker_service and results:
             rerank_start = time.time()
 
-            # Extract document content for reranking from our SearchResult objects
-            doc_texts = [result.content for result in results[: top_k * 2]]
+            # Create a proper Query object
+            query = Query(text=query_text)
+            
+            # Create DocumentChunk objects from our SearchResult objects
+            doc_chunks = [
+                DocumentChunk(
+                    id=result.id,
+                    content=result.content,
+                    metadata=result.metadata,
+                    relevance_score=result.score
+                ) 
+                for result in results[: top_k * 2]
+            ]
 
             # Rerank the results
-            reranked_scores = await reranker_service.rerank(query_text, doc_texts)
-
-            # Update the scores
-            for i, score in enumerate(reranked_scores):
-                if i < len(results):
-                    results[i].score = score
-
+            reranked_chunks = await reranker_service.rerank(query, doc_chunks)
+            
+            # Map the reranked chunks back to our results
+            # Create a mapping from chunk ID to result index
+            chunk_id_to_index = {result.id: i for i, result in enumerate(results)}
+            
+            # Update scores based on the reranked chunks
+            for chunk in reranked_chunks:
+                if chunk.id in chunk_id_to_index:
+                    idx = chunk_id_to_index[chunk.id]
+                    results[idx].score = chunk.relevance_score or 0.0
+            
             # Sort by the new scores
             results = sorted(results, key=lambda x: x.score, reverse=True)
 
