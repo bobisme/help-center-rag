@@ -2,17 +2,13 @@
 
 import asyncio
 import time
-from typing import Dict, Any
 from dataclasses import dataclass, field
+from typing import Any, Dict
 
 import typer
 from rich.markdown import Markdown
 
 from ....infrastructure.container import container
-from ....application.use_cases.retrieve_context import RetrieveContextUseCase
-from ....domain.services.rank_fusion_service import RankFusionService
-from ....domain.services.lexical_search_service import LexicalSearchService
-from ....domain.services.reranker_service import RerankerService
 from .common import console
 
 
@@ -43,34 +39,50 @@ def query(
 ):
     """Query the system with RAG retrieval."""
     # Call the retrieve context use case
-    retrieve_use_case = container.resolve(RetrieveContextUseCase)
+    retrieve_use_case = container.get("retrieve_context_use_case")
 
     console.print(f"[bold]Query:[/bold] {query_text}")
     console.print()
 
     # Retrieve the context
     start_time = time.time()
-    result = asyncio.run(retrieve_use_case.execute(query_text, top_k, rerank=rerank))
+    # The rerank parameter might be handled differently in the use case
+    # Pass it through filter_metadata if the execute method doesn't support
+    # rerank directly
+    result = asyncio.run(
+        retrieve_use_case.execute(
+            query_text,
+            first_stage_k=top_k * 2,
+            second_stage_k=top_k,
+            filter_metadata={"rerank": rerank} if rerank else None,
+        )
+    )
     elapsed_time = time.time() - start_time
 
     # Display the context
     console.print(f"[bold]Results:[/bold] (took {elapsed_time:.2f}s)")
     console.print()
 
-    for i, doc in enumerate(result.documents):
+    if not result.final_chunks:
+        console.print("[italic]No results found.[/italic]")
+        return
+
+    for i, chunk in enumerate(result.final_chunks):
+        title = chunk.document_title or "Untitled"
+        score = chunk.score
         console.print(
-            f"[bold cyan]{i+1}.[/bold cyan] [bold]{doc.title}[/bold] (Score: {doc.score:.4f})"
+            f"[bold cyan]{i+1}.[/bold cyan] [bold]{title}[/bold] (Score: {score:.4f})"
         )
 
         # Display the document metadata if requested
-        if show_metadata and doc.metadata:
+        if show_metadata and chunk.metadata:
             console.print("[bold]Metadata:[/bold]")
-            for key, value in doc.metadata.items():
+            for key, value in chunk.metadata.items():
                 console.print(f"  {key}: {value}")
 
         # Display the document content
         console.print()
-        console.print(Markdown(doc.content))
+        console.print(Markdown(chunk.content))
         console.print()
 
 
@@ -87,7 +99,7 @@ def bm25_search(
 ):
     """Search using BM25 lexical search."""
     # Get the lexical search service
-    search_service = container.resolve(LexicalSearchService)
+    search_service = container.get("bm25_search_service")
 
     console.print(f"[bold]Query:[/bold] {query_text}")
     console.print()
@@ -102,8 +114,10 @@ def bm25_search(
     console.print()
 
     for i, result in enumerate(results):
+        title = result.titel or "Untitled"
+        score = result.score
         console.print(
-            f"[bold cyan]{i+1}.[/bold cyan] [bold]{result.title}[/bold] (Score: {result.score:.4f})"
+            f"[bold cyan]{i+1}.[/bold cyan] [bold]{title}[/bold] (Score: {score:.4f})"
         )
 
         # Display the document metadata if requested
@@ -140,10 +154,10 @@ def hybrid_search(
 ):
     """Perform hybrid search combining BM25 and vector search."""
     # Get the required services
-    search_service = container.resolve(LexicalSearchService)
-    retrieve_use_case = container.resolve(RetrieveContextUseCase)
-    rank_fusion_service = container.resolve(RankFusionService)
-    reranker_service = container.resolve(RerankerService) if rerank else None
+    search_service = container.get("bm25_search_service")
+    retrieve_use_case = container.get("retrieve_context_use_case")
+    rank_fusion_service = container.get("rank_fusion_service")
+    reranker_service = container.get("reranker_service") if rerank else None
 
     console.print(f"[bold]Query:[/bold] {query_text}")
     console.print()
@@ -200,8 +214,10 @@ def hybrid_search(
     console.print()
 
     for i, result in enumerate(results):
+        title = result.title
+        score = result.score
         console.print(
-            f"[bold cyan]{i+1}.[/bold cyan] [bold]{result.title}[/bold] (Score: {result.score:.4f})"
+            f"[bold cyan]{i+1}.[/bold cyan] [bold]{title}[/bold] (Score: {score:.4f})"
         )
 
         # Display the document metadata if requested
@@ -221,9 +237,8 @@ def transform_query(
     query_text: str = typer.Argument(..., help="The query text"),
 ):
     """Transform a query using natural language understanding."""
-    from ....domain.services.llm_service import LLMService
 
-    llm_service = container.resolve(LLMService)
+    llm_service = container.get("llm_service")
 
     console.print(f"[bold]Original Query:[/bold] {query_text}")
     console.print()
@@ -232,7 +247,8 @@ def transform_query(
     prompt = f"""
 You are a query transformation system for a help desk knowledge base.
 Your task is to transform the user's query into a more effective search query.
-Consider what the user's intent might be and create a query that will be more likely to retrieve relevant information.
+Consider what the user's intent might be and create a query that will be more
+likely to retrieve relevant information.
 
 Original Query: {query_text}
 
