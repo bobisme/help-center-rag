@@ -9,6 +9,7 @@ from ...domain.repositories.document_repository import DocumentRepository
 from ...domain.repositories.vector_repository import VectorRepository
 from ...domain.services.chunking_service import ChunkingService
 from ...domain.services.embedding_service import EmbeddingService
+from ...domain.services.contextual_enrichment_service import ContextualEnrichmentService
 
 
 class IngestDocumentUseCase:
@@ -20,6 +21,7 @@ class IngestDocumentUseCase:
         vector_repository: VectorRepository,
         chunking_service: ChunkingService,
         embedding_service: EmbeddingService,
+        contextual_enrichment_service: Optional[ContextualEnrichmentService] = None,
     ):
         """Initialize the use case.
 
@@ -28,11 +30,13 @@ class IngestDocumentUseCase:
             vector_repository: Repository for vector operations
             chunking_service: Service for document chunking
             embedding_service: Service for generating embeddings
+            contextual_enrichment_service: Optional service for enriching chunks with context
         """
         self.document_repository = document_repository
         self.vector_repository = vector_repository
         self.chunking_service = chunking_service
         self.embedding_service = embedding_service
+        self.contextual_enrichment_service = contextual_enrichment_service
 
     async def execute(
         self,
@@ -42,6 +46,7 @@ class IngestDocumentUseCase:
         max_chunk_size: int = 800,
         chunk_overlap: int = 50,
         extra_chunk_metadata: Optional[Dict[str, Any]] = None,
+        apply_enrichment: bool = True,
     ) -> Document:
         """Execute the document ingestion process.
 
@@ -52,6 +57,7 @@ class IngestDocumentUseCase:
             max_chunk_size: Maximum chunk size when using dynamic chunking
             chunk_overlap: Overlap between chunks
             extra_chunk_metadata: Additional metadata to add to chunks
+            apply_enrichment: Whether to apply contextual enrichment to chunks before embedding
 
         Returns:
             The processed document with chunks and embeddings
@@ -76,21 +82,32 @@ class IngestDocumentUseCase:
                 chunk_overlap=chunk_overlap,
                 metadata=extra_chunk_metadata,
             )
+            
+        # Step 3: Apply contextual enrichment if enabled and service is available
+        if apply_enrichment and self.contextual_enrichment_service:
+            print(f"Applying contextual enrichment to {len(chunks)} chunks...")
+            enrichment_start = time.time()
+            chunks = await self.contextual_enrichment_service.enrich_chunks(
+                document=saved_document, 
+                chunks=chunks
+            )
+            enrichment_time = (time.time() - enrichment_start) * 1000
+            print(f"Contextual enrichment completed in {enrichment_time:.2f}ms")
 
-        # Step 3: Save chunks to the repository
+        # Step 4: Save chunks to the repository
         for chunk in chunks:
             chunk.document_id = saved_document.id
             await self.document_repository.save_chunk(chunk)
 
-        # Step 4: Generate embeddings for all chunks
+        # Step 5: Generate embeddings for all chunks
         embedded_chunks = await self.embedding_service.batch_embed_chunks(chunks)
 
-        # Step 5: Store embeddings in vector database
+        # Step 6: Store embeddings in vector database
         vector_ids = await self.vector_repository.batch_store_embeddings(
             embedded_chunks
         )
 
-        # Step 6: Update chunks with vector IDs
+        # Step 7: Update chunks with vector IDs
         for i, chunk in enumerate(embedded_chunks):
             chunk.vector_id = vector_ids[i]
             await self.document_repository.save_chunk(chunk)

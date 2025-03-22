@@ -348,3 +348,38 @@ def setup_container():
             settings=settings,
         ),
     )
+    
+    # Register use cases
+    from epic_rag.application.use_cases.retrieve_context import RetrieveContextUseCase
+    from epic_rag.application.use_cases.ingest_document import IngestDocumentUseCase
+    from epic_rag.infrastructure.embedding.embedding_cache import EmbeddingCache
+    
+    # Register embedding cache
+    container.register_factory(
+        "embedding_cache",
+        lambda c: EmbeddingCache(
+            provider_name=settings.embedding.provider,
+            model_name=settings.embedding.model,
+            cache_dir=settings.embedding.cache.directory,
+            max_days=settings.embedding.cache.expiration_days,
+        )
+    )
+    
+    container.register_factory(
+        "retrieve_context_use_case",
+        lambda c: RetrieveContextUseCase(
+            embedding_service=c.get("embedding_service"),
+            retrieval_service=c.get("retrieval_service"),
+        ),
+    )
+    
+    container.register_factory(
+        "ingest_document_use_case",
+        lambda c: IngestDocumentUseCase(
+            document_repository=c.get("document_repository"),
+            vector_repository=c.get("vector_repository"),
+            chunking_service=c.get("chunking_service"),
+            embedding_service=c.get("embedding_service"),
+            contextual_enrichment_service=c.get("contextual_enrichment_service"),
+        ),
+    )

@@ -294,6 +294,9 @@ def ingest_documents(documents: List[Document]) -> Dict[str, Any]:
     document_repository = container.get("document_repository")
     vector_repository = container.get("vector_repository")
     embedding_service = container.get("embedding_service")
+    
+    # Note: Enrichment should already be done in the chunk_and_enrich_documents step
+    # We're just ingesting the already enriched chunks here
 
     # Process all documents
     async def process_all():
