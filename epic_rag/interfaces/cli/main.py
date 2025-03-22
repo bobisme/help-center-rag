@@ -15,6 +15,7 @@ from .commands.vis import register_vis_commands
 from .commands.images import register_image_commands
 from .commands.testing import register_testing_commands
 from .commands.help_center import register_help_center_commands
+from .commands.ingest_commands import register_commands as register_ingest_commands
 
 # Create Typer app
 app = typer.Typer(
@@ -64,9 +65,13 @@ from .commands.help_center.help_center_commands import (
     list_help_center_docs,
     run_help_center_pipeline,
 )
+from .commands.ingest_commands import ingest_app as new_ingest_app
 
 # Register top-level alias commands for backward compatibility with Justfile
-app.command("ingest")(ingest_documents)
+app.command("old-ingest")(ingest_documents)
+
+# Replace the ingest command with the new ingest app
+app.add_typer(new_ingest_app, name="ingest")
 app.command("query")(query)
 app.command("bm25")(bm25_search)
 app.command("hybrid-search")(hybrid_search)
@@ -112,6 +117,7 @@ def main():
     register_image_commands(app)
     register_testing_commands(app)
     register_help_center_commands(app)
+    register_ingest_commands(app)
 
     # Run the Typer app
     app()
