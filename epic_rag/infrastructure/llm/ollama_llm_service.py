@@ -1,11 +1,29 @@
 """Ollama LLM service implementation."""
 
-import json
 import httpx
-from typing import Dict, Any, Optional
 
 from ...domain.services.llm_service import LLMService
 from ..config.settings import LLMSettings
+
+PROMPT = """\
+You are an expert in information retrieval and query optimization.
+Your task is to rewrite the following user query to improve search results
+for the Applied Epic Agency Management System. Epic is a system used
+by brokerages to manage accounting and associate financial reporting with
+their books of business.
+
+The rewritten query should:
+- Include at least 2-3 relevant keywords or terms related to the query
+- Add domain-specific terminology used in insurance and accounting
+- Maintain the original intent and meaning
+- Be concise
+
+Original query: {0}
+
+IMPORTANT: ONLY return the rewritten query text. No explanations, no reasoning,
+no extra text whatsoever.
+Your entire response will be used directly as the search query.
+"""
 
 
 class OllamaLLMService(LLMService):
@@ -59,22 +77,8 @@ class OllamaLLMService(LLMService):
         Returns:
             Transformed query optimized for retrieval
         """
-        prompt = f"""You are an expert in information retrieval and query optimization. 
-        Your task is to rewrite the following user query to improve search results.
-        
-        The rewritten query should:
-        1. Include relevant synonyms and alternative phrasings
-        2. Expand abbreviations into their full form
-        3. Add domain-specific terminology used in healthcare and Epic documentation
-        4. Maintain the original intent and meaning
-        5. Be formulated as a clear, specific question or request
-        
-        Original query: {query}
-        
-        Only return the rewritten query text with no additional explanation or commentary.
-        """
 
-        return await self.generate_text(prompt, temperature=0.2)
+        return await self.generate_text(PROMPT.format(query), temperature=0.2)
 
     @property
     def model_name(self) -> str:
