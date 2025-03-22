@@ -61,9 +61,16 @@ def load_document_from_json(index: int) -> Document:
         content = page.get("content", "")
         if not content and "rawHtml" in page:
             from html2md import convert_html_to_markdown, preprocess_html
+            
+            # Define images directory - our default should be output/images
+            images_dir = "output/images"
+            if os.path.exists(images_dir):
+                console.print(f"[green]Using images from {images_dir}[/green]")
+            else:
+                console.print(f"[yellow]Warning: Images directory {images_dir} not found. Images will be removed.[/yellow]")
 
-            html = preprocess_html(page["rawHtml"])
-            content = convert_html_to_markdown(html)
+            html = preprocess_html(page["rawHtml"], images_dir)
+            content = convert_html_to_markdown(html, images_dir=images_dir)
 
         # Check if content already starts with the title as a heading
         has_title_heading = False

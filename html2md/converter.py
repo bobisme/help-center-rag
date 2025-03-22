@@ -234,7 +234,7 @@ def preprocess_html(html: str, images_dir: Optional[str] = None) -> str:
 
 def convert_html_to_markdown(
     html: str,
-    images_dir: Optional[str] = None,
+    images_dir: Optional[str] = "output/images",
     heading_style: str = "ATX",
     wrap: bool = True,
 ) -> str:
@@ -243,13 +243,18 @@ def convert_html_to_markdown(
 
     Args:
         html: The HTML content to convert
-        images_dir: Optional directory path containing images for local references
+        images_dir: Directory path containing images for local references (defaults to output/images)
         heading_style: The style for headings ('ATX' or 'SETEXT')
         wrap: Whether to wrap long lines
 
     Returns:
         Markdown formatted text
     """
+    # Check if images directory exists
+    if images_dir and not os.path.exists(images_dir):
+        print(f"Warning: Images directory {images_dir} not found. Images will be removed.")
+        images_dir = None
+    
     # Preprocess the HTML
     processed_html = preprocess_html(html, images_dir)
 
