@@ -110,19 +110,28 @@ The unified query command provides access to all search capabilities:
 ./rag query "How do I access my email in Epic?"
 
 # BM25-only search
-./rag query "How do I access my email in Epic?" --search-type bm25
+./rag query "How do I access my email in Epic?" --bm25-only
 
 # Vector-only search
-./rag query "How do I access my email in Epic?" --search-type vector
+./rag query "How do I access my email in Epic?" --vector-only
 
 # Hybrid search with custom weights (70% vector, 30% BM25)
-./rag query "How do I access my email in Epic?" --search-type hybrid --vector-weight 0.7 --bm25-weight 0.3
+./rag query "How do I access my email in Epic?" --vector-weight 0.7 --bm25-weight 0.3
 
-# Enable query transformation
-./rag query "How do I access my email in Epic?" --transform
+# Set number of results to return
+./rag query "How do I access my email in Epic?" --top-k 10
 
-# Enable reranking 
-./rag query "How do I access my email in Epic?" --rerank
+# Show document metadata
+./rag query "How do I access my email in Epic?" --show-metadata
+
+# Control query transformation (on by default)
+./rag query "How do I access my email in Epic?" --no-transform
+
+# Control reranking (on by default)
+./rag query "How do I access my email in Epic?" --no-rerank
+
+# Show preview instead of full content
+./rag query "How do I access my email in Epic?" --preview
 
 # Show detailed metrics
 ./rag query "How do I access my email in Epic?" --show-details
