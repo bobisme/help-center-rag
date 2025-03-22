@@ -103,11 +103,25 @@ async def process_help_center_page(
     base_filename = f"{page_id}_{title.replace(' ', '_')}"[:100]
     markdown_path = os.path.join(output_dir, "markdown", f"{base_filename}.md")
 
+    # Check if content already starts with the title as a heading
+    has_title_heading = False
+    if convert_to_markdown and content:
+        heading_pattern = f"# {title}"
+        has_title_heading = content.strip().startswith(heading_pattern)
+    
+    # Format the content with title only if needed
+    final_content = content
+    if convert_to_markdown and not has_title_heading:
+        final_content = f"# {title}\n\n{content}"
+    
     # Save markdown file
     if convert_to_markdown and save_intermediate:
         with open(markdown_path, "w", encoding="utf-8") as f:
-            f.write(f"# {title}\n\n")
-            f.write(content)
+            if has_title_heading:
+                f.write(content)
+            else:
+                f.write(f"# {title}\n\n")
+                f.write(content)
 
     # Return the document data
     return {
@@ -115,7 +129,7 @@ async def process_help_center_page(
         "id": page_id,
         "category": category,
         "updated_at": updated_at,
-        "content": f"# {title}\n\n{content}",
+        "content": final_content,
         "content_html": content_html,
         "markdown_path": markdown_path,
     }
@@ -190,12 +204,14 @@ def process_help_center(
         vector_repository = container.get("vector_repository")
         chunking_service = container.get("chunking_service")
         embedding_service = container.get("embedding_service")
+        contextual_enrichment_service = container.get("contextual_enrichment_service")
 
         ingest_use_case = IngestDocumentUseCase(
             document_repository=document_repository,
             vector_repository=vector_repository,
             chunking_service=chunking_service,
             embedding_service=embedding_service,
+            contextual_enrichment_service=contextual_enrichment_service,
         )
 
     # Define the processing function
@@ -290,13 +306,12 @@ def process_help_center(
 
                         # Ingest the document
                         await ingest_use_case.execute(
-                            document,
-                            {
-                                "dynamic_chunking": True,
-                                "min_chunk_size": 300,
-                                "max_chunk_size": 800,
-                                "chunk_overlap": 50,
-                            },
+                            document=document,
+                            dynamic_chunking=True,
+                            min_chunk_size=300,
+                            max_chunk_size=800,
+                            chunk_overlap=50,
+                            apply_enrichment=True,
                         )
 
                     progress.update(process_task, advance=1)

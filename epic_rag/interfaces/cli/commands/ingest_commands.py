@@ -62,10 +62,22 @@ def load_document_from_json(index: int) -> Document:
             html = preprocess_html(page["rawHtml"])
             content = convert_html_to_markdown(html)
         
+        # Check if content already starts with the title as a heading
+        has_title_heading = False
+        if content:
+            # Check for title in various heading formats
+            heading_pattern = f"# {title}"
+            has_title_heading = content.strip().startswith(heading_pattern)
+        
+        # Add title heading only if not already present
+        final_content = content
+        if not has_title_heading:
+            final_content = f"# {title}\n\n{content}"
+        
         # Create document
         document = Document(
             title=title,
-            content=f"# {title}\n\n{content}",
+            content=final_content,
             epic_page_id=page_id,
             metadata={
                 "category": category,
