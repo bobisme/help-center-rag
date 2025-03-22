@@ -27,9 +27,7 @@ def create_progress_bar(description: str = "Processing"):
     return Progress(
         TextColumn("[bold blue]{task.description}"),
         BarColumn(),
-        TaskProgressColumn(),
-        TextColumn("•"),
-        TextColumn("[cyan]{task.fields[status]}"),
+        TaskProgressColumn()
     )
 
 
