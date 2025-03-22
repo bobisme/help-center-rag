@@ -47,6 +47,7 @@ class IngestDocumentUseCase:
         chunk_overlap: int = 50,
         extra_chunk_metadata: Optional[Dict[str, Any]] = None,
         apply_enrichment: bool = True,
+        dry_run: bool = False,
     ) -> Document:
         """Execute the document ingestion process.
 
@@ -58,14 +59,23 @@ class IngestDocumentUseCase:
             chunk_overlap: Overlap between chunks
             extra_chunk_metadata: Additional metadata to add to chunks
             apply_enrichment: Whether to apply contextual enrichment to chunks before embedding
+            dry_run: If True, processes the document but doesn't save to the database
 
         Returns:
             The processed document with chunks and embeddings
         """
         start_time = time.time()
 
-        # Step 1: Save the document to the repository
-        saved_document = await self.document_repository.save_document(document)
+        # Step 1: Save the document to the repository (skip if dry_run)
+        if not dry_run:
+            saved_document = await self.document_repository.save_document(document)
+        else:
+            # If dry_run, just use the document as is without saving
+            saved_document = document
+            # Ensure the document has an ID for reference purposes
+            if not saved_document.id:
+                saved_document.id = f"dry-run-{int(time.time())}"
+            print("Dry run: Skipping document save to database")
 
         # Step 2: Chunk the document
         if dynamic_chunking:
@@ -94,23 +104,34 @@ class IngestDocumentUseCase:
             enrichment_time = (time.time() - enrichment_start) * 1000
             print(f"Contextual enrichment completed in {enrichment_time:.2f}ms")
 
-        # Step 4: Save chunks to the repository
-        for chunk in chunks:
-            chunk.document_id = saved_document.id
-            await self.document_repository.save_chunk(chunk)
+        # Step 4: Save chunks to the repository (skip if dry_run)
+        if not dry_run:
+            for chunk in chunks:
+                chunk.document_id = saved_document.id
+                await self.document_repository.save_chunk(chunk)
+        else:
+            for chunk in chunks:
+                chunk.document_id = saved_document.id
+            print(f"Dry run: Skipping {len(chunks)} chunk saves to database")
 
         # Step 5: Generate embeddings for all chunks
         embedded_chunks = await self.embedding_service.batch_embed_chunks(chunks)
 
-        # Step 6: Store embeddings in vector database
-        vector_ids = await self.vector_repository.batch_store_embeddings(
-            embedded_chunks
-        )
-
-        # Step 7: Update chunks with vector IDs
-        for i, chunk in enumerate(embedded_chunks):
-            chunk.vector_id = vector_ids[i]
-            await self.document_repository.save_chunk(chunk)
+        # Step 6: Store embeddings in vector database (skip if dry_run)
+        if not dry_run:
+            vector_ids = await self.vector_repository.batch_store_embeddings(
+                embedded_chunks
+            )
+            
+            # Step 7: Update chunks with vector IDs (skip if dry_run)
+            for i, chunk in enumerate(embedded_chunks):
+                chunk.vector_id = vector_ids[i]
+                await self.document_repository.save_chunk(chunk)
+        else:
+            # Assign dummy vector IDs for dry runs
+            for i, chunk in enumerate(embedded_chunks):
+                chunk.vector_id = f"dry-run-vector-{i}"
+            print(f"Dry run: Skipping {len(embedded_chunks)} vector saves to database")
 
         # Update the document with chunks
         saved_document.chunks = chunks

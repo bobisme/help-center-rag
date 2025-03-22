@@ -6,6 +6,7 @@ import os
 import typer
 from rich.panel import Panel
 from rich.syntax import Syntax
+from rich.markdown import Markdown
 
 from ....domain.models.document import Document
 from ....infrastructure.container import container, setup_container
@@ -273,6 +274,8 @@ def run_pipeline(
     index: int = typer.Option(
         ..., "--index", "-i", help="Document index in epic-docs.json"
     ),
+    no_enrich: bool = typer.Option(False, "--no-enrich", help="Skip contextual enrichment"),
+    dry_run: bool = typer.Option(False, "--dry-run", help="Process without saving to database"),
 ):
     """Run the full ingestion pipeline for a document at the specified index."""
     # Load the document
@@ -298,9 +301,15 @@ def run_pipeline(
     )
 
     # Display what we're about to do
+    mode_text = ""
+    if dry_run:
+        mode_text = " [yellow](DRY RUN - No database changes)[/yellow]"
+    if no_enrich:
+        mode_text += " [yellow](Without enrichment)[/yellow]"
+        
     console.print(
         Panel(
-            f"[bold]Running Full Ingestion Pipeline[/bold]\n\n"
+            f"[bold]Running Full Ingestion Pipeline{mode_text}[/bold]\n\n"
             f"Document: [cyan]{document.title}[/cyan]\n"
             f"ID: {document.epic_page_id}\n"
             f"Category: {document.metadata.get('category', 'N/A')}\n",
@@ -311,22 +320,18 @@ def run_pipeline(
 
     # Run the pipeline
     async def run():
-        with create_progress_bar() as progress:
-            task = progress.add_task("Processing document", total=1)
+        # Execute the use case
+        result = await ingest_use_case.execute(
+            document=document,
+            dynamic_chunking=True,
+            min_chunk_size=300,
+            max_chunk_size=800,
+            chunk_overlap=50,
+            apply_enrichment=not no_enrich,
+            dry_run=dry_run,
+        )
 
-            # Execute the use case
-            result = await ingest_use_case.execute(
-                document=document,
-                dynamic_chunking=True,
-                min_chunk_size=300,
-                max_chunk_size=800,
-                chunk_overlap=50,
-                apply_enrichment=True,
-            )
-
-            progress.update(task, advance=1)
-
-            return result
+        return result
 
     # Execute the pipeline
     result = asyncio.run(run())
@@ -336,9 +341,74 @@ def run_pipeline(
     console.print(f"Title: {result.title}")
     console.print(f"ID: {result.id}")
     console.print(f"Chunks: {len(result.chunks)}")
-    console.print(
-        f"Document stored in SQLite database and vector embeddings stored in Qdrant."
-    )
+    
+    if dry_run:
+        console.print(
+            f"[yellow]Dry run completed - no data was saved to the database.[/yellow]"
+        )
+    else:
+        console.print(
+            f"Document stored in SQLite database and vector embeddings stored in Qdrant."
+        )
+
+
+@ingest_app.command("show-raw")
+def show_raw_html(
+    index: int = typer.Option(
+        ..., "--index", "-i", help="Document index in epic-docs.json"
+    ),
+):
+    """Show the raw HTML content for a document at the specified index."""
+    json_path = "output/epic-docs.json"
+    if not os.path.exists(json_path):
+        console.print(f"[bold red]File not found: {json_path}[/bold red]")
+        raise typer.Exit(1)
+
+    try:
+        with open(json_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+
+        if "pages" not in data or not isinstance(data["pages"], list):
+            console.print(
+                f"[bold red]Invalid format: {json_path} is not a consolidated file[/bold red]"
+            )
+            raise typer.Exit(1)
+
+        if index >= len(data["pages"]):
+            console.print(
+                f"[bold red]Index out of range: {index} (max: {len(data['pages'])-1})[/bold red]"
+            )
+            raise typer.Exit(1)
+
+        page = data["pages"][index]
+        
+        # Check if raw HTML exists
+        if "rawHtml" not in page:
+            console.print(f"[bold red]No raw HTML found for document at index {index}[/bold red]")
+            raise typer.Exit(1)
+            
+        raw_html = page["rawHtml"]
+        title = page.get("title", f"Untitled_Page_{index}")
+        
+        # Display document info
+        console.print(
+            Panel(
+                f"[bold]Document Information[/bold]\n\n"
+                f"Title: [cyan]{title}[/cyan]\n"
+                f"Index: {index}\n"
+                f"URL: {page.get('url', 'N/A')}\n",
+                title="Raw HTML Source",
+                border_style="green",
+            )
+        )
+        
+        # Display raw HTML
+        console.print("\n[bold]Raw HTML:[/bold]")
+        console.print(Syntax(raw_html, "html", theme="monokai", line_numbers=True))
+        
+    except Exception as e:
+        console.print(f"[bold red]Error loading document: {str(e)}[/bold red]")
+        raise typer.Exit(1)
 
 
 def register_commands(app: typer.Typer):
