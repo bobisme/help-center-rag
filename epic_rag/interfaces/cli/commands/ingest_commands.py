@@ -8,7 +8,7 @@ from rich.panel import Panel
 from rich.syntax import Syntax
 from rich.markdown import Markdown
 
-from ....domain.models.document import Document
+from ....domain.models.document import Document, DocumentChunk
 from ....infrastructure.container import container, setup_container
 from ....application.use_cases.ingest_document import IngestDocumentUseCase
 from .common import console, create_progress_bar
@@ -61,13 +61,15 @@ def load_document_from_json(index: int) -> Document:
         content = page.get("content", "")
         if not content and "rawHtml" in page:
             from html2md import convert_html_to_markdown, preprocess_html
-            
+
             # Define images directory - our default should be output/images
             images_dir = "output/images"
             if os.path.exists(images_dir):
                 console.print(f"[green]Using images from {images_dir}[/green]")
             else:
-                console.print(f"[yellow]Warning: Images directory {images_dir} not found. Images will be removed.[/yellow]")
+                console.print(
+                    f"[yellow]Warning: Images directory {images_dir} not found. Images will be removed.[/yellow]"
+                )
 
             html = preprocess_html(page["rawHtml"], images_dir)
             content = convert_html_to_markdown(html, images_dir=images_dir)
@@ -164,21 +166,101 @@ def show_chunks(
             max_chunk_size=800,
         )
 
-        # Apply contextual enrichment if requested
+        # Handle contextual enrichment and image descriptions based on flags
+        import re
+
+        total_images = 0
+        image_description_service = container.get("image_description_service")
+
+        # Count images in all chunks
+        for chunk in chunks:
+            image_pattern = r"!\[([^\]]*)\]\(([^)]+)\)"
+            matches = list(re.finditer(image_pattern, chunk.content))
+            total_images += len(matches)
+
         if with_context and contextual_enrichment_service:
             console.print("[yellow]Applying contextual enrichment...[/yellow]")
-            chunks = await contextual_enrichment_service.enrich_chunks(
-                document=document, chunks=chunks
-            )
 
-        # Apply image descriptions if requested
-        if with_image_descriptions:
-            image_description_service = container.get("image_description_service")
-            console.print("[yellow]Adding image descriptions...[/yellow]")
-            for chunk in chunks:
-                # Process image descriptions (if the service supports it)
+            # Special handling when both context and image descriptions are requested
+            if with_image_descriptions and hasattr(
+                contextual_enrichment_service, "_image_description_service"
+            ):
+                # Get descriptions first to populate cache
+                chunks = await contextual_enrichment_service.enrich_chunks(
+                    document=document, chunks=chunks
+                )
+
+                # Now get image descriptions but add them under the images instead of at the top
                 if hasattr(image_description_service, "process_chunk_images"):
-                    chunk = await image_description_service.process_chunk_images(chunk)
+                    console.print("[yellow]Adding image descriptions...[/yellow]")
+                    for i, chunk in enumerate(chunks):
+                        # Get just the context (not image descriptions)
+                        context = chunk.metadata.get("context", "")
+
+                        # Create new chunk with just context at top
+                        content_parts = chunk.content.split("\n\n")
+                        # Skip the context and the image descriptions at the top
+                        original_content = (
+                            "\n\n".join(content_parts[2:])
+                            if len(content_parts) > 2
+                            else chunk.content
+                        )
+                        clean_chunk = DocumentChunk(
+                            id=chunk.id,
+                            document_id=chunk.document_id,
+                            content=f"{context}\n\n{original_content}",
+                            metadata=chunk.metadata,
+                            embedding=chunk.embedding,
+                            chunk_index=chunk.chunk_index,
+                            previous_chunk_id=getattr(chunk, "previous_chunk_id", None),
+                            next_chunk_id=getattr(chunk, "next_chunk_id", None),
+                            relevance_score=getattr(chunk, "relevance_score", None),
+                        )
+
+                        # Process to add image descriptions under images
+                        processed_chunk = (
+                            await image_description_service.process_chunk_images(
+                                clean_chunk
+                            )
+                        )
+                        chunks[i] = processed_chunk
+
+                    if total_images > 0:
+                        console.print(
+                            f"[green]Added descriptions for {total_images} images across {len(chunks)} chunks[/green]"
+                        )
+                    else:
+                        console.print("[yellow]No images found in documents[/yellow]")
+            else:
+                # Just apply contextual enrichment without fixing image descriptions
+                chunks = await contextual_enrichment_service.enrich_chunks(
+                    document=document, chunks=chunks
+                )
+
+        # Apply only image descriptions if requested without context
+        elif with_image_descriptions:
+            console.print("[yellow]Adding image descriptions...[/yellow]")
+
+            # Process all chunks with image descriptions
+            for i, chunk in enumerate(chunks):
+                # Process image descriptions
+                if hasattr(image_description_service, "process_chunk_images"):
+                    updated_chunk = (
+                        await image_description_service.process_chunk_images(chunk)
+                    )
+                    chunks[i] = updated_chunk  # Update the chunk in the list
+                else:
+                    console.print(
+                        "[red]Service does not support process_chunk_images method![/red]"
+                    )
+
+            # Report summary
+            if total_images > 0:
+                console.print(
+                    f"[green]Added descriptions for {total_images} images across {len(chunks)} chunks[/green]"
+                )
+            else:
+                console.print("[yellow]No images found in documents[/yellow]")
 
         return chunks
 
@@ -202,7 +284,10 @@ def show_chunks(
                 console.print(f"  {key}: {value}")
 
         console.print("\n[bold]Content:[/bold]")
-        console.print(Syntax(chunk.content, "markdown", theme="monokai"))
+        # Display content with wrapping enabled for better readability of image descriptions
+        console.print(
+            Syntax(chunk.content, "markdown", theme="monokai", word_wrap=True)
+        )
 
         # If the chunk has a context field from enrichment, show it
         if with_context and hasattr(chunk, "context") and chunk.context:
@@ -247,8 +332,28 @@ def embed_document(
         image_description_service = container.get("image_description_service")
         if hasattr(image_description_service, "process_chunk_images"):
             console.print("[yellow]Adding image descriptions...[/yellow]")
+
+            # Process all chunks with image descriptions
+            import re
+
+            total_images = 0
+
             for i, chunk in enumerate(chunks):
+                # Count images in the chunk
+                image_pattern = r"!\[([^\]]*)\]\(([^)]+)\)"
+                matches = list(re.finditer(image_pattern, chunk.content))
+                total_images += len(matches)
+
+                # Process image descriptions
                 chunks[i] = await image_description_service.process_chunk_images(chunk)
+
+            # Report summary
+            if total_images > 0:
+                console.print(
+                    f"[green]Added descriptions for {total_images} images across {len(chunks)} chunks[/green]"
+                )
+            else:
+                console.print("[yellow]No images found in documents[/yellow]")
 
         # Generate embeddings
         console.print("[yellow]Generating embeddings...[/yellow]")
@@ -281,8 +386,12 @@ def run_pipeline(
     index: int = typer.Option(
         ..., "--index", "-i", help="Document index in epic-docs.json"
     ),
-    no_enrich: bool = typer.Option(False, "--no-enrich", help="Skip contextual enrichment"),
-    dry_run: bool = typer.Option(False, "--dry-run", help="Process without saving to database"),
+    no_enrich: bool = typer.Option(
+        False, "--no-enrich", help="Skip contextual enrichment"
+    ),
+    dry_run: bool = typer.Option(
+        False, "--dry-run", help="Process without saving to database"
+    ),
 ):
     """Run the full ingestion pipeline for a document at the specified index."""
     # Load the document
@@ -313,7 +422,7 @@ def run_pipeline(
         mode_text = " [yellow](DRY RUN - No database changes)[/yellow]"
     if no_enrich:
         mode_text += " [yellow](Without enrichment)[/yellow]"
-        
+
     console.print(
         Panel(
             f"[bold]Running Full Ingestion Pipeline{mode_text}[/bold]\n\n"
@@ -348,11 +457,40 @@ def run_pipeline(
     console.print(f"Title: {result.title}")
     console.print(f"ID: {result.id}")
     console.print(f"Chunks: {len(result.chunks)}")
-    
+
     if dry_run:
         console.print(
             f"[yellow]Dry run completed - no data was saved to the database.[/yellow]"
         )
+
+        # Display all chunks with their content if in dry run mode
+        console.print(
+            f"\n[bold]Displaying processed chunks with enrichment and image descriptions:[/bold]"
+        )
+
+        for i, chunk in enumerate(result.chunks):
+            console.print(f"\n[bold cyan]Chunk {i+1}[/bold cyan]")
+            console.print(f"ID: {chunk.id}")
+            console.print(f"Chunk Index: {chunk.chunk_index}")
+
+            if hasattr(chunk, "token_count") and chunk.token_count:
+                console.print(f"Token Count: {chunk.token_count}")
+
+            if chunk.metadata:
+                console.print("\n[bold]Metadata:[/bold]")
+                for key, value in chunk.metadata.items():
+                    console.print(f"  {key}: {value}")
+
+            # Display content with wrapping enabled for better readability
+            console.print("\n[bold]Content:[/bold]")
+            console.print(
+                Syntax(chunk.content, "markdown", theme="monokai", word_wrap=True)
+            )
+
+            # If the chunk has a context field from enrichment, show it
+            if hasattr(chunk, "context") and chunk.context:
+                console.print("\n[bold yellow]Context:[/bold yellow]")
+                console.print(chunk.context)
     else:
         console.print(
             f"Document stored in SQLite database and vector embeddings stored in Qdrant."
@@ -388,15 +526,17 @@ def show_raw_html(
             raise typer.Exit(1)
 
         page = data["pages"][index]
-        
+
         # Check if raw HTML exists
         if "rawHtml" not in page:
-            console.print(f"[bold red]No raw HTML found for document at index {index}[/bold red]")
+            console.print(
+                f"[bold red]No raw HTML found for document at index {index}[/bold red]"
+            )
             raise typer.Exit(1)
-            
+
         raw_html = page["rawHtml"]
         title = page.get("title", f"Untitled_Page_{index}")
-        
+
         # Display document info
         console.print(
             Panel(
@@ -408,11 +548,11 @@ def show_raw_html(
                 border_style="green",
             )
         )
-        
+
         # Display raw HTML
         console.print("\n[bold]Raw HTML:[/bold]")
         console.print(Syntax(raw_html, "html", theme="monokai", line_numbers=True))
-        
+
     except Exception as e:
         console.print(f"[bold red]Error loading document: {str(e)}[/bold red]")
         raise typer.Exit(1)
@@ -423,4 +563,3 @@ def register_commands(app: typer.Typer):
     app.add_typer(
         ingest_app, name="ingest", help="Document ingestion pipeline commands"
     )
-

@@ -92,15 +92,66 @@ class IngestDocumentUseCase:
                 chunk_overlap=chunk_overlap,
                 metadata=extra_chunk_metadata,
             )
-            
+
         # Step 3: Apply contextual enrichment if enabled and service is available
         if apply_enrichment and self.contextual_enrichment_service:
             print(f"Applying contextual enrichment to {len(chunks)} chunks...")
             enrichment_start = time.time()
-            chunks = await self.contextual_enrichment_service.enrich_chunks(
-                document=saved_document, 
-                chunks=chunks
-            )
+
+            # Get the image description service from the contextual enrichment service if it's the enhanced version
+            image_description_service = None
+            if hasattr(
+                self.contextual_enrichment_service, "_image_description_service"
+            ):
+                # It's an ImageEnhancedEnrichmentService
+                image_description_service = (
+                    self.contextual_enrichment_service._image_description_service
+                )
+
+                # First, process images to get descriptions (this populates the cache in the service)
+                enriched_chunks = (
+                    await self.contextual_enrichment_service.enrich_chunks(
+                        document=saved_document, chunks=chunks
+                    )
+                )
+
+                # Now process each chunk to add image descriptions directly into the content
+                if hasattr(image_description_service, "process_chunk_images"):
+                    print("Adding image descriptions directly to content...")
+                    for i, chunk in enumerate(enriched_chunks):
+                        # We need to replace the image descriptions at the top with descriptions under each image
+                        # Step 1: Get the original context without image descriptions
+                        context = chunk.metadata.get("context", "")
+
+                        # Step 2: Create a new chunk with just the context (not image descriptions) at the top
+                        # Use the original content (not the content with image descriptions at the top)
+                        clean_chunk = DocumentChunk(
+                            id=chunk.id,
+                            document_id=chunk.document_id,
+                            content=f"{context}\n\n{chunks[i].content}",  # Use original content
+                            metadata=chunk.metadata,
+                            embedding=chunk.embedding,
+                            chunk_index=chunk.chunk_index,
+                            previous_chunk_id=chunk.previous_chunk_id,
+                            next_chunk_id=chunk.next_chunk_id,
+                            relevance_score=chunk.relevance_score,
+                        )
+
+                        # Step 3: Process the chunk to add image descriptions under each image
+                        processed_chunk = (
+                            await image_description_service.process_chunk_images(
+                                clean_chunk
+                            )
+                        )
+                        enriched_chunks[i] = processed_chunk
+
+                chunks = enriched_chunks
+            else:
+                # Regular contextual enrichment without image descriptions
+                chunks = await self.contextual_enrichment_service.enrich_chunks(
+                    document=saved_document, chunks=chunks
+                )
+
             enrichment_time = (time.time() - enrichment_start) * 1000
             print(f"Contextual enrichment completed in {enrichment_time:.2f}ms")
 
@@ -122,7 +173,7 @@ class IngestDocumentUseCase:
             vector_ids = await self.vector_repository.batch_store_embeddings(
                 embedded_chunks
             )
-            
+
             # Step 7: Update chunks with vector IDs (skip if dry_run)
             for i, chunk in enumerate(embedded_chunks):
                 chunk.vector_id = vector_ids[i]

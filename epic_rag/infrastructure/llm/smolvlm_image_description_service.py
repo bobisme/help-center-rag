@@ -215,6 +215,91 @@ class SmolVLMImageDescriptionService(ImageDescriptionService):
 
         return results
 
+    async def process_chunk_images(self, chunk: "DocumentChunk") -> "DocumentChunk":
+        """Process a document chunk and add image descriptions within the content.
+
+        This method looks for image references in the chunk content, generates
+        descriptions for each image, and inserts those descriptions back into the content.
+
+        Args:
+            chunk: The document chunk to process
+
+        Returns:
+            Updated document chunk with image descriptions
+        """
+        # Extract image references from content
+        image_pattern = r"!\[([^\]]*)\]\(([^)]+)\)"
+        content = chunk.content
+        base_image_dir = "output/images"
+
+        # Extract all image matches
+        matches = list(re.finditer(image_pattern, content))
+        if not matches:
+            return chunk  # No images to process
+
+        # Track positions for inserting descriptions
+        offset = 0
+        processed_content = content
+
+        # Process each image
+        for match in matches:
+            # Extract image path
+            image_title = match.group(1)
+            image_path = match.group(2)
+            match_start = match.start() + offset
+            match_end = match.end() + offset
+
+            # Ensure the path is absolute
+            if base_image_dir not in image_path:
+                full_path = os.path.join(base_image_dir, image_path)
+            else:
+                full_path = image_path
+
+            # Get context around the image
+            context_start = max(0, match_start - 200)
+            context_end = min(len(processed_content), match_end + 200)
+            surrounding_text = processed_content[context_start:context_end]
+
+            # Generate description
+            description = await self.generate_image_description(
+                full_path, surrounding_text
+            )
+
+            # Skip if no description (image too small or error)
+            if not description:
+                continue
+
+            # Insert description after the image
+            image_markdown = processed_content[match_start:match_end]
+            # Format the description in a blockquote to ensure it's visible in the console output
+            with_description = (
+                f"{image_markdown}\n\n> **Image description:** {description}\n"
+            )
+
+            # Replace the original image with the image + description
+            processed_content = (
+                processed_content[:match_start]
+                + with_description
+                + processed_content[match_end:]
+            )
+
+            # Update offset for future matches
+            offset += len(with_description) - len(image_markdown)
+
+        # Create a new chunk with the enhanced content
+        # Preserve all original properties
+        return chunk.__class__(
+            id=chunk.id,
+            document_id=chunk.document_id,
+            content=processed_content,
+            metadata=chunk.metadata,
+            embedding=chunk.embedding,
+            chunk_index=chunk.chunk_index,
+            previous_chunk_id=getattr(chunk, "previous_chunk_id", None),
+            next_chunk_id=getattr(chunk, "next_chunk_id", None),
+            relevance_score=getattr(chunk, "relevance_score", None),
+        )
+
     async def extract_image_contexts(
         self, document_content: str, base_image_dir: str
     ) -> List[Tuple[str, str]]:
