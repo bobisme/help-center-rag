@@ -424,9 +424,39 @@ python -m epic_rag.application.pipelines.orchestration_pipeline \
 
 #### Pipeline Overview
 
-1. **Document Processing Pipeline**: Handles document loading, preprocessing, chunking, contextual enrichment, and ingestion
-2. **Query Evaluation Pipeline**: Evaluates query performance against a test set
-3. **Orchestration Pipeline**: Combines all steps in an end-to-end workflow
+1. **Feature Engineering Pipeline**: End-to-end processing from HTML to vector database
+2. **Document Processing Pipeline**: Handles document loading, preprocessing, chunking, contextual enrichment, and ingestion
+3. **Query Evaluation Pipeline**: Evaluates query performance against a test set
+4. **Orchestration Pipeline**: Combines all steps in an end-to-end workflow
+
+#### Feature Engineering Pipeline
+
+The feature engineering pipeline processes documents directly from the HTML-to-Markdown converter output:
+
+```bash
+# Process all documents with the feature engineering pipeline
+epic-rag pipeline feature-engineering
+
+# Process a single document
+epic-rag pipeline feature-engineering --index 0
+
+# Process a batch of documents
+epic-rag pipeline feature-engineering --offset 0 --limit 10
+
+# Test without saving to database
+epic-rag pipeline feature-engineering --index 0 --dry-run
+
+# Skip contextual enrichment or image descriptions
+epic-rag pipeline feature-engineering --no-enrich --no-images
+```
+
+The pipeline handles these steps:
+1. Converting HTML to Markdown
+2. Chunking documents with dynamic sizing
+3. Adding context for each chunk
+4. Adding image descriptions where applicable
+5. Loading chunks to the document store
+6. Embedding chunks and loading to the vector database
 
 #### Managing ZenML
 

@@ -48,7 +48,7 @@ from .commands.evaluation_commands import (
     evaluate_enrichment,
 )
 from .commands.utility_commands import show_info
-from .commands.pipeline_commands import run_zenml_pipeline
+from .commands.pipeline_commands import run_zenml_pipeline, run_feature_engineering
 from .commands.vis.document_commands import show_chunks, show_document_by_id
 from .commands.images.image_commands import (
     describe_images,
@@ -81,6 +81,7 @@ app.command("benchmark-bm25")(benchmark_bm25)
 app.command("evaluate-enrichment")(evaluate_enrichment)
 app.command("info")(show_info)
 app.command("zenml-run")(run_zenml_pipeline)
+app.command("pipeline-feature-engineering")(run_feature_engineering)
 
 # Register new aliases for visualization commands
 app.command("show-doc-chunks")(show_chunks)
