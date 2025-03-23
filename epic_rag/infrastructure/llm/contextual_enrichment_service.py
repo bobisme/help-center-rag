@@ -1,7 +1,7 @@
 """Implementation of contextual enrichment service using Ollama LLM."""
 
 import asyncio
-from typing import List, Dict, Any, Optional
+from typing import List
 
 from ...domain.models.document import Document, DocumentChunk
 from ...domain.services.contextual_enrichment_service import ContextualEnrichmentService

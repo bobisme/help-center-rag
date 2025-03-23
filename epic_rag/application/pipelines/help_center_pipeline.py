@@ -2,16 +2,12 @@
 
 import os
 import json
-import asyncio
 from typing import List, Dict, Any, Optional, Tuple
-from pathlib import Path
 
 from zenml import pipeline, step
-from zenml.config import DockerSettings
 
 from ...domain.models.document import Document
 from ...infrastructure.container import container
-from ..use_cases.ingest_document import IngestDocumentUseCase
 
 
 @step
@@ -86,7 +82,7 @@ def convert_pages_to_markdown(
     Returns:
         Tuple containing list of converted documents and updated metadata
     """
-    from html2md import convert_html_to_markdown, preprocess_html
+    from html2md import convert_html_to_markdown
 
     # Create output directories
     os.makedirs(output_dir, exist_ok=True)

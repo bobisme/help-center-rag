@@ -5,7 +5,7 @@ import logging
 import numpy as np
 import torch
 import torch.nn.functional as F
-from typing import List, Dict, Any, Optional, Union, Tuple
+from typing import List, Dict, Any, Optional
 
 from transformers import AutoTokenizer, AutoModel
 

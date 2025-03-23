@@ -2,7 +2,7 @@
 
 import time
 import logging
-from typing import Dict, List, Set, Tuple
+from typing import Dict, List
 
 from ...domain.models.document import DocumentChunk
 from ...domain.models.retrieval import RetrievalResult

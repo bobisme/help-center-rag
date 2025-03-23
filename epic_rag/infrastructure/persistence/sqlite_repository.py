@@ -8,7 +8,6 @@ import aiosqlite
 from loguru import logger
 
 from ...domain.models.document import Document, DocumentChunk
-from ...domain.models.ident import new_id
 from ...domain.repositories.document_repository import DocumentRepository
 
 
@@ -31,7 +30,7 @@ class SQLiteDocumentRepository(DocumentRepository):
             # With Python 3.10+, use a more future-proof approach
             try:
                 # This is the modern way to get the running loop
-                loop = asyncio.get_running_loop()
+                asyncio.get_running_loop()
                 # If we're in a running event loop, we need to use a different approach
                 logger.debug("Using running event loop for database initialization")
                 asyncio.create_task(self._initialize_db())
@@ -525,7 +524,6 @@ class SQLiteDocumentRepository(DocumentRepository):
             await db.execute("BEGIN TRANSACTION")
             try:
                 # Find existing document by epic_page_id
-                existing_doc = None
                 async with db.execute(
                     "SELECT id FROM documents WHERE epic_page_id = ?",
                     (document.epic_page_id,),

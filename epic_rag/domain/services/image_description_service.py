@@ -1,8 +1,7 @@
 """Interface for image description service."""
 
 from abc import ABC, abstractmethod
-from pathlib import Path
-from typing import Dict, Optional, List, Tuple, TYPE_CHECKING
+from typing import Dict, List, Tuple, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from ...domain.models.document import DocumentChunk
@@ -24,7 +23,6 @@ class ImageDescriptionService(ABC):
         Returns:
             A description of the image
         """
-        pass
 
     @abstractmethod
     async def generate_batch_descriptions(
@@ -38,7 +36,6 @@ class ImageDescriptionService(ABC):
         Returns:
             Dictionary mapping image paths to their descriptions
         """
-        pass
 
     @abstractmethod
     async def extract_image_contexts(
@@ -53,7 +50,6 @@ class ImageDescriptionService(ABC):
         Returns:
             List of tuples containing (image_path, surrounding_text)
         """
-        pass
 
     @abstractmethod
     async def process_chunk_images(self, chunk: "DocumentChunk") -> "DocumentChunk":
@@ -68,4 +64,3 @@ class ImageDescriptionService(ABC):
         Returns:
             Updated document chunk with image descriptions
         """
-        pass

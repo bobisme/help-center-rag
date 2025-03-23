@@ -13,15 +13,16 @@ pipeline_app = typer.Typer(
 
 
 def run_zenml_pipeline(
-    pipeline_name: str = typer.Option(..., help="Name of the pipeline to run"),
-    **kwargs
+    pipeline_name: str = typer.Option(..., help="Name of the pipeline to run"), **kwargs
 ):
     """Run a ZenML pipeline by name.
-    
+
     This is a legacy function for backward compatibility.
     """
-    console.print(f"[yellow]Warning: Use 'rag pipeline {pipeline_name}' instead[/yellow]")
-    
+    console.print(
+        f"[yellow]Warning: Use 'rag pipeline {pipeline_name}' instead[/yellow]"
+    )
+
     if pipeline_name == "feature-engineering":
         run_feature_engineering(**kwargs)
     else:
@@ -72,10 +73,10 @@ def run_feature_engineering(
     ),
 ):
     """Run the feature engineering pipeline for document processing.
-    
-    This pipeline converts HTML to markdown, chunks documents, adds context, 
+
+    This pipeline converts HTML to markdown, chunks documents, adds context,
     generates image descriptions, and stores the results in the document and vector databases.
-    
+
     Use --index for a single document, or --limit/--offset/--all for batch processing.
     If no selection parameters are provided, all documents will be processed.
     """
@@ -85,13 +86,13 @@ def run_feature_engineering(
             "[bold red]Cannot specify both --index and batch processing parameters (--limit, --offset, --all)[/bold red]"
         )
         raise typer.Exit(1)
-    
+
     # Default to all_docs=True if no selection parameters are provided
     if index is None and limit is None and offset == 0 and all_docs is None:
         all_docs = True
     elif all_docs is None:
         all_docs = False
-    
+
     # Display what we're about to do
     mode_text = ""
     if dry_run:
@@ -100,12 +101,17 @@ def run_feature_engineering(
         mode_text += " [yellow](Without enrichment)[/yellow]"
     if no_images:
         mode_text += " [yellow](Without image descriptions)[/yellow]"
-    
-    doc_selection = "All documents" if all_docs else (
-        f"Document at index {index}" if index is not None else 
-        f"Documents from index {offset} to {offset + limit - 1 if limit else 'end'}"
+
+    doc_selection = (
+        "All documents"
+        if all_docs
+        else (
+            f"Document at index {index}"
+            if index is not None
+            else f"Documents from index {offset} to {offset + limit - 1 if limit else 'end'}"
+        )
     )
-    
+
     console.print(
         Panel(
             f"[bold]Running Feature Engineering Pipeline{mode_text}[/bold]\n\n"
@@ -118,7 +124,7 @@ def run_feature_engineering(
             border_style="green",
         )
     )
-    
+
     # Run the pipeline
     feature_engineering_pipeline(
         index=index,
@@ -133,14 +139,14 @@ def run_feature_engineering(
         dynamic_chunking=not no_dynamic_chunking,
         skip_enrichment=no_enrich,
         skip_image_descriptions=no_images,
-        dry_run=dry_run
+        dry_run=dry_run,
     )
-    
-    console.print("[bold green]Feature engineering pipeline completed successfully![/bold green]")
+
+    console.print(
+        "[bold green]Feature engineering pipeline completed successfully![/bold green]"
+    )
 
 
 def register_commands(app: typer.Typer):
     """Register pipeline commands with the main app."""
-    app.add_typer(
-        pipeline_app, name="pipeline", help="Run ZenML pipelines"
-    )
+    app.add_typer(pipeline_app, name="pipeline", help="Run ZenML pipelines")

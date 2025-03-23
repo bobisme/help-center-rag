@@ -1,16 +1,12 @@
 """ZenML custom components for the Epic Documentation RAG system."""
 
-import os
 import json
 import numpy as np
-from typing import Dict, Any, Optional, List, Type, Union, cast
+from typing import Optional, Type
 
 # Use the standard ZenML imports instead of trying to use RegistrableComponent
-from zenml.stack import Stack
-from zenml.artifact_stores import BaseArtifactStore
 from zenml.materializers.base_materializer import BaseMaterializer
 from zenml.io import fileio
-from zenml.client import Client
 
 from ..config.settings import settings
 from ...domain.models.document import Document, DocumentChunk
@@ -49,7 +45,6 @@ class QdrantClient:
         """Return a Qdrant client instance."""
         try:
             from qdrant_client import QdrantClient
-            from qdrant_client.http.models import Distance, VectorParams
 
             # Initialize the Qdrant client
             client = QdrantClient(url=self.url, api_key=self.api_key)

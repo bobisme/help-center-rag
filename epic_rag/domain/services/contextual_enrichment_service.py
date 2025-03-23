@@ -1,7 +1,7 @@
 """LLM-based contextual enrichment service for document chunks."""
 
 from abc import ABC, abstractmethod
-from typing import List, Optional
+from typing import List
 
 from ..models.document import Document, DocumentChunk
 
@@ -26,7 +26,6 @@ class ContextualEnrichmentService(ABC):
         Returns:
             The enriched document chunk
         """
-        pass
 
     @abstractmethod
     async def enrich_chunks(
@@ -44,4 +43,3 @@ class ContextualEnrichmentService(ABC):
         Returns:
             The enriched document chunks
         """
-        pass

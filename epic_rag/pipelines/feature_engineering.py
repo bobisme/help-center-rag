@@ -1,8 +1,13 @@
 """Feature engineering pipeline for document processing."""
 
-from typing import Optional, List, Tuple
+from typing import Optional
 
 from zenml import pipeline
+
+# Import and register custom materializers
+from ..zenml_setup import register_materializers
+
+register_materializers()
 
 from epic_rag.steps.convert_to_markdown import convert_to_markdown
 from epic_rag.steps.chunk_document import chunk_document
@@ -10,6 +15,7 @@ from epic_rag.steps.add_document_context import add_document_context
 from epic_rag.steps.add_image_descriptions import add_image_descriptions
 from epic_rag.steps.load_to_document_store import load_to_document_store
 from epic_rag.steps.load_to_vector_db import load_to_vector_db
+
 
 @pipeline(enable_cache=True)
 def feature_engineering_pipeline(
@@ -25,10 +31,10 @@ def feature_engineering_pipeline(
     dynamic_chunking: bool = True,
     skip_enrichment: bool = False,
     skip_image_descriptions: bool = False,
-    dry_run: bool = False
+    dry_run: bool = False,
 ):
     """Run the feature engineering pipeline for document processing.
-    
+
     This pipeline follows these steps:
     1. Convert HTML to Markdown
     2. Chunk documents
@@ -36,7 +42,7 @@ def feature_engineering_pipeline(
     4. Add image descriptions
     5. Load to document store
     6. Embed and load to vector database
-    
+
     Args:
         index: Optional specific index of the document to process
         offset: Starting index for batch processing
@@ -59,38 +65,30 @@ def feature_engineering_pipeline(
         limit=limit,
         all_docs=all_docs,
         source_path=source_path,
-        images_dir=images_dir
+        images_dir=images_dir,
     )
-    
+
     # Chunk documents
     doc_chunks = chunk_document(
         documents=documents,
         min_chunk_size=min_chunk_size,
         max_chunk_size=max_chunk_size,
         chunk_overlap=chunk_overlap,
-        dynamic_chunking=dynamic_chunking
+        dynamic_chunking=dynamic_chunking,
     )
-    
+
     # Add document context
     enriched_chunks = add_document_context(
-        doc_chunks=doc_chunks,
-        skip_enrichment=skip_enrichment
+        doc_chunks=doc_chunks, skip_enrichment=skip_enrichment
     )
-    
+
     # Add image descriptions
     with_images = add_image_descriptions(
-        doc_chunks=enriched_chunks,
-        skip_image_descriptions=skip_image_descriptions
+        doc_chunks=enriched_chunks, skip_image_descriptions=skip_image_descriptions
     )
-    
+
     # Load to document store
-    stored_docs = load_to_document_store(
-        doc_chunks=with_images,
-        dry_run=dry_run
-    )
-    
+    stored_docs = load_to_document_store(doc_chunks=with_images, dry_run=dry_run)
+
     # Embed and load to vector database
-    load_to_vector_db(
-        doc_chunks=stored_docs,
-        dry_run=dry_run
-    )
+    load_to_vector_db(doc_chunks=stored_docs, dry_run=dry_run)

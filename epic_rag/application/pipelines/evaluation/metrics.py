@@ -1,6 +1,6 @@
 """Evaluation metrics for RAG systems."""
 
-from typing import List, Dict, Any, Set, Tuple, Optional
+from typing import List, Dict, Any
 import numpy as np
 from dataclasses import dataclass
 

@@ -4,13 +4,11 @@ import asyncio
 import base64
 import os
 import re
-from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Tuple
 from PIL import Image
 
 import httpx
 from ...domain.services.image_description_service import ImageDescriptionService
-from ...domain.services.llm_service import LLMService
 from ..config.settings import LLMSettings
 
 
@@ -218,7 +216,7 @@ class OllamaImageDescriptionService(ImageDescriptionService):
         # Process each image
         for match in matches:
             # Extract image path
-            image_title = match.group(1)
+            match.group(1)
             image_path = match.group(2)
             match_start = match.start() + offset
             match_end = match.end() + offset

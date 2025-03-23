@@ -1,14 +1,11 @@
 """ZenML pipeline for evaluating query processing with the RAG system."""
 
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any
 
 from zenml import pipeline, step
-from zenml.config import DockerSettings
 
 # Output typing for steps
 
-from ...domain.models.retrieval import Query, ContextualRetrievalResult
-from ...infrastructure.container import container
 from ..use_cases.retrieve_context import RetrieveContextUseCase
 
 

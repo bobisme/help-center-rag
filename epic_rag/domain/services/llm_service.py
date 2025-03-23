@@ -1,7 +1,6 @@
 """LLM service for text generation and transformation."""
 
 from abc import ABC, abstractmethod
-from typing import List, Dict, Any, Optional
 
 
 class LLMService(ABC):
@@ -18,7 +17,6 @@ class LLMService(ABC):
         Returns:
             Generated text response
         """
-        pass
 
     @abstractmethod
     async def transform_query(self, query: str) -> str:
@@ -30,10 +28,8 @@ class LLMService(ABC):
         Returns:
             Transformed query optimized for retrieval
         """
-        pass
 
     @property
     @abstractmethod
     def model_name(self) -> str:
         """Get the name of the language model being used."""
-        pass

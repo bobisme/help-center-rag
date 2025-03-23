@@ -51,7 +51,6 @@ def manage_cache(
     info: bool = typer.Option(True, "--info", "-i", help="Show cache info"),
 ):
     """Manage the embedding cache."""
-    from ....infrastructure.embedding.embedding_cache import EmbeddingCache
 
     # Get the embedding cache
     embedding_cache = container.get("embedding_cache")
@@ -138,7 +137,6 @@ def test_embed(
     text: str = typer.Argument(..., help="Text to embed"),
 ):
     """Test the embedding service with a text input."""
-    from ....domain.services.embedding_service import EmbeddingService
 
     # Get the embedding service
     embedding_service = container.get("embedding_service")

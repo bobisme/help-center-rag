@@ -1,10 +1,9 @@
 """Document ingestion use case."""
 
-import asyncio
 import time
-from typing import List, Optional, Dict, Any
+from typing import Optional, Dict, Any
 
-from ...domain.models.document import Document, DocumentChunk, EmbeddedChunk
+from ...domain.models.document import Document, DocumentChunk
 from ...domain.repositories.document_repository import DocumentRepository
 from ...domain.repositories.vector_repository import VectorRepository
 from ...domain.services.chunking_service import ChunkingService

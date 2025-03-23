@@ -28,7 +28,6 @@ class ChunkingService(ABC):
         Returns:
             List of document chunks with proper linking
         """
-        pass
 
     @abstractmethod
     async def dynamic_chunk_document(
@@ -52,7 +51,6 @@ class ChunkingService(ABC):
         Returns:
             List of document chunks with proper linking
         """
-        pass
 
     @abstractmethod
     async def merge_chunks(
@@ -67,4 +65,3 @@ class ChunkingService(ABC):
         Returns:
             List of merged chunks
         """
-        pass

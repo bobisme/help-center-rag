@@ -3,7 +3,7 @@
 import time
 import logging
 import uuid
-from typing import List, Dict, Any, Optional, Set, Tuple
+from typing import List, Dict, Any, Optional, Set
 
 import bm25s
 

@@ -1,24 +1,15 @@
 """ZenML pipeline for evaluating contextual enrichment impact on retrieval quality."""
 
 import os
-import asyncio
 import json
 from datetime import datetime
-from typing import List, Dict, Any, Tuple, Optional
+from typing import List, Dict, Any
 from pathlib import Path
 
 from zenml import pipeline, step
 
-from ....domain.models.document import Document, DocumentChunk
-from ....domain.models.retrieval import Query, ContextualRetrievalRequest
-from ....infrastructure.container import container, setup_container
 from ...use_cases.ingest_document import IngestDocumentUseCase
 from ...use_cases.retrieve_context import RetrieveContextUseCase
-from .metrics import (
-    RetrievalMetrics,
-    calculate_retrieval_metrics,
-    calculate_aggregate_metrics,
-)
 
 
 @step
@@ -59,7 +50,6 @@ def prepare_document_variations(
         Dictionary with document IDs
     """
     import asyncio
-    import uuid
     from ....domain.models.document import Document
     from ....infrastructure.container import container
 
@@ -105,7 +95,7 @@ def prepare_document_variations(
 
         # Try to get the contextual enrichment service
         try:
-            enrichment_service = container.get("contextual_enrichment_service")
+            container.get("contextual_enrichment_service")
             has_enrichment = True
         except Exception:
             print("Warning: Contextual enrichment service not found in container")
@@ -143,7 +133,6 @@ def prepare_document_variations(
             print(
                 "Warning: No enrichment service available, skipping enriched document"
             )
-            enriched_result = base_result
 
         return base_document.id, enriched_document.id
 
@@ -181,7 +170,6 @@ def evaluate_query(
         Evaluation results for this query
     """
     import asyncio
-    from ....domain.models.retrieval import Query, ContextualRetrievalRequest
     from ....infrastructure.container import container
     from .metrics import calculate_retrieval_metrics
 

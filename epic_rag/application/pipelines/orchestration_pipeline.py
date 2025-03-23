@@ -1,9 +1,8 @@
 """End-to-end orchestration pipeline for the Epic Documentation RAG system."""
 
-from typing import List, Dict, Any, Optional, Tuple
+from typing import List, Dict, Any, Optional
 
 from zenml import pipeline, step
-from zenml.config import DockerSettings
 
 # Output typing for steps
 
@@ -15,15 +14,7 @@ from .document_processing_pipeline import (
     enrich_document_chunks,
     ingest_documents,
 )
-from .query_evaluation_pipeline import (
-    load_test_queries,
-    process_query,
-    evaluate_all_queries,
-)
 
-from ...domain.models.document import Document
-from ...domain.models.retrieval import Query, ContextualRetrievalResult
-from ...infrastructure.container import container
 from ...infrastructure.zenml.components import register_custom_components
 
 
@@ -36,7 +27,6 @@ def setup_infrastructure() -> Dict[str, Any]:
     Returns:
         Dictionary with infrastructure setup status
     """
-    import os
     import asyncio
     from ...infrastructure.container import container, setup_container
     from ...infrastructure.config.settings import settings

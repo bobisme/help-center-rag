@@ -29,7 +29,6 @@ class RetrievalService(ABC):
         Returns:
             Retrieval result with matching chunks
         """
-        pass
 
     @abstractmethod
     async def transform_query(self, query: Query) -> Query:
@@ -44,7 +43,6 @@ class RetrievalService(ABC):
         Returns:
             Transformed query with updated text
         """
-        pass
 
     @abstractmethod
     async def filter_chunks_by_relevance(
@@ -60,7 +58,6 @@ class RetrievalService(ABC):
         Returns:
             Filtered list of relevant chunks
         """
-        pass
 
     @abstractmethod
     async def merge_related_chunks(
@@ -75,7 +72,6 @@ class RetrievalService(ABC):
         Returns:
             List of merged chunks
         """
-        pass
 
     @abstractmethod
     async def contextual_retrieval(
@@ -95,4 +91,3 @@ class RetrievalService(ABC):
         Returns:
             Result with retrieved contexts and performance metrics
         """
-        pass

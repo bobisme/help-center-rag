@@ -8,10 +8,6 @@ import typer
 from rich.markdown import Markdown
 
 from ....infrastructure.container import container
-from ....domain.services.contextual_enrichment_service import (
-    ContextualEnrichmentService,
-)
-from ....domain.services.reranker_service import RerankerService
 from .common import console, create_progress_bar
 
 evaluation_app = typer.Typer(pretty_exceptions_enable=False)
@@ -28,7 +24,6 @@ def test_enrichment(
 ):
     """Test contextual enrichment on a markdown document."""
     # Import here to avoid circular imports
-    from ....domain.services.chunking_service import ChunkingService
     from ....domain.models.document import Document
 
     # Read the markdown file
@@ -155,7 +150,6 @@ def benchmark_bm25(
     top_k: int = typer.Option(10, "--top-k", "-k", help="Number of results to return"),
 ):
     """Benchmark BM25 search performance with queries from a file."""
-    from ....domain.services.lexical_search_service import LexicalSearchService
 
     # Read the query file
     with open(query_file, "r", encoding="utf-8") as f:

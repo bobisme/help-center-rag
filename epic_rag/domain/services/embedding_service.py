@@ -1,7 +1,7 @@
 """Embedding service for vector representations."""
 
 from abc import ABC, abstractmethod
-from typing import List, Dict, Any, Optional
+from typing import List
 
 from ..models.document import DocumentChunk, EmbeddedChunk
 from ..models.retrieval import Query
@@ -20,7 +20,6 @@ class EmbeddingService(ABC):
         Returns:
             Vector embedding as a list of floats
         """
-        pass
 
     @abstractmethod
     async def embed_query(self, query: Query) -> Query:
@@ -34,7 +33,6 @@ class EmbeddingService(ABC):
         Returns:
             Updated query with embedding
         """
-        pass
 
     @abstractmethod
     async def embed_chunk(self, chunk: DocumentChunk) -> EmbeddedChunk:
@@ -46,7 +44,6 @@ class EmbeddingService(ABC):
         Returns:
             Embedded chunk with vector data
         """
-        pass
 
     @abstractmethod
     async def batch_embed_chunks(
@@ -60,7 +57,6 @@ class EmbeddingService(ABC):
         Returns:
             List of embedded chunks
         """
-        pass
 
     @abstractmethod
     async def get_embedding_similarity(
@@ -75,10 +71,8 @@ class EmbeddingService(ABC):
         Returns:
             Similarity score between 0 and 1
         """
-        pass
 
     @property
     @abstractmethod
     def embedding_dimensions(self) -> int:
         """Get the dimensions of the embedding vectors."""
-        pass

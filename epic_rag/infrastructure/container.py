@@ -1,6 +1,6 @@
 """Dependency injection container."""
 
-from typing import Dict, Any, Optional, Type
+from typing import Dict, Any
 
 from .config.settings import settings
 
@@ -75,10 +75,10 @@ container = ServiceContainer()
 
 def setup_container():
     """Set up the container with all service registrations.
-    
+
     This function is idempotent - it can be called multiple times safely.
     Services that have already been initialized will be reused."""
-    
+
     # Skip setup if container is already initialized
     if container.has("document_repository"):
         return

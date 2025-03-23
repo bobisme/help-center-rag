@@ -17,12 +17,10 @@ class VectorRepository(ABC):
         Returns:
             The vector ID from the database.
         """
-        pass
 
     @abstractmethod
     async def delete_embedding(self, vector_id: str) -> bool:
         """Delete an embedding from the vector database."""
-        pass
 
     @abstractmethod
     async def search_similar(
@@ -38,7 +36,6 @@ class VectorRepository(ABC):
         Returns:
             List of document chunks with similarity scores
         """
-        pass
 
     @abstractmethod
     async def batch_store_embeddings(self, chunks: List[EmbeddedChunk]) -> List[str]:
@@ -47,9 +44,7 @@ class VectorRepository(ABC):
         Returns:
             List of vector IDs from the database.
         """
-        pass
 
     @abstractmethod
     async def get_collection_stats(self) -> Dict[str, Any]:
         """Get statistics about the vector collection."""
-        pass

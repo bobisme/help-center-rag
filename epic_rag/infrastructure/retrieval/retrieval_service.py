@@ -1,7 +1,6 @@
 """Implementation of the Contextual Retrieval service."""
 
 import time
-import asyncio
 import logging
 from typing import List, Dict, Any, Optional, TYPE_CHECKING
 

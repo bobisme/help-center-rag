@@ -3,13 +3,10 @@
 from typing import List, Dict, Any, Optional
 
 from zenml import pipeline, step
-from zenml.config import DockerSettings
 
 # Output typing for steps
 
 from ...domain.models.document import Document
-from ...infrastructure.container import container
-from ..use_cases.ingest_document import IngestDocumentUseCase
 
 
 @step

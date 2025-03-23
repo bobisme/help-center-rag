@@ -1,22 +1,16 @@
 """Testing and evaluation commands."""
 
 import asyncio
-import os
 import json
-import sys
 from pathlib import Path
-from typing import Optional, List, Dict, Any
 
 import typer
-from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
-from rich.progress import Progress, TextColumn, BarColumn, TaskProgressColumn
-from rich.markdown import Markdown
+from rich.progress import Progress
 
 from .....domain.models.document import Document
 from .....infrastructure.container import setup_container, container
-from .....application.use_cases.ingest_document import IngestDocumentUseCase
 from ...common import console
 
 # Create a Typer app for testing commands

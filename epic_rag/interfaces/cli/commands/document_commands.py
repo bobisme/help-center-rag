@@ -9,7 +9,6 @@ from typing import Optional
 
 from ....domain.models.document import Document
 from ....infrastructure.container import container
-from ....application.use_cases.ingest_document import IngestDocumentUseCase
 from .common import console, create_progress_bar, display_document_info
 
 document_app = typer.Typer(pretty_exceptions_enable=False)
@@ -119,7 +118,6 @@ def show_document_chunks(
     ),
 ):
     """Show the chunks for a document with their metadata."""
-    from ....domain.repositories.document_repository import DocumentRepository
 
     async def get_document_with_chunks():
         doc_repo = container.get("document_repository")

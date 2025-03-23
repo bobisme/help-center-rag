@@ -1,14 +1,11 @@
 """Dataset generator for RAG evaluation."""
 
-import asyncio
 import os
 import json
-from typing import List, Dict, Any, Optional, Tuple
 from datetime import datetime
 from pathlib import Path
 
 from ....domain.models.document import Document
-from ....domain.models.retrieval import Query
 from ....infrastructure.container import container
 
 

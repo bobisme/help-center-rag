@@ -1,7 +1,7 @@
 """Context retrieval use case."""
 
 import time
-from typing import List, Optional, Dict, Any
+from typing import Optional, Dict, Any
 
 from ...domain.models.retrieval import (
     Query,

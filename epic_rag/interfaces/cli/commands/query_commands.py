@@ -6,7 +6,7 @@ from dataclasses import dataclass, field
 from typing import Any, Dict
 
 from ....domain.models.document import DocumentChunk
-from ....domain.models.retrieval import Query, RetrievalResult
+from ....domain.models.retrieval import RetrievalResult
 
 import typer
 from rich.markdown import Markdown
@@ -70,7 +70,7 @@ def query(
     # Get required services
     search_service = container.get("bm25_search_service")
     llm_service = container.get("llm_service")
-    embedding_service = container.get("embedding_service")
+    container.get("embedding_service")
     rank_fusion_service = container.get("rank_fusion_service")
     retrieve_use_case = container.get("retrieve_context_use_case")
     reranker_service = container.get("reranker_service") if rerank else None

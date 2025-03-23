@@ -1,7 +1,7 @@
 """Reranker service interface for reranking search results."""
 
 from abc import ABC, abstractmethod
-from typing import List, Dict, Any, Optional
+from typing import List, Optional
 
 from ..models.document import DocumentChunk
 from ..models.retrieval import Query
@@ -24,4 +24,3 @@ class RerankerService(ABC):
         Returns:
             Reranked list of document chunks with updated relevance scores
         """
-        pass

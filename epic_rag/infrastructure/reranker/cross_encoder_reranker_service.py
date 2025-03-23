@@ -2,7 +2,7 @@
 
 import time
 import logging
-from typing import List, Dict, Any, Optional
+from typing import List, Optional
 
 from sentence_transformers import CrossEncoder
 

@@ -17,7 +17,6 @@ class LexicalSearchService(ABC):
         Args:
             chunk: The document chunk to index
         """
-        pass
 
     @abstractmethod
     async def index_documents(self, chunks: List[DocumentChunk]) -> None:
@@ -26,7 +25,6 @@ class LexicalSearchService(ABC):
         Args:
             chunks: The document chunks to index
         """
-        pass
 
     @abstractmethod
     async def search(
@@ -42,9 +40,7 @@ class LexicalSearchService(ABC):
         Returns:
             Retrieval result with matching chunks
         """
-        pass
 
     @abstractmethod
     async def reindex_all(self) -> None:
         """Rebuild the entire BM25 index from the document repository."""
-        pass

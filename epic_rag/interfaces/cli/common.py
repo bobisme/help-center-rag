@@ -2,8 +2,6 @@
 
 from rich.console import Console
 from rich.progress import Progress, TextColumn, BarColumn, TaskProgressColumn
-from rich.markdown import Markdown
-from rich.panel import Panel
 
 # Create a shared console instance
 console = Console()

@@ -1,9 +1,8 @@
 """OpenAI embedding service implementation."""
 
-import asyncio
 import logging
 import numpy as np
-from typing import List, Dict, Any, Optional
+from typing import List
 
 from openai import AsyncOpenAI
 

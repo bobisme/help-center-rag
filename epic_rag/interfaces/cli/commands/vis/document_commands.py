@@ -7,13 +7,11 @@ import typer
 import os
 from typing import Optional
 
-from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
 from rich.markdown import Markdown
 from rich.prompt import Prompt
 
-from .....infrastructure.config.settings import settings
 from .....infrastructure.container import container, setup_container
 from ...common import console
 

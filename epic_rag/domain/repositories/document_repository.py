@@ -13,12 +13,10 @@ class DocumentRepository(ABC):
     @abstractmethod
     async def save_document(self, document: Document) -> Document:
         """Save a document to the repository."""
-        pass
 
     @abstractmethod
     async def get_document(self, document_id: str) -> Optional[Document]:
         """Get a document by ID."""
-        pass
 
     @abstractmethod
     async def list_documents(
@@ -28,44 +26,36 @@ class DocumentRepository(ABC):
         filters: Optional[Dict[str, Any]] = None,
     ) -> List[Document]:
         """List documents with optional filtering."""
-        pass
 
     @abstractmethod
     async def delete_document(self, document_id: str) -> bool:
         """Delete a document by ID."""
-        pass
 
     @abstractmethod
     async def update_document(self, document: Document) -> Document:
         """Update an existing document."""
-        pass
 
     @abstractmethod
     async def find_document_by_epic_page_id(
         self, epic_page_id: str
     ) -> Optional[Document]:
         """Find a document by its Epic page ID."""
-        pass
 
     @abstractmethod
     async def replace_document(self, document: Document) -> Document:
         """Replace a document by its Epic page ID, deleting all existing chunks."""
-        pass
 
     @abstractmethod
     async def save_chunk(self, chunk: DocumentChunk) -> DocumentChunk:
         """Save a document chunk."""
-        pass
 
     @abstractmethod
     async def get_document_chunks(self, document_id: str) -> List[DocumentChunk]:
         """Get all chunks for a document."""
-        pass
 
     @abstractmethod
     async def get_chunk(self, chunk_id: str) -> Optional[DocumentChunk]:
         """Get a specific chunk by ID."""
-        pass
 
     @abstractmethod
     async def get_all_chunks(self, limit: int = 10000) -> List[DocumentChunk]:
@@ -77,7 +67,6 @@ class DocumentRepository(ABC):
         Returns:
             List of all document chunks
         """
-        pass
 
     @abstractmethod
     async def find_orphaned_chunks(self) -> List[str]:
@@ -86,7 +75,6 @@ class DocumentRepository(ABC):
         Returns:
             List of chunk IDs that are orphaned
         """
-        pass
 
     @abstractmethod
     async def delete_orphaned_chunks(self) -> int:
@@ -95,7 +83,6 @@ class DocumentRepository(ABC):
         Returns:
             Number of chunks deleted
         """
-        pass
 
     @abstractmethod
     async def vacuum_database(self) -> Tuple[float, float]:
@@ -104,7 +91,6 @@ class DocumentRepository(ABC):
         Returns:
             Tuple of (size_before_mb, size_after_mb)
         """
-        pass
 
     @abstractmethod
     async def get_statistics(self) -> Dict[str, Any]:
@@ -113,7 +99,6 @@ class DocumentRepository(ABC):
         Returns:
             Dictionary of statistics
         """
-        pass
 
     @abstractmethod
     async def save_query(
@@ -132,7 +117,6 @@ class DocumentRepository(ABC):
         Returns:
             The ID of the saved query
         """
-        pass
 
     @abstractmethod
     async def get_query_history(
@@ -153,4 +137,3 @@ class DocumentRepository(ABC):
         Returns:
             List of query history records
         """
-        pass

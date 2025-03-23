@@ -1,8 +1,5 @@
 import time
-import uuid
-import base64
 import secrets
-from typing import Optional
 
 
 def _int_to_base62(n: int) -> str:

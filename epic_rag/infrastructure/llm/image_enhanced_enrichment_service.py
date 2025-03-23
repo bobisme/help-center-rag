@@ -3,7 +3,7 @@
 import asyncio
 import os
 import re
-from typing import Dict, List, Optional, Set, Tuple
+from typing import Dict, List, Set
 
 from ...domain.models.document import Document, DocumentChunk
 from ...domain.services.contextual_enrichment_service import ContextualEnrichmentService

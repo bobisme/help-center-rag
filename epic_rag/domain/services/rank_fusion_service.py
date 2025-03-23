@@ -1,9 +1,7 @@
 """Rank fusion service for combining multiple search result types."""
 
 from abc import ABC, abstractmethod
-from typing import List, Dict, Optional
 
-from ..models.document import DocumentChunk
 from ..models.retrieval import RetrievalResult
 
 
@@ -33,4 +31,3 @@ class RankFusionService(ABC):
         Returns:
             Combined retrieval result with fused relevance scores
         """
-        pass

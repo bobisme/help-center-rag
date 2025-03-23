@@ -4,21 +4,15 @@ import os
 import json
 import asyncio
 import glob
-from datetime import datetime
-from pathlib import Path
-from typing import Dict, Any, List, Optional, Tuple
-import shutil
+from typing import Dict, Any, Optional
 
 import typer
-from rich.console import Console
 from rich.progress import Progress, TaskProgressColumn, TextColumn, BarColumn
 from rich.table import Table
 from rich.panel import Panel
 
 from html2md import convert_html_to_markdown, preprocess_html
-from html2md.loaders import load_from_json_file
 from .....domain.models.document import Document
-from .....infrastructure.config.settings import settings
 from .....infrastructure.container import container, setup_container
 from .....application.use_cases.ingest_document import IngestDocumentUseCase
 from ...common import console
@@ -442,14 +436,11 @@ def run_help_center_pipeline(
     )
 
     async def run_pipeline():
-        from epic_rag.domain.services.contextual_enrichment_service import (
-            ContextualEnrichmentService,
-        )
+        pass
 
         # Get contextual enrichment service if needed
-        enrichment_service = None
         if apply_enrichment:
-            enrichment_service = container.get("contextual_enrichment_service")
+            container.get("contextual_enrichment_service")
 
         # Use a specific input file
         input_file = "output/epic-docs.json"
