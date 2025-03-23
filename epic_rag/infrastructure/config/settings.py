@@ -93,7 +93,7 @@ class LLMSettings:
 
     # Image description settings
     min_image_size: int = 64  # Minimum pixel size to process images
-    enable_image_enrichment: bool = True  # Whether to enable image description
+    enable_image_enrichment: bool = False  # Whether to enable image description
     image_service_type: Literal["ollama", "smolvlm"] = "smolvlm"
     # Model for SmolVLM image description
     smolvlm_model: str = "HuggingFaceTB/SmolVLM-Synthetic"
