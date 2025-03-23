@@ -2,11 +2,9 @@
 
 import json
 import os
-from typing import Dict, Type, Any, Optional, cast
+from typing import Dict, Type, Any, Optional
 
-import numpy as np
 from zenml.enums import ArtifactType
-from zenml.io import fileio
 from zenml.materializers.base_materializer import BaseMaterializer
 
 from ..domain.models.document import DocumentChunk

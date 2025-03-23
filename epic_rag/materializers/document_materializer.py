@@ -2,11 +2,9 @@
 
 import json
 import os
-from typing import Dict, Type, Any, Optional, cast
+from typing import Dict, Type, Any, Optional
 
-import numpy as np
 from zenml.enums import ArtifactType
-from zenml.io import fileio
 from zenml.materializers.base_materializer import BaseMaterializer
 
 from ..domain.models.document import Document
@@ -61,10 +59,9 @@ class DocumentMaterializer(BaseMaterializer):
         updated_at = metadata_dict.pop("updated_at", None)
 
         # Load chunks if they exist
-        chunks = []
         if self.artifact_store.exists(self.chunks_path):
             with self.artifact_store.open(self.chunks_path, "r") as f:
-                chunks_data = json.load(f)
+                json.load(f)
                 # Note: We're not actually loading the chunks here
                 # In a full implementation, we'd deserialize each chunk
 
