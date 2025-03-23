@@ -1,6 +1,7 @@
 """LLM service for text generation and transformation."""
 
 from abc import ABC, abstractmethod
+from typing import List, Dict, Any
 
 
 class LLMService(ABC):
@@ -27,6 +28,24 @@ class LLMService(ABC):
 
         Returns:
             Transformed query optimized for retrieval
+        """
+    
+    @abstractmethod
+    async def answer_question(
+        self, 
+        question: str, 
+        context_chunks: List[Dict[str, Any]], 
+        **kwargs
+    ) -> str:
+        """Generate an answer to a question based on the provided context chunks.
+        
+        Args:
+            question: The user's question
+            context_chunks: List of retrieved document chunks and their metadata
+            **kwargs: Additional parameters for the model
+            
+        Returns:
+            Generated answer based on the context
         """
 
     @property

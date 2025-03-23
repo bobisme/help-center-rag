@@ -248,6 +248,30 @@ query-help-center q:
 bm25-help-center q:
     python -m epic_rag.interfaces.cli.main bm25 "{{q}}" --full-content
 
+# Ask a question and get an answer using RAG
+ask q:
+    python -m epic_rag.interfaces.cli.main ask "{{q}}"
+
+# Ask a question and see the context used
+ask-with-context q:
+    python -m epic_rag.interfaces.cli.main ask "{{q}}" --show-context
+
+# Ask a question and see detailed metrics
+ask-with-metrics q:
+    python -m epic_rag.interfaces.cli.main ask "{{q}}" --show-metrics
+
+# Ask a question with custom temperature
+ask-temp q temp="0.5":
+    python -m epic_rag.interfaces.cli.main ask "{{q}}" --temperature {{temp}}
+    
+# Ask with lower relevance threshold to get more context
+ask-broad q:
+    python -m epic_rag.interfaces.cli.main ask "{{q}}" --min-relevance 0.3 --top-k 8
+
+# Ask with verbose output to see what's happening
+ask-debug q:
+    python -m epic_rag.interfaces.cli.main ask "{{q}}" --verbose --show-metrics --min-relevance 0.3
+
 # Test help center pipeline with a small sample using non-ZenML implementation
 test-help-center:
     python test_help_center_pipeline.py --limit 5

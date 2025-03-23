@@ -114,7 +114,7 @@ The system implements Anthropic's Contextual Retrieval approach, which improves 
   - [x] Implement SmolVLM-Synthetic as a lightweight vision-language model
   - [x] Create swappable image description service interface
   - [x] Build configuration options to select the active model
-  - [x] Create comparison scripts to evaluate model outputs 
+  - [x] Create comparison scripts to evaluate model outputs
 - [x] Enhance chunking to preserve image context
   - [x] Modify chunking service to keep images with surrounding text
   - [x] Implement special handling for image-rich sections
@@ -175,7 +175,35 @@ The system implements Anthropic's Contextual Retrieval approach, which improves 
   - [x] Track version history counts
   - [x] Implement detailed logging for data operations
 
-### Phase 9: Deployment and Monitoring
+### Phase 9: Question Answering with LLM Integration
+
+- [x] Implement LLM service for answering questions based on retrieved chunks
+  - [x] Design abstract LLM service interface for answer generation
+  - [x] Implement integration with Ollama LLM provider
+  - [x] Add configuration options for model selection and parameters
+  - [x] Implement prompt template system for answer generation
+- [x] Create prompt engineering framework for effective RAG answers
+  - [x] Design base prompt template with context insertion points
+  - [x] Implement chunk formatting for optimal context utilization
+  - [x] Create answer constraints to ensure response quality
+  - [x] Add system for handling citations and references to source material
+- [x] Build end-to-end query-to-answer pipeline
+  - [x] Create pipeline that connects retrieval to answer generation
+  - [x] Add fallback mechanisms for handling retrieval failures
+  - [x] Build in safeguards against hallucination and incorrect information
+  - [ ] Implement query classification to determine appropriate response strategies
+- [ ] Add evaluation metrics for answer quality
+  - [ ] Implement accuracy metrics comparing answers to ground truth
+  - [ ] Create system for detecting hallucinations in generated answers
+  - [ ] Add human evaluation interface for subjective quality assessment
+  - [ ] Build comparative evaluation between different prompt templates and models
+- [x] Develop enhanced CLI and API interfaces
+  - [x] Update CLI interface to support question answering mode
+  - [ ] Create JSON API for programmatic access to question answering
+  - [ ] Add interactive mode with follow-up question support
+  - [ ] Implement answer streaming for better user experience
+
+### Phase 10: Deployment and Monitoring
 
 - [ ] Containerize the application
 - [ ] Set up model and data versioning
@@ -188,6 +216,7 @@ The system implements Anthropic's Contextual Retrieval approach, which improves 
 To implement document replacement strategy (Option 1):
 
 1. **Update SQLiteDocumentRepository**:
+
    - Add a `find_document_by_epic_page_id(epic_page_id)` method to locate existing documents
    - Create a `replace_document(document)` method that:
      - Checks if a document with the same epic_page_id exists
@@ -196,16 +225,19 @@ To implement document replacement strategy (Option 1):
      - Returns the saved document with updated IDs
 
 2. **Modify the IngestDocumentUseCase**:
+
    - Update to use the new replace_document method
    - Detect if a document should replace an existing one
    - Maintain chunk relationships after replacement
 
 3. **Update Document Processing Pipeline**:
+
    - Modify the ingest_documents step to use document replacement
    - Add tracking of replaced vs. new documents in statistics
    - Ensure vector store properly handles deleted embeddings
 
 4. **Optimize for Performance**:
+
    - Add batch operations for document replacement
    - Create transaction support for atomicity
    - Add logging for replacement operations
@@ -222,3 +254,4 @@ To implement document replacement strategy (Option 1):
 3. **Extensibility**: System should support different embedding models and LLMs
 4. **Observability**: Performance metrics should be trackable
 5. **Maintainability**: Code should follow clean code practices and include documentation
+

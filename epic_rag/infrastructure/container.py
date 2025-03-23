@@ -359,6 +359,7 @@ def setup_container():
     # Register use cases
     from epic_rag.application.use_cases.retrieve_context import RetrieveContextUseCase
     from epic_rag.application.use_cases.ingest_document import IngestDocumentUseCase
+    from epic_rag.application.use_cases.answer_question import AnswerQuestionUseCase
     from epic_rag.infrastructure.embedding.embedding_cache import EmbeddingCache
 
     # Register embedding cache
@@ -388,5 +389,14 @@ def setup_container():
             chunking_service=c.get("chunking_service"),
             embedding_service=c.get("embedding_service"),
             contextual_enrichment_service=c.get("contextual_enrichment_service"),
+        ),
+    )
+    
+    container.register_factory(
+        "answer_question_use_case",
+        lambda c: AnswerQuestionUseCase(
+            embedding_service=c.get("embedding_service"),
+            retrieval_service=c.get("retrieval_service"),
+            llm_service=c.get("llm_service"),
         ),
     )

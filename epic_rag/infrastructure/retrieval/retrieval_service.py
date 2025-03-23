@@ -228,7 +228,7 @@ class ContextualRetrievalService(RetrievalService):
             return query
 
     async def filter_chunks_by_relevance(
-        self, query: Query, chunks: List[DocumentChunk], min_score: float = 0.7
+        self, query: Query, chunks: List[DocumentChunk], min_score: float = 0.3
     ) -> List[DocumentChunk]:
         """Filter chunks by relevance score using vector similarity.
 
@@ -243,12 +243,32 @@ class ContextualRetrievalService(RetrievalService):
         Returns:
             Filtered list of relevant chunks
         """
-        # Filter chunks based on relevance score
-        relevant_chunks = [
-            chunk
-            for chunk in chunks
-            if chunk.relevance_score and chunk.relevance_score >= min_score
-        ]
+        # The chunks from retrieval might have small scores like 0.01-0.02
+        # So we apply a different strategy - either take all chunks if there are less than 5
+        # or take the top 5 by score
+        if len(chunks) <= 5:
+            relevant_chunks = chunks
+        else:
+            # Sort by score and take top 5
+            sorted_chunks = sorted(
+                chunks, 
+                key=lambda c: getattr(c, "score", c.relevance_score or 0.0),
+                reverse=True
+            )
+            relevant_chunks = sorted_chunks[:5]
+        
+        # Debug information about chunk filtering
+        print(f"Debug: Before filtering - {len(chunks)} chunks with scores: " + 
+              ", ".join([f"{getattr(c, 'score', c.relevance_score or 0.0):.4f}" for c in chunks[:5]]) +
+              (", ..." if len(chunks) > 5 else ""))
+        print(f"Debug: After new filtering strategy - {len(relevant_chunks)} chunks with scores: " +
+              ", ".join([f"{getattr(c, 'score', c.relevance_score or 0.0):.4f}" for c in relevant_chunks[:5]]) +
+              (", ..." if len(relevant_chunks) > 5 else ""))
+        
+        # Print chunk content verification for first chunk
+        if relevant_chunks:
+            print(f"Debug: First chunk has content length: {len(relevant_chunks[0].content)}")
+            print(f"Debug: Content preview: {relevant_chunks[0].content[:100]}...")
 
         logger.info(
             f"Filtered {len(chunks)} chunks to {len(relevant_chunks)} relevant chunks"

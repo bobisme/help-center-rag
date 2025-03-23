@@ -16,6 +16,7 @@ from .commands.images import register_image_commands
 from .commands.testing import register_testing_commands
 from .commands.help_center import register_help_center_commands
 from .commands.ingest_commands import register_commands as register_ingest_commands
+from .commands.answer_commands import register_commands as register_answer_commands
 
 # Create Typer app
 app = typer.Typer(
@@ -66,6 +67,7 @@ from .commands.help_center.help_center_commands import (
     run_help_center_pipeline,
 )
 from .commands.ingest_commands import ingest_app as new_ingest_app
+from .commands.answer_commands import ask
 
 # Register top-level alias commands for backward compatibility with Justfile
 app.command("old-ingest")(ingest_documents)
@@ -82,6 +84,7 @@ app.command("evaluate-enrichment")(evaluate_enrichment)
 app.command("info")(show_info)
 app.command("zenml-run")(run_zenml_pipeline)
 app.command("pipeline-feature-engineering")(run_feature_engineering)
+app.command("ask")(ask)
 
 # Register new aliases for visualization commands
 app.command("show-doc-chunks")(show_chunks)
@@ -119,6 +122,7 @@ def main():
     register_testing_commands(app)
     register_help_center_commands(app)
     register_ingest_commands(app)
+    register_answer_commands(app)
 
     # Run the Typer app
     app()
