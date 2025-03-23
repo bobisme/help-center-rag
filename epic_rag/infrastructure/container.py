@@ -74,7 +74,14 @@ container = ServiceContainer()
 
 
 def setup_container():
-    """Set up the container with all service registrations."""
+    """Set up the container with all service registrations.
+    
+    This function is idempotent - it can be called multiple times safely.
+    Services that have already been initialized will be reused."""
+    
+    # Skip setup if container is already initialized
+    if container.has("document_repository"):
+        return
     from epic_rag.infrastructure.persistence.sqlite_repository import (
         SQLiteDocumentRepository,
     )

@@ -1,10 +1,8 @@
 """Implementation of image description service using SmolVLM-Synthetic."""
 
 import asyncio
-import base64
 import os
 import re
-from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 from PIL import Image
 
@@ -12,8 +10,12 @@ import torch
 from transformers import AutoProcessor, AutoModelForVision2Seq
 
 from ...domain.services.image_description_service import ImageDescriptionService
-from ...domain.services.llm_service import LLMService
 from ..config.settings import LLMSettings
+
+
+QUERY = """\
+Describe this image from an insurance software documentation. Focus on UI
+elements, functionality, and purpose. Context: %s"""
 
 
 class SmolVLMImageDescriptionService(ImageDescriptionService):
@@ -30,8 +32,10 @@ class SmolVLMImageDescriptionService(ImageDescriptionService):
 
         Args:
             settings: LLM settings
-            model_name: The model name to use, defaults to HuggingFaceTB/SmolVLM-Synthetic
-            min_image_size: Minimum size (width or height) in pixels for images to be processed
+            model_name: The model name to use, defaults to
+                HuggingFaceTB/SmolVLM-Synthetic
+            min_image_size: Minimum size (width or height) in pixels for images
+                to be processed
             device: Device to use (cuda, cpu, mps), if None will auto-detect
         """
         self._settings = settings
@@ -99,11 +103,11 @@ class SmolVLMImageDescriptionService(ImageDescriptionService):
                 )
                 try:
                     image = Image.open(image_path).convert("RGB")
-                except:
+                except Exception:
                     return f"[Unable to process image: {image_path}]"
 
             # Create prompt with surrounding text context
-            query = f"Describe this image from an insurance software documentation. Focus on UI elements, functionality, and purpose. Context: {surrounding_text}"
+            query = QUERY.format(surrounding_text)
 
             # Create input messages for the model
             messages = [
@@ -139,9 +143,8 @@ class SmolVLMImageDescriptionService(ImageDescriptionService):
                 # Extract the assistant's response
                 assistant_start = generated_text.find("Assistant:")
                 if assistant_start != -1:
-                    response = generated_text[
-                        assistant_start + len("Assistant:") :
-                    ].strip()
+                    start = assistant_start + len("Assistant:")
+                    response = generated_text[start:].strip()
                 else:
                     response = generated_text
 
@@ -208,7 +211,8 @@ class SmolVLMImageDescriptionService(ImageDescriptionService):
             batch_results = await asyncio.gather(*batch)
 
             for j, result in enumerate(batch_results):
-                # Skip empty results (which could happen if an image was filtered out later)
+                # Skip empty results (which could happen if an image was
+                # filtered out later)
                 if result:
                     image_path = valid_image_data[i + j][0]
                     results[image_path] = result
@@ -244,7 +248,7 @@ class SmolVLMImageDescriptionService(ImageDescriptionService):
         # Process each image
         for match in matches:
             # Extract image path
-            image_title = match.group(1)
+            # image_title = match.group(1)
             image_path = match.group(2)
             match_start = match.start() + offset
             match_end = match.end() + offset
@@ -271,7 +275,8 @@ class SmolVLMImageDescriptionService(ImageDescriptionService):
 
             # Insert description after the image
             image_markdown = processed_content[match_start:match_end]
-            # Format the description in a blockquote to ensure it's visible in the console output
+            # Format the description in a blockquote to ensure it's visible in
+            # the console output
             with_description = (
                 f"{image_markdown}\n\n> **Image description:** {description}\n"
             )
