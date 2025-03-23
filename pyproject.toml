@@ -3,7 +3,7 @@ name = "epic-help"
 version = "0.1.0"
 description = "Epic Documentation RAG System using Anthropic's Contextual Retrieval methodology"
 readme = "README.md"
-requires-python = ">=3.13"
+requires-python = ">=3.12"
 dependencies = [
   # HTML to Markdown conversion
   "beautifulsoup4>=4.13.3",
@@ -20,7 +20,6 @@ dependencies = [
   "httpx>=0.28.1",
   "litellm>=1.63.11",
   "loguru>=0.7.3",
-  "numpy>=2.2.4",
   "openai>=1.66.3",
   "pillow>=11.1.0",
   "pydantic-settings>=2.8.1",
@@ -33,7 +32,7 @@ dependencies = [
   "torch>=2.6.0",
   "transformers>=4.49.0",
   "typer>=0.15.2",
-  "zenml[server]>=0.75.0",
+  "zenml[server]>=0.80",
 ]
 
 [dependency-groups]
@@ -47,5 +46,5 @@ dev = [
   "autoflake>=2.3.1",
 ]
 
-[project.scripts]
-epic-rag = "epic_rag.interfaces.cli.main:app"
+# [project.scripts]
+# epic-rag = "epic_rag.interfaces.cli.main:app"
