@@ -61,7 +61,9 @@ def add_image_descriptions(
                 image_pattern = r"!\[([^\]]*)\]\(([^)]+)\)"
                 matches = list(re.finditer(image_pattern, chunk.content))
                 doc_total_images += len(matches)
-                logger.debug(f"Found {len(matches)} images in chunk {chunk.chunk_index}")
+                logger.debug(
+                    f"Found {len(matches)} images in chunk {chunk.chunk_index}"
+                )
 
                 # Only process if the chunk has images
                 if matches:

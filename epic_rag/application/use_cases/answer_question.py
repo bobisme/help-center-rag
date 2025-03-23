@@ -1,9 +1,9 @@
 """Question answering use case."""
 
 import time
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, Optional
 
-from ...domain.models.retrieval import Query, ContextualRetrievalResult
+from ...domain.models.retrieval import Query
 from ...domain.services.embedding_service import EmbeddingService
 from ...domain.services.llm_service import LLMService
 from ...domain.services.retrieval_service import RetrievalService
@@ -84,36 +84,42 @@ class AnswerQuestionUseCase:
         # Step 5: Prepare the context chunks for the LLM
         # Take only the top chunks based on relevance score
         chunks = retrieval_result.final_chunks[:max_context_chunks]
-        
+
         # Check if we have any chunks at all
         if not chunks:
             # Log warning about no chunks found
             print(f"Warning: No chunks found for query: {question}")
-            
+
         context_chunks = []
         for chunk in chunks:
             # Make sure the chunk has content before adding it
             if chunk.content and len(chunk.content.strip()) > 0:
-                context_chunks.append({
-                    "id": chunk.id,
-                    "title": chunk.metadata.get("document_title", "Untitled"),
-                    "content": chunk.content,
-                    "score": getattr(chunk, "score", getattr(chunk, "relevance_score", 0.0)),
-                    "metadata": chunk.metadata,
-                })
+                context_chunks.append(
+                    {
+                        "id": chunk.id,
+                        "title": chunk.metadata.get("document_title", "Untitled"),
+                        "content": chunk.content,
+                        "score": getattr(
+                            chunk, "score", getattr(chunk, "relevance_score", 0.0)
+                        ),
+                        "metadata": chunk.metadata,
+                    }
+                )
 
         # Step 6: Generate an answer using the LLM
         answer_start_time = time.time()
-        
+
         # Debug logging for context chunks
         if context_chunks:
             print(f"Debug: Passing {len(context_chunks)} context chunks to LLM")
             for i, chunk in enumerate(context_chunks):
-                print(f"Debug: Context chunk {i+1} - Title: {chunk['title']}, Score: {chunk['score']:.4f}")
+                print(
+                    f"Debug: Context chunk {i+1} - Title: {chunk['title']}, Score: {chunk['score']:.4f}"
+                )
                 print(f"Debug: Content preview: {chunk['content'][:100]}...")
         else:
             print("Debug: No context chunks found to pass to LLM")
-            
+
         answer = await self.llm_service.answer_question(
             question=question,
             context_chunks=context_chunks,

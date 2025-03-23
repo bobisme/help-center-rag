@@ -1,7 +1,6 @@
 """Loaders for Epic documentation data."""
 
 import json
-import sys
 from typing import Dict, Any, List, Tuple, Optional
 
 

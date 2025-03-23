@@ -2,10 +2,8 @@
 
 import asyncio
 import time
-from typing import Optional
 
 import typer
-from rich.console import Console
 from rich.markdown import Markdown
 from rich.panel import Panel
 
@@ -18,7 +16,9 @@ answer_app = typer.Typer(pretty_exceptions_enable=False)
 @answer_app.command("ask")
 def ask(
     question: str = typer.Argument(..., help="The question to answer"),
-    top_k: int = typer.Option(5, "--top-k", "-k", help="Number of context chunks to retrieve"),
+    top_k: int = typer.Option(
+        5, "--top-k", "-k", help="Number of context chunks to retrieve"
+    ),
     show_context: bool = typer.Option(
         False, "--show-context", "-c", help="Show the context chunks used"
     ),
@@ -35,10 +35,15 @@ def ask(
         5, "--max-chunks", help="Maximum number of context chunks to include"
     ),
     min_relevance: float = typer.Option(
-        0.5, "--min-relevance", help="Minimum relevance score for context chunks (lower = more chunks)"
+        0.5,
+        "--min-relevance",
+        help="Minimum relevance score for context chunks (lower = more chunks)",
     ),
     verbose: bool = typer.Option(
-        False, "--verbose", "-v", help="Show verbose output, including the prompt sent to the LLM"
+        False,
+        "--verbose",
+        "-v",
+        help="Show verbose output, including the prompt sent to the LLM",
     ),
 ):
     """Ask a question and get an answer based on the documentation.
@@ -67,39 +72,47 @@ def ask(
             max_context_chunks=max_context_chunks,
         )
     )
-    elapsed_time = time.time() - start_time
+    time.time() - start_time
 
     # Extract the answer and metrics
     answer = result["answer"]
     metrics = result["metrics"]
     context_chunks = result["context_chunks"]
-    
+
     # Show debug info about context chunks
     console.print(f"[dim]Found {len(context_chunks)} relevant context chunks[/dim]")
     if len(context_chunks) == 0:
-        console.print("[yellow]Warning: No context chunks were found. The answer may be generic or incomplete.[/yellow]")
+        console.print(
+            "[yellow]Warning: No context chunks were found. The answer may be generic or incomplete.[/yellow]"
+        )
 
     # Display the answer
-    console.print(Panel.fit(
-        Markdown(answer),
-        title="[bold green]Answer[/bold green]",
-        border_style="green",
-    ))
+    console.print(
+        Panel.fit(
+            Markdown(answer),
+            title="[bold green]Answer[/bold green]",
+            border_style="green",
+        )
+    )
     console.print()
-    
+
     # Display verbose info if requested
     if verbose:
         # Simulate what the prompt would look like
         if context_chunks:
-            sample_context = "\n...\n".join([
-                f"DOCUMENT TITLE: {chunk.get('title', 'Unknown')}\n{chunk.get('content', '')[:200]}..."
-                for chunk in context_chunks[:2]
-            ])
+            sample_context = "\n...\n".join(
+                [
+                    f"DOCUMENT TITLE: {chunk.get('title', 'Unknown')}\n{chunk.get('content', '')[:200]}..."
+                    for chunk in context_chunks[:2]
+                ]
+            )
             if len(context_chunks) > 2:
-                sample_context += f"\n...\n[{len(context_chunks) - 2} more chunks not shown]"
+                sample_context += (
+                    f"\n...\n[{len(context_chunks) - 2} more chunks not shown]"
+                )
         else:
             sample_context = "No relevant information found."
-        
+
         console.print("[bold]Generated prompt structure:[/bold]")
         console.print("CONTEXT:")
         console.print(f"[dim]{sample_context}[/dim]")
@@ -122,7 +135,7 @@ def ask(
     if show_context:
         console.print("[bold]Context Used:[/bold]")
         console.print()
-        
+
         for i, chunk in enumerate(context_chunks):
             title = chunk["title"]
             score = chunk["score"]
@@ -130,16 +143,20 @@ def ask(
                 f"[bold cyan]{i+1}.[/bold cyan] [bold]{title}[/bold] (Score: {score:.4f})"
             )
             console.print()
-            console.print(Markdown(chunk["content"][:800] + "..." if len(chunk["content"]) > 800 else chunk["content"]))
+            console.print(
+                Markdown(
+                    chunk["content"][:800] + "..."
+                    if len(chunk["content"]) > 800
+                    else chunk["content"]
+                )
+            )
             console.print("---")
             console.print()
 
 
 def register_commands(app: typer.Typer):
     """Register answer commands with the main app."""
-    app.add_typer(
-        answer_app, name="answer", help="Question answering commands"
-    )
-    
+    app.add_typer(answer_app, name="answer", help="Question answering commands")
+
     # Add the main ask command directly
     app.command(name="ask")(ask)

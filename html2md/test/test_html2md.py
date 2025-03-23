@@ -6,7 +6,7 @@ import json
 import tempfile
 import pytest
 from html2md import convert_html_to_markdown
-from html2md.loaders import load_from_json_file, get_page_count
+from html2md.loaders import load_from_json_file
 
 
 @pytest.fixture

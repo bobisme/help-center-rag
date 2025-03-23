@@ -1,7 +1,7 @@
 """Core functionality for HTML to Markdown conversion."""
 
 import os
-from typing import Optional, Dict, Any
+from typing import Optional
 from bs4 import BeautifulSoup, Tag
 from markdownify import markdownify
 

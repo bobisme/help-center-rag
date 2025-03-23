@@ -391,7 +391,7 @@ def setup_container():
             contextual_enrichment_service=c.get("contextual_enrichment_service"),
         ),
     )
-    
+
     container.register_factory(
         "answer_question_use_case",
         lambda c: AnswerQuestionUseCase(

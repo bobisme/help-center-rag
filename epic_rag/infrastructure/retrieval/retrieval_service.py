@@ -251,23 +251,39 @@ class ContextualRetrievalService(RetrievalService):
         else:
             # Sort by score and take top 5
             sorted_chunks = sorted(
-                chunks, 
+                chunks,
                 key=lambda c: getattr(c, "score", c.relevance_score or 0.0),
-                reverse=True
+                reverse=True,
             )
             relevant_chunks = sorted_chunks[:5]
-        
+
         # Debug information about chunk filtering
-        print(f"Debug: Before filtering - {len(chunks)} chunks with scores: " + 
-              ", ".join([f"{getattr(c, 'score', c.relevance_score or 0.0):.4f}" for c in chunks[:5]]) +
-              (", ..." if len(chunks) > 5 else ""))
-        print(f"Debug: After new filtering strategy - {len(relevant_chunks)} chunks with scores: " +
-              ", ".join([f"{getattr(c, 'score', c.relevance_score or 0.0):.4f}" for c in relevant_chunks[:5]]) +
-              (", ..." if len(relevant_chunks) > 5 else ""))
-        
+        print(
+            f"Debug: Before filtering - {len(chunks)} chunks with scores: "
+            + ", ".join(
+                [
+                    f"{getattr(c, 'score', c.relevance_score or 0.0):.4f}"
+                    for c in chunks[:5]
+                ]
+            )
+            + (", ..." if len(chunks) > 5 else "")
+        )
+        print(
+            f"Debug: After new filtering strategy - {len(relevant_chunks)} chunks with scores: "
+            + ", ".join(
+                [
+                    f"{getattr(c, 'score', c.relevance_score or 0.0):.4f}"
+                    for c in relevant_chunks[:5]
+                ]
+            )
+            + (", ..." if len(relevant_chunks) > 5 else "")
+        )
+
         # Print chunk content verification for first chunk
         if relevant_chunks:
-            print(f"Debug: First chunk has content length: {len(relevant_chunks[0].content)}")
+            print(
+                f"Debug: First chunk has content length: {len(relevant_chunks[0].content)}"
+            )
             print(f"Debug: Content preview: {relevant_chunks[0].content[:100]}...")
 
         logger.info(

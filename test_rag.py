@@ -2,8 +2,6 @@
 """Test script for the Epic Documentation RAG system."""
 
 import asyncio
-import os
-import sys
 from datetime import datetime
 import torch
 
@@ -240,7 +238,7 @@ async def main():
             await test_embedding("gemini")
 
         # Test document ingestion (uses whatever provider is set in settings)
-        doc_result = await test_document_ingestion()
+        await test_document_ingestion()
 
         # Allow time for Qdrant to index
         print("\nWaiting for Qdrant to index documents...")

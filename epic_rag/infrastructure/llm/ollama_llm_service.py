@@ -79,7 +79,7 @@ class OllamaLLMService(LLMService):
             "temperature": kwargs.get("temperature", self._settings.temperature),
             "stream": False,
         }
-        
+
         # Add max_tokens if provided in kwargs or settings
         if "max_tokens" in kwargs:
             payload["max_tokens"] = kwargs["max_tokens"]
@@ -107,21 +107,20 @@ class OllamaLLMService(LLMService):
         Returns:
             Transformed query optimized for retrieval
         """
-        return await self.generate_text(QUERY_TRANSFORM_PROMPT.format(query), temperature=0.2)
-    
+        return await self.generate_text(
+            QUERY_TRANSFORM_PROMPT.format(query), temperature=0.2
+        )
+
     async def answer_question(
-        self, 
-        question: str, 
-        context_chunks: List[Dict[str, Any]], 
-        **kwargs
+        self, question: str, context_chunks: List[Dict[str, Any]], **kwargs
     ) -> str:
         """Generate an answer to a question based on the provided context chunks.
-        
+
         Args:
             question: The user's question
             context_chunks: List of retrieved document chunks and their metadata
             **kwargs: Additional parameters for the model
-            
+
         Returns:
             Generated answer based on the context
         """
@@ -130,26 +129,28 @@ class OllamaLLMService(LLMService):
             context_text = "No relevant information found."
         else:
             context_chunks_formatted = []
-            
+
             for i, chunk in enumerate(context_chunks):
-                if chunk.get('content'):
-                    title = chunk.get('title', 'Unknown')
-                    score = chunk.get('score', 0.0)
-                    content = chunk.get('content', '')
-                    
+                if chunk.get("content"):
+                    title = chunk.get("title", "Unknown")
+                    score = chunk.get("score", 0.0)
+                    content = chunk.get("content", "")
+
                     # Format with relevance score to help the LLM prioritize information
                     chunk_text = f"[Document {i+1}] {title} (Relevance: {score:.2f})\n\n{content}"
                     context_chunks_formatted.append(chunk_text)
-            
-            context_text = "\n\n" + "\n\n---\n\n".join(context_chunks_formatted) + "\n\n"
-            
+
+            context_text = (
+                "\n\n" + "\n\n---\n\n".join(context_chunks_formatted) + "\n\n"
+            )
+
             # As a fallback, if we somehow end up with empty context after filtering
             if not context_text or len(context_text.strip()) == 0:
                 context_text = "No relevant information found."
-        
+
         # Create the prompt with the context and question
         prompt = ANSWER_QUESTION_PROMPT.format(context_text, question)
-        
+
         # Generate answer with slightly higher temperature for more natural responses
         temperature = kwargs.get("temperature", 0.3)
         return await self.generate_text(prompt, temperature=temperature)
