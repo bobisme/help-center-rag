@@ -193,8 +193,16 @@ class SQLiteDocumentRepository(DocumentRepository):
                     metadata_json,
                     document.epic_page_id,
                     document.epic_path,
-                    document.created_at.isoformat(),
-                    document.updated_at.isoformat(),
+                    (
+                        document.created_at.isoformat()
+                        if hasattr(document.created_at, "isoformat")
+                        else document.created_at
+                    ),
+                    (
+                        document.updated_at.isoformat()
+                        if hasattr(document.updated_at, "isoformat")
+                        else document.updated_at
+                    ),
                 ),
             )
 
