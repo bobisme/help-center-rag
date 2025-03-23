@@ -26,7 +26,9 @@ def show_info():
     console.print(f"Embedding Model: {settings.embedding.model}")
     console.print(f"LLM Provider: {settings.llm.provider}")
     console.print(f"LLM Model: {settings.llm.model}")
-    console.print(f"Reranker Model: {settings.retrieval.reranker.model_name if settings.retrieval.reranker.enabled else 'Disabled'}")
+    console.print(
+        f"Reranker Model: {settings.retrieval.reranker.model_name if settings.retrieval.reranker.enabled else 'Disabled'}"
+    )
 
     # Check for database file
     db_path = settings.database.path
@@ -52,7 +54,7 @@ def manage_cache(
     from ....infrastructure.embedding.embedding_cache import EmbeddingCache
 
     # Get the embedding cache
-    embedding_cache = container.resolve(EmbeddingCache)
+    embedding_cache = container.get("embedding_cache")
 
     if clear:
         # Clear the cache
@@ -139,7 +141,7 @@ def test_embed(
     from ....domain.services.embedding_service import EmbeddingService
 
     # Get the embedding service
-    embedding_service = container.resolve(EmbeddingService)
+    embedding_service = container.get("embedding_service")
 
     # Create the embedding
     async def create_embedding():

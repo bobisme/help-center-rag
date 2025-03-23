@@ -6,6 +6,18 @@ fmt:
 lint:
   flake8 --max-complexity 10 --max-line-length 88 epic_rag/
 
+# Run all tests
+test:
+  python -m pytest
+
+# Run tests with verbose output
+test-v:
+  python -m pytest -v
+
+# Run html2md tests only
+test-html2md:
+  python -m pytest html2md/test/ -v
+
 # Reset the databases and ingest markdown documents
 reset:
     #!/usr/bin/env bash
@@ -115,6 +127,10 @@ process-samples:
 # Simple test that directly shows enrichment results
 enrich-simple:
     python -m epic_rag.interfaces.cli.main test-enrichment test/samples/email.md
+    
+# Test enrichment on a document by ID (use ID from previous output)
+test-enrichment id:
+    python fix_by_sql.py enrich --id "{{id}}"
 
 # Test enrichment with custom file
 enrich:

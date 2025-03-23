@@ -109,21 +109,23 @@ def query(
                 # Use the dedicated transform_query method from the LLM service
                 transformed = await llm_service.transform_query(query_text)
                 transform_time = (time.time() - transform_start) * 1000
-                
+
                 metrics["transformed_query"] = transformed
                 metrics["durations_ms"]["transform"] = transform_time
-                
+
                 if show_details:
                     console.print(f"[bold]Transformed Query:[/bold] {transformed}")
                     console.print(f"[dim]Transform time: {transform_time:.2f}ms[/dim]")
                     console.print()
-                
+
                 return transformed
             except Exception as e:
-                console.print(f"[bold red]Error transforming query:[/bold red] {str(e)}")
+                console.print(
+                    f"[bold red]Error transforming query:[/bold red] {str(e)}"
+                )
                 return query_text
         return query_text
-        
+
     # We'll handle the transformation in the main async function
 
     async def perform_search():
@@ -131,7 +133,7 @@ def query(
 
         # First transform the query if needed
         transformed_query = await transform_query_async()
-        
+
         # Create a proper Query object
         query_obj = Query(text=transformed_query)
 
@@ -278,31 +280,31 @@ def query(
 
             # Create a proper Query object
             query = Query(text=query_text)
-            
+
             # Create DocumentChunk objects from our SearchResult objects
             doc_chunks = [
                 DocumentChunk(
                     id=result.id,
                     content=result.content,
                     metadata=result.metadata,
-                    relevance_score=result.score
-                ) 
+                    relevance_score=result.score,
+                )
                 for result in results[: top_k * 2]
             ]
 
             # Rerank the results
             reranked_chunks = await reranker_service.rerank(query, doc_chunks)
-            
+
             # Map the reranked chunks back to our results
             # Create a mapping from chunk ID to result index
             chunk_id_to_index = {result.id: i for i, result in enumerate(results)}
-            
+
             # Update scores based on the reranked chunks
             for chunk in reranked_chunks:
                 if chunk.id in chunk_id_to_index:
                     idx = chunk_id_to_index[chunk.id]
                     results[idx].score = chunk.relevance_score or 0.0
-            
+
             # Sort by the new scores
             results = sorted(results, key=lambda x: x.score, reverse=True)
 
@@ -604,11 +606,11 @@ def transform_query(
     # Use the existing transform_query method from the LLM service
     # which has a better prompt with instructions to be concise
     response = asyncio.run(llm_service.transform_query(query_text))
-    
+
     # Extract just the transformed query, removing any explanations
     # This assumes the first line contains the transformed query
     transformed_query = response.strip().split("\n")[0]
-    
+
     # Display the transformed query
     console.print(f"[bold]Transformed Query:[/bold] {transformed_query}")
 

@@ -53,8 +53,8 @@ def ingest_documents(
 
     console.print(f"Found [bold]{len(file_paths)}[/bold] documents to process")
 
-    # Call the ingest use case
-    ingest_use_case = container.resolve(IngestDocumentUseCase)
+    # Get the ingest use case from the container
+    ingest_use_case = container.get("ingest_document_use_case")
 
     with create_progress_bar() as progress:
         # Add a task to the progress bar
@@ -88,16 +88,17 @@ def ingest_documents(
                 source_path=file_path,
             )
 
-            # Set chunking options
-            chunking_options = {
-                "dynamic_chunking": dynamic_chunking,
-                "min_chunk_size": min_chunk_size,
-                "max_chunk_size": max_chunk_size,
-                "chunk_overlap": chunk_overlap,
-            }
-
             # Ingest the document
-            asyncio.run(ingest_use_case.execute(document, chunking_options))
+            asyncio.run(
+                ingest_use_case.execute(
+                    document=document,
+                    dynamic_chunking=dynamic_chunking,
+                    min_chunk_size=min_chunk_size,
+                    max_chunk_size=max_chunk_size,
+                    chunk_overlap=chunk_overlap,
+                    apply_enrichment=True,
+                )
+            )
 
             # Update the progress bar
             progress.update(task, advance=1)
@@ -121,7 +122,7 @@ def show_document_chunks(
     from ....domain.repositories.document_repository import DocumentRepository
 
     async def get_document_with_chunks():
-        doc_repo = container.resolve(DocumentRepository)
+        doc_repo = container.get("document_repository")
         document = await doc_repo.get_by_title(title)
         if not document:
             console.print(f"[bold red]Document not found: {title}[/bold red]")

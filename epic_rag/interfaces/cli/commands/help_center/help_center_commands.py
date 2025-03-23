@@ -108,12 +108,12 @@ async def process_help_center_page(
     if convert_to_markdown and content:
         heading_pattern = f"# {title}"
         has_title_heading = content.strip().startswith(heading_pattern)
-    
+
     # Format the content with title only if needed
     final_content = content
     if convert_to_markdown and not has_title_heading:
         final_content = f"# {title}\n\n{content}"
-    
+
     # Save markdown file
     if convert_to_markdown and save_intermediate:
         with open(markdown_path, "w", encoding="utf-8") as f:

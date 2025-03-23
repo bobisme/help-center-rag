@@ -743,34 +743,34 @@ class SQLiteDocumentRepository(DocumentRepository):
                     }
 
             return stats
-    
+
     async def save_query(
-        self, 
-        query_text: str, 
+        self,
+        query_text: str,
         transformed_query: Optional[str] = None,
-        metadata: Optional[Dict[str, Any]] = None
+        metadata: Optional[Dict[str, Any]] = None,
     ) -> str:
         """Save a query to the query history.
-        
+
         Args:
             query_text: The original query text
             transformed_query: Optional transformed query text
             metadata: Optional metadata about the query (results, etc)
-            
+
         Returns:
             The ID of the saved query
         """
         from ...domain.models.ident import new_id
-        
+
         # Generate a new ID
         query_id = new_id("query")
-        
+
         # Convert metadata to JSON string if present
         metadata_json = json.dumps(metadata) if metadata else None
-        
+
         # Get current timestamp
         timestamp = datetime.now().isoformat()
-        
+
         async with aiosqlite.connect(self.db_path) as db:
             await db.execute(
                 """
@@ -787,24 +787,24 @@ class SQLiteDocumentRepository(DocumentRepository):
                 ),
             )
             await db.commit()
-            
+
             return query_id
-            
+
     async def get_query_history(
-        self, 
-        limit: int = 100, 
+        self,
+        limit: int = 100,
         offset: int = 0,
         start_date: Optional[datetime] = None,
-        end_date: Optional[datetime] = None
+        end_date: Optional[datetime] = None,
     ) -> List[Dict[str, Any]]:
         """Get query history with optional date filtering.
-        
+
         Args:
             limit: Maximum number of queries to return
             offset: Offset for pagination
             start_date: Optional start date for filtering
             end_date: Optional end date for filtering
-            
+
         Returns:
             List of query history records
         """
@@ -815,24 +815,24 @@ class SQLiteDocumentRepository(DocumentRepository):
                 FROM query_history
             """
             params = []
-            
+
             # Add date filters if provided
             where_clauses = []
             if start_date:
                 where_clauses.append("timestamp >= ?")
                 params.append(start_date.isoformat())
-                
+
             if end_date:
                 where_clauses.append("timestamp <= ?")
                 params.append(end_date.isoformat())
-                
+
             if where_clauses:
                 query += " WHERE " + " AND ".join(where_clauses)
-                
+
             # Add limit and offset
             query += " ORDER BY timestamp DESC LIMIT ? OFFSET ?"
             params.extend([limit, offset])
-            
+
             # Execute query
             results = []
             async with db.execute(query, params) as cursor:
@@ -846,5 +846,5 @@ class SQLiteDocumentRepository(DocumentRepository):
                         "metadata": json.loads(row[4]) if row[4] else {},
                     }
                     results.append(record)
-                    
+
             return results

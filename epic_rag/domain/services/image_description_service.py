@@ -2,7 +2,10 @@
 
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Dict, Optional, List, Tuple
+from typing import Dict, Optional, List, Tuple, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from ...domain.models.document import DocumentChunk
 
 
 class ImageDescriptionService(ABC):
@@ -49,5 +52,20 @@ class ImageDescriptionService(ABC):
 
         Returns:
             List of tuples containing (image_path, surrounding_text)
+        """
+        pass
+
+    @abstractmethod
+    async def process_chunk_images(self, chunk: "DocumentChunk") -> "DocumentChunk":
+        """Process a document chunk and add image descriptions within the content.
+
+        This method looks for image references in the chunk content, generates
+        descriptions for each image, and inserts those descriptions back into the content.
+
+        Args:
+            chunk: The document chunk to process
+
+        Returns:
+            Updated document chunk with image descriptions
         """
         pass

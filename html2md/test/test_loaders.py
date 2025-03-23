@@ -14,9 +14,9 @@ def sample_html_file():
     with tempfile.NamedTemporaryFile(mode="w", suffix=".html", delete=False) as f:
         f.write("<html><body><h1>Test HTML</h1><p>Test paragraph</p></body></html>")
         temp_path = f.name
-    
+
     yield temp_path
-    
+
     # Clean up
     if os.path.exists(temp_path):
         os.unlink(temp_path)
@@ -31,7 +31,7 @@ def sample_json_file():
                 "crawlDate": "2023-01-01T00:00:00Z",
                 "baseUrl": "https://test.com",
                 "totalPages": 2,
-                "maxDepth": 3
+                "maxDepth": 3,
             },
             "pages": [
                 {
@@ -41,8 +41,8 @@ def sample_json_file():
                     "metadata": {
                         "depth": 1,
                         "path": ["Test", "Page 1"],
-                        "crawlDate": "2023-01-01T00:00:00Z"
-                    }
+                        "crawlDate": "2023-01-01T00:00:00Z",
+                    },
                 },
                 {
                     "title": "Page 2",
@@ -51,16 +51,16 @@ def sample_json_file():
                     "metadata": {
                         "depth": 1,
                         "path": ["Test", "Page 2"],
-                        "crawlDate": "2023-01-01T00:00:00Z"
-                    }
-                }
-            ]
+                        "crawlDate": "2023-01-01T00:00:00Z",
+                    },
+                },
+            ],
         }
         json.dump(json_data, f)
         temp_path = f.name
-    
+
     yield temp_path
-    
+
     # Clean up
     if os.path.exists(temp_path):
         os.unlink(temp_path)
@@ -76,14 +76,14 @@ def test_load_from_html_file(sample_html_file):
 def test_load_from_json_file(sample_json_file):
     """Test loading HTML content from a JSON file with Epic doc format."""
     html, title, pages = load_from_json_file(sample_json_file, 0)
-    
+
     # Check HTML content
     assert "<h1>Page 1</h1>" in html
     assert "<p>Content 1</p>" in html
-    
+
     # Check title
     assert title == "Page 1"
-    
+
     # Check pages list
     assert len(pages) == 2
     assert pages[1]["title"] == "Page 2"
@@ -92,7 +92,7 @@ def test_load_from_json_file(sample_json_file):
 def test_load_from_json_file_with_index(sample_json_file):
     """Test loading HTML content from a specific index in a JSON file."""
     html, title, _ = load_from_json_file(sample_json_file, 1)
-    
+
     # Check HTML content and title for second page
     assert "<h1>Page 2</h1>" in html
     assert "<p>Content 2</p>" in html

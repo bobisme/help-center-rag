@@ -55,8 +55,18 @@ def run_zenml_pipeline(
         )
         return
 
-    # Resolve the pipeline from the container
-    pipeline = container.resolve(pipeline_class)
+    # Create an instance of the pipeline class
+    try:
+        # First try to get it from the container by name
+        pipeline_name_key = f"{pipeline_name}_pipeline"
+        if container.has(pipeline_name_key):
+            pipeline = container.get(pipeline_name_key)
+        else:
+            # If not registered, instantiate it directly
+            pipeline = pipeline_class()
+    except Exception as e:
+        console.print(f"[bold red]Error creating pipeline:[/bold red] {str(e)}")
+        return
 
     # Set up the pipeline config
     config = {

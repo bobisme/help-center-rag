@@ -252,9 +252,11 @@ def convert_html_to_markdown(
     """
     # Check if images directory exists
     if images_dir and not os.path.exists(images_dir):
-        print(f"Warning: Images directory {images_dir} not found. Images will be removed.")
+        print(
+            f"Warning: Images directory {images_dir} not found. Images will be removed."
+        )
         images_dir = None
-    
+
     # Preprocess the HTML
     processed_html = preprocess_html(html, images_dir)
 

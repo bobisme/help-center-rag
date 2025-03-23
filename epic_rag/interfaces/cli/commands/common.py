@@ -25,9 +25,7 @@ logger.configure(
 def create_progress_bar(description: str = "Processing"):
     """Create a rich progress bar."""
     return Progress(
-        TextColumn("[bold blue]{task.description}"),
-        BarColumn(),
-        TaskProgressColumn()
+        TextColumn("[bold blue]{task.description}"), BarColumn(), TaskProgressColumn()
     )
 
 

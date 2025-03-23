@@ -12,13 +12,13 @@ def test_images_dir():
     """Set up a temporary directory with test images."""
     dir_path = "test_images_dir"
     os.makedirs(dir_path, exist_ok=True)
-    
+
     # Create a test image file
     with open(os.path.join(dir_path, "test_image.jpg"), "w") as f:
         f.write("dummy image content")
-        
+
     yield dir_path
-    
+
     # Clean up
     if os.path.exists(dir_path):
         shutil.rmtree(dir_path)
@@ -78,7 +78,7 @@ def test_logo_removal():
     # Create a directory for images to prevent all images from being removed
     test_img_dir = "test_preprocessing_images"
     os.makedirs(test_img_dir, exist_ok=True)
-    
+
     try:
         html = """
         <p>Content with <img src="logo.png" alt="Logo"></p>

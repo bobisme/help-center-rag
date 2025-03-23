@@ -43,8 +43,8 @@ def test_enrichment(
     )
 
     # Get the chunking service
-    chunking_service = container.resolve(ChunkingService)
-    enrichment_service = container.resolve(ContextualEnrichmentService)
+    chunking_service = container.get("chunking_service")
+    enrichment_service = container.get("contextual_enrichment_service")
 
     # Chunk the document
     chunking_options = {
@@ -124,7 +124,7 @@ def test_rerank(
 ):
     """Test reranking by reranking passages for a query."""
     # Get the reranker service
-    reranker_service = container.resolve(RerankerService)
+    reranker_service = container.get("reranker_service")
 
     console.print(f"[bold]Query:[/bold] {query}")
     console.print()
@@ -162,7 +162,7 @@ def benchmark_bm25(
         queries = [line.strip() for line in f if line.strip()]
 
     # Get the lexical search service
-    search_service = container.resolve(LexicalSearchService)
+    search_service = container.get("bm25_search_service")
 
     console.print(f"[bold]Benchmarking {len(queries)} queries...[/bold]")
 
@@ -237,7 +237,7 @@ def evaluate_enrichment(
         console.print("[bold]Generating evaluation dataset...[/bold]")
 
         # Get the dataset generator
-        dataset_generator = container.resolve(DatasetGenerator)
+        dataset_generator = DatasetGenerator()
 
         # Generate the dataset
         evaluation_data = asyncio.run(dataset_generator.generate())
@@ -262,7 +262,7 @@ def evaluate_enrichment(
             evaluation_data = json.load(f)
 
         # Get the evaluation pipeline
-        evaluation_pipeline = container.resolve(ContextualEnrichmentEvaluationPipeline)
+        evaluation_pipeline = ContextualEnrichmentEvaluationPipeline()
 
         # Run the evaluation
         results = asyncio.run(evaluation_pipeline.evaluate(evaluation_data))
