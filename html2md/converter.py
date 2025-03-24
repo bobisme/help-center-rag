@@ -9,7 +9,12 @@ from markdownify import markdownify
 def _convert_spans_to_strong(soup: BeautifulSoup) -> None:
     """Convert spans with font-weight: bold to <strong> tags."""
     for span in soup.find_all("span"):
+        # Check if the span is a Tag
         if not isinstance(span, Tag):
+            continue
+            
+        # Check if it has attributes and they're not None
+        if not hasattr(span, 'attrs') or span.attrs is None:
             continue
 
         # Check if it has a style attribute with font-weight: bold
@@ -36,7 +41,12 @@ def _convert_spans_to_strong(soup: BeautifulSoup) -> None:
 def _convert_spans_to_em(soup: BeautifulSoup) -> None:
     """Convert spans with font-style: italic to <em> tags."""
     for span in soup.find_all("span"):
+        # Check if the span is a Tag
         if not isinstance(span, Tag):
+            continue
+            
+        # Check if it has attributes and they're not None
+        if not hasattr(span, 'attrs') or span.attrs is None:
             continue
 
         # Check if it has a style attribute with font-style: italic
@@ -78,11 +88,21 @@ def _convert_inline_styles_to_semantic_tags(soup: BeautifulSoup) -> None:
 def _fix_nested_lists(soup: BeautifulSoup) -> None:
     """Fix nested list structure that uses empty list items as containers."""
     for list_item in soup.find_all("li"):
-        if not isinstance(list_item, Tag) or not list_item.get("style"):
+        # Check if the list_item is a Tag 
+        if not isinstance(list_item, Tag):
+            continue
+            
+        # Check if it has attributes and a style attribute
+        if not hasattr(list_item, 'attrs') or list_item.attrs is None:
+            continue
+        
+        # Get style attribute safely
+        style = list_item.get('style', '')
+        if not style:
             continue
 
         # Check if this is a list item with style="list-style: none"
-        if "list-style: none" not in list_item["style"]:
+        if "list-style: none" not in style:
             continue
 
         # Check if this is a list item containing a nested list
@@ -103,8 +123,12 @@ def _fix_nested_lists(soup: BeautifulSoup) -> None:
 def _process_links(soup: BeautifulSoup) -> None:
     """Replace javascript and local file links with just their text content."""
     for link in soup.find_all("a"):
-        # Make sure we're dealing with a Tag, not NavigableString
+        # Make sure we're dealing with a Tag
         if not isinstance(link, Tag):
+            continue
+            
+        # Make sure it has attributes and they're not None
+        if not hasattr(link, 'attrs') or link.attrs is None:
             continue
 
         # If the link is javascript or a local file reference, replace with text
@@ -146,8 +170,12 @@ def _update_image_src(img: Tag, images_dir: str, filename: str) -> bool:
 def _process_images(soup: BeautifulSoup, images_dir: Optional[str]) -> None:
     """Process images to point to local files or remove them if needed."""
     for img in soup.find_all("img"):
-        # Make sure we're dealing with a Tag, not NavigableString
+        # Make sure we're dealing with a Tag
         if not isinstance(img, Tag):
+            continue
+            
+        # Make sure it has attributes and they're not None
+        if not hasattr(img, 'attrs') or img.attrs is None:
             continue
 
         src = img.get("src", "")
