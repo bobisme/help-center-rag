@@ -33,6 +33,7 @@ dependencies = [
   "transformers>=4.49.0",
   "typer>=0.15.2",
   "zenml[server]>=0.80",
+  "pyright>=1.1.397",
 ]
 
 [dependency-groups]
