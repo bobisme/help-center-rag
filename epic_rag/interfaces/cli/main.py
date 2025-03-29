@@ -5,7 +5,6 @@ import typer
 from ...infrastructure.container import setup_container
 from .commands.query_commands import query
 from .commands.utility_commands import show_info
-from .commands.pipeline_commands import run_feature_engineering
 from .commands.ingest_commands import ingest_app
 from .commands.answer_commands import ask
 from .commands.db_commands import db_app
@@ -56,7 +55,6 @@ app.add_typer(db_app, name="db", help="Database maintenance and inspection tools
 
 # Add utility commands
 app.command("info")(show_info)
-app.command("pipeline-feature-engineering")(run_feature_engineering)
 
 
 def main():
