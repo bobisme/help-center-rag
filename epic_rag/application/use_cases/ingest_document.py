@@ -100,10 +100,15 @@ class IngestDocumentUseCase:
             # Get the image description service from the contextual enrichment service if it's the enhanced version
             image_description_service = None
             # Check if it's an ImageEnhancedEnrichmentService by checking the class name
-            if self.contextual_enrichment_service.__class__.__name__ == "ImageEnhancedEnrichmentService":
+            if (
+                self.contextual_enrichment_service.__class__.__name__
+                == "ImageEnhancedEnrichmentService"
+            ):
                 # Use getattr to access the private attribute in a type-safe way
                 image_description_service = getattr(
-                    self.contextual_enrichment_service, "_image_description_service", None
+                    self.contextual_enrichment_service,
+                    "_image_description_service",
+                    None,
                 )
 
                 # First, process images to get descriptions (this populates the cache in the service)
@@ -114,7 +119,9 @@ class IngestDocumentUseCase:
                 )
 
                 # Now process each chunk to add image descriptions directly into the content
-                if image_description_service is not None and hasattr(image_description_service, "process_chunk_images"):
+                if image_description_service is not None and hasattr(
+                    image_description_service, "process_chunk_images"
+                ):
                     print("Adding image descriptions directly to content...")
                     for i, chunk in enumerate(enriched_chunks):
                         # We need to replace the image descriptions at the top with descriptions under each image

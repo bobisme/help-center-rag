@@ -1,15 +1,14 @@
 """Document chunking service."""
 
-from abc import ABC, abstractmethod
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Protocol, runtime_checkable
 
 from ..models.document import Document, DocumentChunk
 
 
-class ChunkingService(ABC):
+@runtime_checkable
+class ChunkingService(Protocol):
     """Service for chunking documents into retrieval-optimized segments."""
 
-    @abstractmethod
     async def chunk_document(
         self,
         document: Document,
@@ -28,8 +27,8 @@ class ChunkingService(ABC):
         Returns:
             List of document chunks with proper linking
         """
+        ...
 
-    @abstractmethod
     async def dynamic_chunk_document(
         self,
         document: Document,
@@ -51,8 +50,8 @@ class ChunkingService(ABC):
         Returns:
             List of document chunks with proper linking
         """
+        ...
 
-    @abstractmethod
     async def merge_chunks(
         self, chunks: List[DocumentChunk], max_merged_size: int = 1500
     ) -> List[DocumentChunk]:
@@ -65,3 +64,4 @@ class ChunkingService(ABC):
         Returns:
             List of merged chunks
         """
+        ...

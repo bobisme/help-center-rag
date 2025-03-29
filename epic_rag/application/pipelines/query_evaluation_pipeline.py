@@ -54,9 +54,12 @@ def process_query(
     import asyncio
     from ...infrastructure.container import container
 
-    # Get required services
-    embedding_service = container.get("embedding_service")
-    retrieval_service = container.get("retrieval_service")
+    # Get required services using type-based dependency injection
+    from ...domain.services.embedding_service import EmbeddingService
+    from ...domain.services.retrieval_service import RetrievalService
+
+    embedding_service = container[EmbeddingService]
+    retrieval_service = container[RetrievalService]
 
     # Create use case
     use_case = RetrieveContextUseCase(
@@ -159,7 +162,7 @@ def evaluate_all_queries(
     }
 
 
-@pipeline(enable_cache=True) # type: ignore
+@pipeline(enable_cache=True)  # type: ignore
 def query_evaluation_pipeline(
     query_file: str = "data/test_queries.txt",
     first_stage_k: int = 20,

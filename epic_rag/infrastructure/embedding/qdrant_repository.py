@@ -1,4 +1,5 @@
 """Qdrant implementation of the vector repository."""
+
 # pyright: reportCallIssue=false
 # pyright: reportArgumentType=false
 
@@ -105,13 +106,11 @@ class QdrantVectorRepository(VectorRepository):
             # Add the point to the collection
             # Ensure vector is not None
             vector = chunk.embedding if chunk.embedding is not None else []
-            
+
             self.client.upsert(
                 collection_name=self.collection_name,
                 points=[
-                    qmodels.PointStruct(
-                        id=point_id, vector=vector, payload=payload
-                    )
+                    qmodels.PointStruct(id=point_id, vector=vector, payload=payload)
                 ],
             )
 
@@ -205,11 +204,9 @@ class QdrantVectorRepository(VectorRepository):
 
                 # Ensure vector is not None
                 vector = chunk.embedding if chunk.embedding is not None else []
-                
+
                 points.append(
-                    qmodels.PointStruct(
-                        id=chunk.id, vector=vector, payload=payload
-                    )
+                    qmodels.PointStruct(id=chunk.id, vector=vector, payload=payload)
                 )
 
             # Add points to collection
@@ -233,7 +230,9 @@ class QdrantVectorRepository(VectorRepository):
             stats = {
                 "vector_count": getattr(collection_info, "vectors_count", 0),
                 "segment_count": len(getattr(collection_info, "segments_count", [])),
-                "indexed_vector_count": getattr(collection_info, "indexed_vectors_count", 0),
+                "indexed_vector_count": getattr(
+                    collection_info, "indexed_vectors_count", 0
+                ),
                 "size_bytes": 0,  # Can't get reliable disk size from API
                 "collection_name": self.collection_name,
                 "vector_size": self.vector_size,

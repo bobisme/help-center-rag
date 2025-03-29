@@ -1,16 +1,15 @@
 """Reranker service interface for reranking search results."""
 
-from abc import ABC, abstractmethod
-from typing import List, Optional
+from typing import List, Optional, Protocol, runtime_checkable
 
 from ..models.document import DocumentChunk
 from ..models.retrieval import Query
 
 
-class RerankerService(ABC):
+@runtime_checkable
+class RerankerService(Protocol):
     """Service interface for reranking retrieval results based on relevance to query."""
 
-    @abstractmethod
     async def rerank(
         self, query: Query, chunks: List[DocumentChunk], top_k: Optional[int] = None
     ) -> List[DocumentChunk]:
@@ -24,3 +23,4 @@ class RerankerService(ABC):
         Returns:
             Reranked list of document chunks with updated relevance scores
         """
+        ...

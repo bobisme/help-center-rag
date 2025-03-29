@@ -26,7 +26,7 @@ class DocumentChunk:
 
     # For contextual retrieval
     relevance_score: Optional[float] = None
-    
+
     # Temporary attribute for vector database ID - won't be persisted in base class
     # Only used for type checking purposes - implementation in EmbeddedChunk
     # Declare this property to allow pyright to pass type checking
@@ -64,7 +64,7 @@ class EmbeddedChunk(DocumentChunk):
     # Vector database metadata
     vector_id: Optional[str] = None
     indexed_at: Optional[datetime] = None
-    
+
     def __post_init__(self):
         """Initialize default values."""
         # Ensure embedding is not None

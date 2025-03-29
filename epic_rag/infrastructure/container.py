@@ -1,44 +1,65 @@
-"""Dependency injection container."""
+"""Modern dependency injection container using Protocol-based interfaces."""
 
-from typing import Dict, Any
+import inspect
+from functools import wraps
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    Generic,
+    Optional,
+    Type,
+    TypeVar,
+    get_type_hints,
+    cast,
+)
 
 from .config.settings import settings
 
+# Generic type variables for better type safety
+T = TypeVar("T")
+D = TypeVar("D")  # Type for dependencies
+
 
 class ServiceContainer:
-    """Container for managing service instances and dependencies."""
+    """A fully type-based dependency injection container using Protocol interfaces."""
 
     def __init__(self):
         """Initialize an empty container."""
-        self._services: Dict[str, Any] = {}
-        self._factories: Dict[str, Any] = {}
+        self._factories: Dict[Type, Callable] = {}  # Type-based factories
+        self._instances: Dict[Type, Any] = {}  # Type-based instances
 
-    def register(self, name: str, instance: Any) -> None:
-        """Register a service instance in the container.
+        # Automatically register settings as a singleton
+        self._instances[settings.__class__] = settings
+
+    def register(
+        self, service_type: Type[T]
+    ) -> Callable[[Callable[..., T]], Callable[..., T]]:
+        """Register a service type using a decorator pattern.
 
         Args:
-            name: The name of the service
-            instance: The service instance
+            service_type: The type/interface to register
+
+        Returns:
+            A decorator function that registers the factory
+
+        Example:
+            @container.register(DocumentRepository)
+            def create_repository(settings: Settings) -> DocumentRepository:
+                return SQLiteDocumentRepository(settings.database.path)
         """
-        self._services[name] = instance
 
-    def register_factory(self, name: str, factory_func) -> None:
-        """Register a factory function for lazy instantiation.
+        def decorator(factory: Callable[..., T]) -> Callable[..., T]:
+            self._factories[service_type] = factory
+            return factory
 
-        Args:
-            name: The name of the service
-            factory_func: A function that creates the service instance
-        """
-        self._factories[name] = factory_func
+        return decorator
 
-    def get(self, name: str) -> Any:
-        """Get a service instance by name.
-
-        If the service is not yet instantiated but has a factory,
-        it will be created on first access.
+    def get(self, service_type: Type[T]) -> T:
+        """Get a service instance by type.
 
         Args:
-            name: The name of the service to retrieve
+            service_type: Type of the service to retrieve
 
         Returns:
             The service instance
@@ -46,347 +67,150 @@ class ServiceContainer:
         Raises:
             KeyError: If the service is not registered
         """
-        if name in self._services:
-            return self._services[name]
+        # Return existing instance if available
+        if service_type in self._instances:
+            return cast(T, self._instances[service_type])
 
-        if name in self._factories:
-            # Lazy instantiation
-            instance = self._factories[name](self)
-            self._services[name] = instance
-            return instance
+        # Create new instance if we have a factory
+        if service_type in self._factories:
+            # Get the factory function
+            factory = self._factories[service_type]
 
-        raise KeyError(f"Service '{name}' not registered in container")
+            # Auto-resolve dependencies based on type hints
+            instance = self._create_instance_with_dependencies(factory)
+            self._instances[service_type] = instance
+            return cast(T, instance)
 
-    def has(self, name: str) -> bool:
-        """Check if a service is registered.
+        raise KeyError(
+            f"Service of type {service_type.__name__} not registered in container"
+        )
+
+    def _create_instance_with_dependencies(self, factory: Callable[..., T]) -> T:
+        """Create a service instance with auto-resolved dependencies."""
+        # Get type hints and signature
+        hints = get_type_hints(factory)
+        signature = inspect.signature(factory)
+        kwargs: Dict[str, Any] = {}
+
+        # Process each parameter
+        for param_name, param in signature.parameters.items():
+            # Skip parameters with default values
+            if param.default is not inspect.Parameter.empty:
+                continue
+
+            # Skip return type annotation
+            if param_name == "return":
+                continue
+
+            # Get parameter type from type hints
+            if param_name in hints:
+                param_type = hints[param_name]
+
+                # Handle Optional types
+                if (
+                    hasattr(param_type, "__origin__")
+                    and param_type.__origin__ is Optional
+                ):
+                    try:
+                        # Get the first type argument (T in Optional[T])
+                        real_type = param_type.__args__[0]
+                        kwargs[param_name] = self.get(real_type)
+                    except KeyError:
+                        # If not found, provide None for Optional parameters
+                        kwargs[param_name] = None
+                else:
+                    # Recursively resolve regular dependencies
+                    try:
+                        kwargs[param_name] = self.get(param_type)
+                    except KeyError as e:
+                        raise KeyError(
+                            f"Could not resolve dependency {param_name}: {e}"
+                        ) from e
+
+        # Create the instance with dependencies injected
+        return factory(**kwargs)
+
+    def __getitem__(self, service_type: Type[T]) -> T:
+        """Enable container[ServiceType] syntax for type-safe access.
 
         Args:
-            name: The name of the service
+            service_type: Type of service to retrieve
+
+        Returns:
+            The service instance cast to the appropriate type
+
+        Example:
+            repo = container[DocumentRepository]  # Type-safe access
+        """
+        return cast(T, self.get(service_type))
+
+    def has(self, service_type: Type) -> bool:
+        """Check if a service is registered by type.
+
+        Args:
+            service_type: Type to check
 
         Returns:
             True if the service is registered, False otherwise
         """
-        return name in self._services or name in self._factories
+        return service_type in self._instances or service_type in self._factories
+
+    def singleton(
+        self, service_type: Type[T]
+    ) -> Callable[[Callable[..., T]], Callable[[], T]]:
+        """Register a singleton service that is created only once.
+
+        Args:
+            service_type: The type/interface to register
+
+        Returns:
+            A decorator function that registers the singleton
+
+        Example:
+            @container.singleton(DatabaseConnection)
+            def create_database() -> DatabaseConnection:
+                return DatabaseConnection(settings.database.url)
+        """
+
+        def decorator(factory: Callable[..., T]) -> Callable[[], T]:
+            @wraps(factory)
+            def singleton_factory() -> T:
+                if service_type not in self._instances:
+                    instance = self._create_instance_with_dependencies(factory)
+                    self._instances[service_type] = instance
+                return cast(T, self._instances[service_type])
+
+            self._factories[service_type] = singleton_factory
+            return singleton_factory
+
+        return decorator
+
+    def clear(self):
+        """Clear all cached instances but keep factory registrations."""
+        self._instances.clear()
+        # Re-register settings as a singleton
+        self._instances[settings.__class__] = settings
 
 
 # Create the global container instance
 container = ServiceContainer()
 
 
+# This function sets up the container with all service registrations
 def setup_container():
     """Set up the container with all service registrations.
 
     This function is idempotent - it can be called multiple times safely.
-    Services that have already been initialized will be reused."""
+    Services that have already been initialized will be reused.
 
+    This implementation uses fully type-based dependency injection with Protocol classes.
+    """
     # Skip setup if container is already initialized
-    if container.has("document_repository"):
+    from ..domain.repositories.document_repository import DocumentRepository
+
+    if container.has(DocumentRepository):
         return
-    from epic_rag.infrastructure.persistence.sqlite_repository import (
-        SQLiteDocumentRepository,
-    )
-    from epic_rag.infrastructure.embedding.qdrant_repository import (
-        QdrantVectorRepository,
-    )
-    from epic_rag.infrastructure.embedding.openai_embedding_service import (
-        OpenAIEmbeddingService,
-    )
-    from epic_rag.infrastructure.reranker.cross_encoder_reranker_service import (
-        CrossEncoderRerankerService,
-    )
 
-    # Register repositories
-    container.register_factory(
-        "document_repository",
-        lambda c: SQLiteDocumentRepository(
-            db_path=settings.database.path,
-            enable_json=settings.database.enable_json,
-        ),
-    )
-
-    container.register_factory(
-        "vector_repository",
-        lambda c: QdrantVectorRepository(
-            url=settings.qdrant.url,
-            api_key=settings.qdrant.api_key,
-            collection_name=settings.qdrant.collection_name,
-            vector_size=settings.qdrant.vector_size,
-            distance=settings.qdrant.distance,
-            local_path=settings.qdrant.local_path,
-        ),
-    )
-
-    # Register document processing services
-    from epic_rag.infrastructure.document_processing.chunking_service import (
-        MarkdownChunkingService,
-    )
-
-    container.register_factory("chunking_service", lambda c: MarkdownChunkingService())
-
-    # Import embedding services
-    from epic_rag.infrastructure.embedding.openai_embedding_service import (
-        OpenAIEmbeddingService,
-    )
-    from epic_rag.infrastructure.embedding.gemini_embedding_service import (
-        GeminiEmbeddingService,
-    )
-    from epic_rag.infrastructure.embedding.huggingface_embedding_service import (
-        HuggingFaceEmbeddingService,
-    )
-
-    # Import caching wrapper
-    from epic_rag.infrastructure.embedding.cached_embedding_service import (
-        CachedEmbeddingService,
-    )
-
-    # Import LLM service
-    from epic_rag.infrastructure.llm.ollama_llm_service import OllamaLLMService
-    from epic_rag.infrastructure.llm.contextual_enrichment_service import (
-        OllamaContextualEnrichmentService,
-    )
-    from epic_rag.infrastructure.llm.ollama_image_description_service import (
-        OllamaImageDescriptionService,
-    )
-    from epic_rag.infrastructure.llm.smolvlm_image_description_service import (
-        SmolVLMImageDescriptionService,
-    )
-    from epic_rag.infrastructure.llm.image_enhanced_enrichment_service import (
-        ImageEnhancedEnrichmentService,
-    )
-
-    # Import BM25 search service
-    from epic_rag.infrastructure.search.bm25s_search_service import BM25SSearchService
-
-    # Import Rank Fusion service
-    from epic_rag.infrastructure.search.rank_fusion_service import (
-        RecipRankFusionService,
-    )
-
-    # Register LLM service
-    container.register_factory(
-        "llm_service",
-        lambda c: OllamaLLMService(settings=settings.llm),
-    )
-
-    # Register image description service based on configuration
-    if settings.llm.image_service_type == "smolvlm":
-        container.register_factory(
-            "image_description_service",
-            lambda c: SmolVLMImageDescriptionService(
-                settings=settings.llm,
-                model_name=settings.llm.smolvlm_model,
-                min_image_size=settings.llm.min_image_size,
-            ),
-        )
-    else:
-        container.register_factory(
-            "image_description_service",
-            lambda c: OllamaImageDescriptionService(
-                settings=settings.llm,
-                model=settings.llm.image_model,
-                min_image_size=settings.llm.min_image_size,
-            ),
-        )
-
-    # Register contextual enrichment service based on configuration
-    if settings.llm.enable_image_enrichment:
-        container.register_factory(
-            "contextual_enrichment_service",
-            lambda c: ImageEnhancedEnrichmentService(
-                llm_service=c.get("llm_service"),
-                image_description_service=c.get("image_description_service"),
-                base_image_dir=settings.images_dir,
-            ),
-        )
-    else:
-        container.register_factory(
-            "contextual_enrichment_service",
-            lambda c: OllamaContextualEnrichmentService(
-                llm_service=c.get("llm_service")
-            ),
-        )
-
-    # Register BM25S search service
-    container.register_factory(
-        "bm25_search_service",
-        lambda c: BM25SSearchService(
-            document_repository=c.get("document_repository")
-        ),
-    )
-
-    # Register Rank Fusion service
-    container.register_factory(
-        "rank_fusion_service",
-        lambda c: RecipRankFusionService(k=settings.retrieval.fusion_k),
-    )
-
-    # Register embedding service based on provider configuration
-    if settings.embedding.provider.lower() == "openai":
-        container.register_factory(
-            "base_embedding_service",
-            lambda c: OpenAIEmbeddingService(
-                settings=settings,
-                model=settings.embedding.openai_model,
-                dimensions=settings.embedding.openai_dimensions,
-                batch_size=settings.embedding.batch_size,
-            ),
-        )
-
-        # Wrap with caching if enabled
-        if settings.embedding.cache.enabled:
-            container.register_factory(
-                "embedding_service",
-                lambda c: CachedEmbeddingService(
-                    wrapped_service=c.get("base_embedding_service"),
-                    settings=settings,
-                    provider_name="openai",
-                    model_name=settings.embedding.openai_model,
-                ),
-            )
-        else:
-            container.register_factory(
-                "embedding_service",
-                lambda c: c.get("base_embedding_service"),
-            )
-
-    elif settings.embedding.provider.lower() == "gemini":
-        container.register_factory(
-            "base_embedding_service",
-            lambda c: GeminiEmbeddingService(
-                settings=settings,
-                model=settings.embedding.gemini_model,
-                dimensions=settings.embedding.gemini_dimensions,
-                batch_size=settings.embedding.batch_size,
-            ),
-        )
-
-        # Wrap with caching if enabled
-        if settings.embedding.cache.enabled:
-            container.register_factory(
-                "embedding_service",
-                lambda c: CachedEmbeddingService(
-                    wrapped_service=c.get("base_embedding_service"),
-                    settings=settings,
-                    provider_name="gemini",
-                    model_name=settings.embedding.gemini_model,
-                ),
-            )
-        else:
-            container.register_factory(
-                "embedding_service",
-                lambda c: c.get("base_embedding_service"),
-            )
-
-    elif settings.embedding.provider.lower() == "huggingface":
-        container.register_factory(
-            "base_embedding_service",
-            lambda c: HuggingFaceEmbeddingService(
-                settings=settings,
-                model_name=settings.embedding.huggingface_model,
-                dimensions=settings.embedding.huggingface_dimensions,
-                batch_size=settings.embedding.batch_size,
-                device=settings.embedding.device,
-                max_length=settings.embedding.max_length,
-            ),
-        )
-
-        # Wrap with caching if enabled
-        if settings.embedding.cache.enabled:
-            container.register_factory(
-                "embedding_service",
-                lambda c: CachedEmbeddingService(
-                    wrapped_service=c.get("base_embedding_service"),
-                    settings=settings,
-                    provider_name="huggingface",
-                    model_name=settings.embedding.huggingface_model,
-                ),
-            )
-        else:
-            container.register_factory(
-                "embedding_service",
-                lambda c: c.get("base_embedding_service"),
-            )
-
-    # Register reranker service if enabled
-    if settings.retrieval.reranker.enabled:
-        container.register_factory(
-            "reranker_service",
-            lambda c: CrossEncoderRerankerService(
-                model_name=settings.retrieval.reranker.model_name
-            ),
-        )
-
-    # Register retrieval service
-    from epic_rag.infrastructure.retrieval.retrieval_service import (
-        ContextualRetrievalService,
-    )
-
-    container.register_factory(
-        "retrieval_service",
-        lambda c: ContextualRetrievalService(
-            document_repository=c.get("document_repository"),
-            vector_repository=c.get("vector_repository"),
-            embedding_service=c.get("embedding_service"),
-            bm25_service=(
-                c.get("bm25_search_service") if settings.retrieval.enable_bm25 else None
-            ),
-            rank_fusion_service=(
-                c.get("rank_fusion_service") if settings.retrieval.enable_bm25 else None
-            ),
-            llm_service=(
-                c.get("llm_service")
-                if settings.retrieval.enable_query_transformation
-                else None
-            ),
-            reranker_service=(
-                c.get("reranker_service")
-                if settings.retrieval.reranker.enabled
-                else None
-            ),
-            settings=settings,
-        ),
-    )
-
-    # Register use cases
-    from epic_rag.application.use_cases.retrieve_context import RetrieveContextUseCase
-    from epic_rag.application.use_cases.ingest_document import IngestDocumentUseCase
-    from epic_rag.application.use_cases.answer_question import AnswerQuestionUseCase
-    from epic_rag.infrastructure.embedding.embedding_cache import EmbeddingCache
-
-    # Register embedding cache
-    container.register_factory(
-        "embedding_cache",
-        lambda c: EmbeddingCache(
-            settings=settings,
-            memory_cache_size=settings.embedding.cache.memory_size,
-            cache_expiration_days=settings.embedding.cache.expiration_days,
-        ),
-    )
-
-    container.register_factory(
-        "retrieve_context_use_case",
-        lambda c: RetrieveContextUseCase(
-            embedding_service=c.get("embedding_service"),
-            retrieval_service=c.get("retrieval_service"),
-        ),
-    )
-
-    container.register_factory(
-        "ingest_document_use_case",
-        lambda c: IngestDocumentUseCase(
-            document_repository=c.get("document_repository"),
-            vector_repository=c.get("vector_repository"),
-            chunking_service=c.get("chunking_service"),
-            embedding_service=c.get("embedding_service"),
-            contextual_enrichment_service=c.get("contextual_enrichment_service"),
-        ),
-    )
-
-    container.register_factory(
-        "answer_question_use_case",
-        lambda c: AnswerQuestionUseCase(
-            embedding_service=c.get("embedding_service"),
-            retrieval_service=c.get("retrieval_service"),
-            llm_service=c.get("llm_service"),
-        ),
-    )
+    # Import the services module to register type-based services
+    # This will automatically register all services with the container
+    from . import services

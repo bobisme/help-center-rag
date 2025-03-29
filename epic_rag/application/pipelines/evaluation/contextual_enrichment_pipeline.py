@@ -87,15 +87,24 @@ def prepare_document_variations(
 
     # Process the documents
     async def process_documents():
-        # Get required services
-        document_repository = container.get("document_repository")
-        vector_repository = container.get("vector_repository")
-        chunking_service = container.get("chunking_service")
-        embedding_service = container.get("embedding_service")
+        # Get required services using type-based dependency injection
+        from ....domain.repositories.document_repository import DocumentRepository
+        from ....domain.repositories.vector_repository import VectorRepository
+        from ....domain.services.chunking_service import ChunkingService
+        from ....domain.services.embedding_service import EmbeddingService
+
+        document_repository = container[DocumentRepository]
+        vector_repository = container[VectorRepository]
+        chunking_service = container[ChunkingService]
+        embedding_service = container[EmbeddingService]
 
         # Try to get the contextual enrichment service
+        from ....domain.services.contextual_enrichment_service import (
+            ContextualEnrichmentService,
+        )
+
         try:
-            container.get("contextual_enrichment_service")
+            container[ContextualEnrichmentService]
             has_enrichment = True
         except Exception:
             print("Warning: Contextual enrichment service not found in container")
@@ -178,9 +187,12 @@ def evaluate_query(
     relevant_chunk_ids = query.get("relevant_chunk_ids", [])
 
     async def process_query():
-        # Get services
-        embedding_service = container.get("embedding_service")
-        retrieval_service = container.get("retrieval_service")
+        # Get services using type-based dependency injection
+        from ....domain.services.embedding_service import EmbeddingService
+        from ....domain.services.retrieval_service import RetrievalService
+
+        embedding_service = container[EmbeddingService]
+        retrieval_service = container[RetrievalService]
 
         # Create use case
         retrieve_use_case = RetrieveContextUseCase(
@@ -423,7 +435,7 @@ def analyze_evaluation_results(
     return summary
 
 
-@pipeline(enable_cache=False) # type: ignore
+@pipeline(enable_cache=False)  # type: ignore
 def contextual_enrichment_evaluation_pipeline(
     dataset_path: str,
     document_path: str,

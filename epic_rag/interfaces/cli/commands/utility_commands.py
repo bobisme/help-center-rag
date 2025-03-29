@@ -52,25 +52,33 @@ def manage_cache(
 ):
     """Manage the embedding cache."""
 
-    # Get the embedding cache
-    embedding_cache = container.get("embedding_cache")
+    # Get the embedding cache using type-based dependency injection
+    from epic_rag.infrastructure.embedding.embedding_cache import EmbeddingCache
+
+    embedding_cache = container[EmbeddingCache]
 
     if clear:
         # Clear the cache
         async def clear_cache():
-            await embedding_cache.clear()
+            count = await embedding_cache.clear_old_entries()
+            return count
 
-        asyncio.run(clear_cache())
-        console.print("[bold green]Embedding cache cleared successfully[/bold green]")
+        cleared_count = asyncio.run(clear_cache())
+        console.print(
+            f"[bold green]Cleared {cleared_count} entries from embedding cache[/bold green]"
+        )
 
     if info:
         # Get cache info
         async def get_cache_info():
-            size = await embedding_cache.size()
-            return size
+            stats = await embedding_cache.get_stats()
+            return stats
 
-        cache_size = asyncio.run(get_cache_info())
-        console.print(f"[bold]Embedding Cache Size:[/bold] {cache_size} entries")
+        stats = asyncio.run(get_cache_info())
+        console.print("[bold]Embedding Cache Stats:[/bold]")
+        console.print(f"Total entries: {stats.get('count', 0)}")
+        for provider, count in stats.get("providers", {}).items():
+            console.print(f"  {provider}: {count} entries")
 
 
 @utility_app.command("test-db")
@@ -138,12 +146,15 @@ def test_embed(
 ):
     """Test the embedding service with a text input."""
 
-    # Get the embedding service
-    embedding_service = container.get("embedding_service")
+    # Get the embedding service using type-based dependency injection
+    from epic_rag.domain.services.embedding_service import EmbeddingService
+
+    # Type-safe access with proper typing
+    embedding_service = container[EmbeddingService]
 
     # Create the embedding
     async def create_embedding():
-        embedding = await embedding_service.embed(text)
+        embedding = await embedding_service.embed_text(text)
         return embedding
 
     embedding = asyncio.run(create_embedding())

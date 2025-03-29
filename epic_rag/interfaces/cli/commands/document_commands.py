@@ -59,7 +59,10 @@ def ingest_documents(
     console.print(f"Found [bold]{len(file_paths)}[/bold] documents to process")
 
     # Get the ingest use case from the container
-    ingest_use_case = container.get("ingest_document_use_case")
+    # Get the ingest document use case using type-based dependency injection
+    from ....application.use_cases.ingest_document import IngestDocumentUseCase
+
+    ingest_use_case = container[IngestDocumentUseCase]
 
     with create_progress_bar() as progress:
         # Add a task to the progress bar
@@ -126,13 +129,21 @@ def show_document_chunks(
     """Show the chunks for a document with their metadata."""
 
     async def get_document_with_chunks():
-        doc_repo = container.get("document_repository")
-        document = await doc_repo.get_by_title(title)
-        if not document:
+        # Get document repository using type-based dependency injection
+        from ....domain.repositories.document_repository import DocumentRepository
+
+        doc_repo = container[DocumentRepository]
+
+        # Use list_documents with a title filter instead of get_by_title
+        documents = await doc_repo.list_documents(limit=1, filters={"title": title})
+        if not documents:
             console.print(f"[bold red]Document not found: {title}[/bold red]")
             return None
 
-        document.chunks = await doc_repo.get_chunks_for_document(document.id)
+        document = documents[0]
+
+        # Use get_document_chunks instead of get_chunks_for_document
+        document.chunks = await doc_repo.get_document_chunks(document.id)
         return document
 
     document = asyncio.run(get_document_with_chunks())
@@ -146,8 +157,12 @@ def show_document_chunks(
     for i, chunk in enumerate(document.chunks):
         console.print(f"[bold cyan]Chunk {i+1}[/bold cyan]")
         console.print(f"ID: {chunk.id}")
-        console.print(f"Sequence: {chunk.sequence}")
-        console.print(f"Token Count: {chunk.token_count}")
+        console.print(f"Index: {chunk.chunk_index}")
+        console.print(
+            f"Token Count: {chunk.metadata.get('token_count', 'N/A')}"
+            if chunk.metadata
+            else "Token Count: N/A"
+        )
 
         if chunk.metadata:
             console.print("Metadata:")
@@ -393,7 +408,10 @@ def view_document_by_id(
 
     async def get_document():
         """Get document from repository."""
-        document_repository = container.get("document_repository")
+        # Get document repository using type-based dependency injection
+        from ....domain.repositories.document_repository import DocumentRepository
+
+        document_repository = container[DocumentRepository]
         document = await document_repository.get_document(document_id)
 
         if not document:

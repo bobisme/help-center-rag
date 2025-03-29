@@ -1,4 +1,4 @@
-"""Document repository interface."""
+"""Repository interfaces for the system."""
 
 from typing import List, Optional, Dict, Any, Tuple, Protocol, runtime_checkable
 from datetime import datetime
@@ -58,46 +58,23 @@ class DocumentRepository(Protocol):
         ...
 
     async def get_all_chunks(self, limit: int = 10000) -> List[DocumentChunk]:
-        """Get all chunks from all documents.
-
-        Args:
-            limit: Maximum number of chunks to return
-
-        Returns:
-            List of all document chunks
-        """
+        """Get all chunks from all documents."""
         ...
 
     async def find_orphaned_chunks(self) -> List[str]:
-        """Find chunks that don't have a parent document.
-
-        Returns:
-            List of chunk IDs that are orphaned
-        """
+        """Find chunks that don't have a parent document."""
         ...
 
     async def delete_orphaned_chunks(self) -> int:
-        """Delete chunks that don't have a parent document.
-
-        Returns:
-            Number of chunks deleted
-        """
+        """Delete chunks that don't have a parent document."""
         ...
 
     async def vacuum_database(self) -> Tuple[float, float]:
-        """Run vacuum operation on the database to reclaim unused space.
-
-        Returns:
-            Tuple of (size_before_mb, size_after_mb)
-        """
+        """Run vacuum operation on the database to reclaim unused space."""
         ...
 
     async def get_statistics(self) -> Dict[str, Any]:
-        """Get repository statistics.
-
-        Returns:
-            Dictionary of statistics
-        """
+        """Get repository statistics."""
         ...
 
     async def save_query(
@@ -106,16 +83,7 @@ class DocumentRepository(Protocol):
         transformed_query: Optional[str] = None,
         metadata: Optional[Dict[str, Any]] = None,
     ) -> str:
-        """Save a query to the query history.
-
-        Args:
-            query_text: The original query text
-            transformed_query: Optional transformed query text
-            metadata: Optional metadata about the query (results, etc)
-
-        Returns:
-            The ID of the saved query
-        """
+        """Save a query to the query history."""
         ...
 
     async def get_query_history(
@@ -125,15 +93,48 @@ class DocumentRepository(Protocol):
         start_date: Optional[datetime] = None,
         end_date: Optional[datetime] = None,
     ) -> List[Dict[str, Any]]:
-        """Get query history with optional date filtering.
+        """Get query history with optional date filtering."""
+        ...
 
-        Args:
-            limit: Maximum number of queries to return
-            offset: Offset for pagination
-            start_date: Optional start date for filtering
-            end_date: Optional end date for filtering
 
-        Returns:
-            List of query history records
-        """
+@runtime_checkable
+class VectorRepository(Protocol):
+    """Interface for vector database operations."""
+
+    async def store_embedding(
+        self,
+        chunk_id: str,
+        embedding: List[float],
+        metadata: Optional[Dict[str, Any]] = None,
+    ) -> str:
+        """Store an embedding in the vector database."""
+        ...
+
+    async def batch_store_embeddings(self, chunks: List[DocumentChunk]) -> List[str]:
+        """Store multiple embeddings in the vector database."""
+        ...
+
+    async def search_similar(
+        self,
+        embedding: List[float],
+        limit: int = 10,
+        filters: Optional[Dict[str, Any]] = None,
+    ) -> List[Dict[str, Any]]:
+        """Search for similar embeddings."""
+        ...
+
+    async def delete_embedding(self, vector_id: str) -> bool:
+        """Delete an embedding by ID."""
+        ...
+
+    async def delete_embeddings(self, vector_ids: List[str]) -> int:
+        """Delete multiple embeddings by IDs."""
+        ...
+
+    async def delete_embeddings_by_document_id(self, document_id: str) -> int:
+        """Delete all embeddings associated with a document."""
+        ...
+
+    async def get_collection_info(self) -> Dict[str, Any]:
+        """Get information about the vector collection."""
         ...

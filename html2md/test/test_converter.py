@@ -144,7 +144,7 @@ def test_list_with_none_style():
     """Test that list items with None style attribute are handled correctly."""
     from bs4 import BeautifulSoup
     from html2md.converter import _fix_nested_lists
-    
+
     html = """
     <ul>
         <li>Normal item</li>
@@ -157,10 +157,10 @@ def test_list_with_none_style():
     </ul>
     """
     soup = BeautifulSoup(html, "html.parser")
-    
+
     # This should not raise an exception
     _fix_nested_lists(soup)
-    
+
     # Check the structure post-processing
     result = str(soup)
     assert "Normal item" in result
@@ -171,7 +171,7 @@ def test_span_with_none_attributes():
     """Test that span tags with None attributes are handled correctly."""
     from bs4 import BeautifulSoup
     from html2md.converter import _convert_spans_to_strong, _convert_spans_to_em
-    
+
     html = """
     <p>
         <span>Regular span</span>
@@ -181,11 +181,11 @@ def test_span_with_none_attributes():
     </p>
     """
     soup = BeautifulSoup(html, "html.parser")
-    
+
     # This should not raise an exception
     _convert_spans_to_strong(soup)
     _convert_spans_to_em(soup)
-    
+
     # Check the structure post-processing
     result = str(soup)
     assert "Regular span" in result
@@ -198,7 +198,7 @@ def test_links_with_none_attributes():
     """Test that links with None attributes are handled correctly."""
     from bs4 import BeautifulSoup
     from html2md.converter import _process_links
-    
+
     html = """
     <p>
         <a href="https://example.com">Regular link</a>
@@ -208,10 +208,10 @@ def test_links_with_none_attributes():
     </p>
     """
     soup = BeautifulSoup(html, "html.parser")
-    
+
     # This should not raise an exception
     _process_links(soup)
-    
+
     # Check the structure post-processing
     result = str(soup)
     assert "Regular link" in result
@@ -224,7 +224,7 @@ def test_images_with_none_attributes():
     """Test that images with None attributes are handled correctly."""
     from bs4 import BeautifulSoup
     from html2md.converter import _process_images
-    
+
     html = """
     <p>
         <img src="test.jpg" alt="Test image">
@@ -234,13 +234,13 @@ def test_images_with_none_attributes():
     </p>
     """
     soup = BeautifulSoup(html, "html.parser")
-    
+
     # This should not raise an exception
     _process_images(soup, "nonexistent_dir")
-    
+
     # Check the structure post-processing
     result = str(soup)
-    
+
     # Non-logo images remain in the output but are not processed (BeautifulSoup behavior)
     # The key point is that the function doesn't crash with None attributes
     assert "Empty src" in result
@@ -278,13 +278,13 @@ def test_comprehensive_none_attribute_handling():
         </body>
     </html>
     """
-    
+
     # This should not raise an exception
     result = convert_html_to_markdown(html, images_dir="nonexistent_dir")
-    
+
     # Check various parts of the result
     assert "Test Document" in result
-    assert "bold" in result 
+    assert "bold" in result
     assert "italic" in result
     assert "empty style attribute" in result
     assert "JavaScript link" in result
@@ -296,7 +296,7 @@ def test_comprehensive_none_attribute_handling():
     assert "Image with no src" in result
     assert "Image with empty src" in result
     assert "Malformed span" in result
-    
+
     # The main thing we're testing here is that the function doesn't crash
     # with malformed HTML or None attributes
     # We're not strictly testing the exact output format as that may vary

@@ -33,8 +33,12 @@ def add_document_context(
     # Initialize container
     setup_container()
 
-    # Get contextual enrichment service
-    contextual_enrichment_service = container.get("contextual_enrichment_service")
+    # Get contextual enrichment service using type-based dependency injection
+    from epic_rag.domain.services.contextual_enrichment_service import (
+        ContextualEnrichmentService,
+    )
+
+    contextual_enrichment_service = container[ContextualEnrichmentService]
 
     # Create an async function to process all documents
     async def process_all_documents():

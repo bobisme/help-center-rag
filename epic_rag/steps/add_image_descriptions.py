@@ -34,8 +34,12 @@ def add_image_descriptions(
     # Initialize container
     setup_container()
 
-    # Get image description service
-    image_description_service = container.get("image_description_service")
+    # Get image description service using type-based dependency injection
+    from epic_rag.domain.services.image_description_service import (
+        ImageDescriptionService,
+    )
+
+    image_description_service = container[ImageDescriptionService]
 
     # Check if service has the required method
     if not hasattr(image_description_service, "process_chunk_images"):

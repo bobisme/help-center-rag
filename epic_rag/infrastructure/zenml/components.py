@@ -1,4 +1,5 @@
 """ZenML custom components for the Epic Documentation RAG system."""
+
 # pyright: reportIncompatibleMethodOverride=false
 
 import json
@@ -119,14 +120,18 @@ class DocumentMaterializer(BaseMaterializer):
                     "content": chunk.content,
                     "metadata": chunk.metadata,
                     "embedding": (
-                        chunk.embedding if (
-                            chunk.embedding is not None and 
-                            isinstance(chunk.embedding, list)
-                        ) else (
-                            chunk.embedding.tolist() if (
-                                chunk.embedding is not None and 
-                                hasattr(chunk.embedding, "tolist")
-                            ) else None
+                        chunk.embedding
+                        if (
+                            chunk.embedding is not None
+                            and isinstance(chunk.embedding, list)
+                        )
+                        else (
+                            chunk.embedding.tolist()
+                            if (
+                                chunk.embedding is not None
+                                and hasattr(chunk.embedding, "tolist")
+                            )
+                            else None
                         )
                     ),
                 }

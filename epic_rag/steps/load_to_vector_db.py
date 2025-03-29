@@ -33,9 +33,12 @@ def load_to_vector_db(
     # Initialize container
     setup_container()
 
-    # Get embedding service and vector repository
-    embedding_service = container.get("embedding_service")
-    vector_repository = container.get("vector_repository")
+    # Get embedding service and vector repository using type-based dependency injection
+    from epic_rag.domain.services.embedding_service import EmbeddingService
+    from epic_rag.domain.repositories.vector_repository import VectorRepository
+
+    embedding_service = container[EmbeddingService]
+    vector_repository = container[VectorRepository]
 
     # Create an async function to process all documents
     async def process_all_documents():

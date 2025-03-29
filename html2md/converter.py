@@ -12,9 +12,9 @@ def _convert_spans_to_strong(soup: BeautifulSoup) -> None:
         # Check if the span is a Tag
         if not isinstance(span, Tag):
             continue
-            
+
         # Check if it has attributes and they're not None
-        if not hasattr(span, 'attrs') or span.attrs is None:
+        if not hasattr(span, "attrs") or span.attrs is None:
             continue
 
         # Check if it has a style attribute with font-weight: bold
@@ -44,9 +44,9 @@ def _convert_spans_to_em(soup: BeautifulSoup) -> None:
         # Check if the span is a Tag
         if not isinstance(span, Tag):
             continue
-            
+
         # Check if it has attributes and they're not None
-        if not hasattr(span, 'attrs') or span.attrs is None:
+        if not hasattr(span, "attrs") or span.attrs is None:
             continue
 
         # Check if it has a style attribute with font-style: italic
@@ -88,16 +88,16 @@ def _convert_inline_styles_to_semantic_tags(soup: BeautifulSoup) -> None:
 def _fix_nested_lists(soup: BeautifulSoup) -> None:
     """Fix nested list structure that uses empty list items as containers."""
     for list_item in soup.find_all("li"):
-        # Check if the list_item is a Tag 
+        # Check if the list_item is a Tag
         if not isinstance(list_item, Tag):
             continue
-            
+
         # Check if it has attributes and a style attribute
-        if not hasattr(list_item, 'attrs') or list_item.attrs is None:
+        if not hasattr(list_item, "attrs") or list_item.attrs is None:
             continue
-        
+
         # Get style attribute safely
-        style = list_item.get('style', '')
+        style = list_item.get("style", "")
         if not style:
             continue
 
@@ -126,9 +126,9 @@ def _process_links(soup: BeautifulSoup) -> None:
         # Make sure we're dealing with a Tag
         if not isinstance(link, Tag):
             continue
-            
+
         # Make sure it has attributes and they're not None
-        if not hasattr(link, 'attrs') or link.attrs is None:
+        if not hasattr(link, "attrs") or link.attrs is None:
             continue
 
         # If the link is javascript or a local file reference, replace with text
@@ -173,9 +173,9 @@ def _process_images(soup: BeautifulSoup, images_dir: Optional[str]) -> None:
         # Make sure we're dealing with a Tag
         if not isinstance(img, Tag):
             continue
-            
+
         # Make sure it has attributes and they're not None
-        if not hasattr(img, 'attrs') or img.attrs is None:
+        if not hasattr(img, "attrs") or img.attrs is None:
             continue
 
         src = img.get("src", "")

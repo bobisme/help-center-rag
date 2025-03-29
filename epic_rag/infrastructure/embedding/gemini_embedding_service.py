@@ -40,19 +40,19 @@ class GeminiEmbeddingService(EmbeddingService):
         self._batch_size = batch_size
         # Initialize client with API key
         import os
-        
+
         # Set up API key - fall back to empty string for type safety
         api_key = ""
-        if hasattr(settings, 'gemini_api_key') and settings.gemini_api_key is not None:
+        if hasattr(settings, "gemini_api_key") and settings.gemini_api_key is not None:
             api_key = settings.gemini_api_key
-            
+
         # Set API key in environment
         os.environ["GOOGLE_API_KEY"] = api_key
-        
+
         # Initialize with older API pattern to avoid type errors
         # This won't actually be called, it's just for typechecking
         self._client = genai
-        
+
         # We'll use a simplified client from the google.generativeai package
         # since the client architecture has changed
         logger.info(f"Initialized Gemini embedding service with model {model}")
@@ -75,36 +75,30 @@ class GeminiEmbeddingService(EmbeddingService):
             from google.auth.transport.requests import Request
             from google.oauth2.service_account import Credentials
             import requests
-            
+
             # Simplified embedding API call that doesn't depend on the Google client
             api_key = os.environ.get("GOOGLE_API_KEY", "")
             url = f"https://generativelanguage.googleapis.com/v1beta/models/{self._model}:embedContent"
-            headers = {
-                "Content-Type": "application/json",
-                "x-goog-api-key": api_key
-            }
-            
+            headers = {"Content-Type": "application/json", "x-goog-api-key": api_key}
+
             payload = {
                 "model": self._model,
-                "content": {
-                    "parts": [{"text": text}]
-                },
+                "content": {"parts": [{"text": text}]},
                 "taskType": "RETRIEVAL_QUERY" if is_query else "RETRIEVAL_DOCUMENT",
             }
-            
+
             # Run the API call in a thread to avoid blocking the event loop
             loop = asyncio.get_event_loop()
             response = await loop.run_in_executor(
-                None,
-                lambda: requests.post(url, headers=headers, json=payload)
+                None, lambda: requests.post(url, headers=headers, json=payload)
             )
-            
+
             # Parse response
             result = response.json()
-            
+
             # Extract embedding from response - adjust based on actual API response format
             embedding = result.get("embedding", {}).get("values", [])
-            
+
             # Ensure we have a list of floats
             if not embedding:
                 embedding = [0.0] * self._dimensions

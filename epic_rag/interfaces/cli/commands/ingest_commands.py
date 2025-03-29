@@ -21,7 +21,10 @@ ingest_app = typer.Typer(
 
 
 def load_documents_from_json(
-    index: Optional[int] = None, offset: int = 0, limit: Optional[int] = None, all_docs: bool = False
+    index: Optional[int] = None,
+    offset: int = 0,
+    limit: Optional[int] = None,
+    all_docs: bool = False,
 ) -> list:
     """Load documents from the epic-docs.json file.
 
@@ -219,10 +222,16 @@ def show_chunks(
     # Initialize container
     setup_container()
 
-    # Get services
-    chunking_service = container.get("chunking_service")
-    contextual_enrichment_service = container.get("contextual_enrichment_service")
-    image_description_service = container.get("image_description_service")
+    # Get services using type-based dependency injection
+    from ....domain.services.chunking_service import ChunkingService
+    from ....domain.services.contextual_enrichment_service import (
+        ContextualEnrichmentService,
+    )
+    from ....domain.services.image_description_service import ImageDescriptionService
+
+    chunking_service = container[ChunkingService]
+    contextual_enrichment_service = container[ContextualEnrichmentService]
+    image_description_service = container[ImageDescriptionService]
 
     # Use a single async function to process all documents
     import re
@@ -320,9 +329,11 @@ def show_chunks(
                         )
                         chunks[i] = updated_chunk  # Update the chunk in the list
 
-                # Add document title to chunks for grouping
+                # Add document title to chunks metadata for grouping
                 for chunk in chunks:
-                    chunk.document_title = doc.title
+                    if chunk.metadata is None:
+                        chunk.metadata = {}
+                    chunk.metadata["document_title"] = doc.title
 
                 all_chunks.extend(chunks)
 
@@ -432,11 +443,18 @@ def embed_document(
     # Initialize container
     setup_container()
 
-    # Get services
-    chunking_service = container.get("chunking_service")
-    contextual_enrichment_service = container.get("contextual_enrichment_service")
-    embedding_service = container.get("embedding_service")
-    image_description_service = container.get("image_description_service")
+    # Get services using type-based dependency injection
+    from ....domain.services.chunking_service import ChunkingService
+    from ....domain.services.contextual_enrichment_service import (
+        ContextualEnrichmentService,
+    )
+    from ....domain.services.embedding_service import EmbeddingService
+    from ....domain.services.image_description_service import ImageDescriptionService
+
+    chunking_service = container[ChunkingService]
+    contextual_enrichment_service = container[ContextualEnrichmentService]
+    embedding_service = container[EmbeddingService]
+    image_description_service = container[ImageDescriptionService]
 
     # Create a single async function to process all documents
     import re
@@ -487,9 +505,11 @@ def embed_document(
                 # Generate embeddings
                 embedded_chunks = await embedding_service.batch_embed_chunks(chunks)
 
-                # Add document title for display grouping
+                # Add document title to chunk metadata for display grouping
                 for chunk in embedded_chunks:
-                    chunk.document_title = doc.title
+                    if chunk.metadata is None:
+                        chunk.metadata = {}
+                    chunk.metadata["document_title"] = doc.title
 
                 all_embedded.extend(embedded_chunks)
 
@@ -614,12 +634,20 @@ def run_pipeline(
     # Initialize container
     setup_container()
 
-    # Get the required services
-    document_repository = container.get("document_repository")
-    vector_repository = container.get("vector_repository")
-    chunking_service = container.get("chunking_service")
-    embedding_service = container.get("embedding_service")
-    contextual_enrichment_service = container.get("contextual_enrichment_service")
+    # Get services using type-based dependency injection
+    from ....domain.repositories.document_repository import DocumentRepository
+    from ....domain.repositories.vector_repository import VectorRepository
+    from ....domain.services.chunking_service import ChunkingService
+    from ....domain.services.embedding_service import EmbeddingService
+    from ....domain.services.contextual_enrichment_service import (
+        ContextualEnrichmentService,
+    )
+
+    document_repository = container[DocumentRepository]
+    vector_repository = container[VectorRepository]
+    chunking_service = container[ChunkingService]
+    embedding_service = container[EmbeddingService]
+    contextual_enrichment_service = container[ContextualEnrichmentService]
 
     # Create the ingest use case
     ingest_use_case = IngestDocumentUseCase(

@@ -67,13 +67,26 @@ def query(
     search methods, combines the results using rank fusion, and applies reranking
     for improved relevance.
     """
-    # Get required services
-    search_service = container.get("bm25_search_service")
-    llm_service = container.get("llm_service")
-    container.get("embedding_service")
-    rank_fusion_service = container.get("rank_fusion_service")
-    retrieve_use_case = container.get("retrieve_context_use_case")
-    reranker_service = container.get("reranker_service") if rerank else None
+    # Get required services using type-based dependency injection
+    from ....domain.services.lexical_search_service import LexicalSearchService
+    from ....domain.services.llm_service import LLMService
+    from ....domain.services.embedding_service import EmbeddingService
+    from ....domain.services.rank_fusion_service import RankFusionService
+    from ....domain.services.reranker_service import RerankerService
+    from ....application.use_cases.retrieve_context import RetrieveContextUseCase
+
+    search_service = container[LexicalSearchService]
+    llm_service = container[LLMService]
+    embedding_service = container[
+        EmbeddingService
+    ]  # Note: we're actually using this now
+    rank_fusion_service = container[RankFusionService]
+    retrieve_use_case = container[RetrieveContextUseCase]
+
+    # Only get reranker service if it's registered and reranking is enabled
+    reranker_service = None
+    if rerank and container.has(RerankerService):
+        reranker_service = container[RerankerService]
 
     # Initialize metrics dictionary
     metrics = {
@@ -392,8 +405,10 @@ def bm25_search(
     ),
 ):
     """Search using BM25 lexical search."""
-    # Get the lexical search service
-    search_service = container.get("bm25_search_service")
+    # Get the lexical search service using type-based dependency injection
+    from ....domain.services.lexical_search_service import LexicalSearchService
+
+    search_service = container[LexicalSearchService]
 
     console.print(f"[bold]Query:[/bold] {query_text}")
     console.print()
@@ -468,11 +483,20 @@ def hybrid_search(
     ),
 ):
     """Perform hybrid search combining BM25 and vector search."""
-    # Get the required services
-    search_service = container.get("bm25_search_service")
-    retrieve_use_case = container.get("retrieve_context_use_case")
-    rank_fusion_service = container.get("rank_fusion_service")
-    reranker_service = container.get("reranker_service") if rerank else None
+    # Get the required services using type-based dependency injection
+    from ....domain.services.lexical_search_service import LexicalSearchService
+    from ....domain.services.rank_fusion_service import RankFusionService
+    from ....domain.services.reranker_service import RerankerService
+    from ....application.use_cases.retrieve_context import RetrieveContextUseCase
+
+    search_service = container[LexicalSearchService]
+    retrieve_use_case = container[RetrieveContextUseCase]
+    rank_fusion_service = container[RankFusionService]
+
+    # Only get reranker service if it's registered and reranking is enabled
+    reranker_service = None
+    if rerank and container.has(RerankerService):
+        reranker_service = container[RerankerService]
 
     console.print(f"[bold]Query:[/bold] {query_text}")
     console.print()
@@ -511,9 +535,9 @@ def hybrid_search(
             vector_results = [
                 SearchResult(
                     id=chunk.id,
-                    title=chunk.document_title or "Untitled",
+                    title=chunk.metadata.get("document_title", "Untitled"),
                     content=chunk.content,
-                    score=chunk.score,
+                    score=chunk.relevance_score or 0.0,
                     metadata=chunk.metadata,
                 )
                 for chunk in retrieval_result.final_chunks
@@ -548,19 +572,45 @@ def hybrid_search(
 
         # Apply reranking if requested
         if rerank and reranker_service:
-            # Extract document content for reranking
-            doc_texts = [result.content for result in fused_results[: top_k * 2]]
+            # Convert the fused results to DocumentChunk objects for reranking
+            from ....domain.models.document import DocumentChunk
+            from ....domain.models.retrieval import Query
 
-            # Rerank the results
-            reranked_scores = await reranker_service.rerank(query_text, doc_texts)
+            # Create proper document chunks for reranking
+            doc_chunks = []
+            for result in fused_results[: top_k * 2]:
+                chunk = DocumentChunk(
+                    id=result.id,
+                    document_id=result.metadata.get("document_id", ""),
+                    content=result.content,
+                    metadata=result.metadata,
+                    chunk_index=0,
+                    relevance_score=result.score,
+                )
+                doc_chunks.append(chunk)
 
-            # Update the scores
-            for i, score in enumerate(reranked_scores):
-                if i < len(fused_results):
-                    fused_results[i].score = score
+            # Create a proper Query object
+            query_obj = Query(
+                text=query_text, embedding=None  # No embedding needed for reranking
+            )
 
-            # Sort by the new scores
-            fused_results = sorted(fused_results, key=lambda x: x.score, reverse=True)
+            # Rerank the results using the service
+            reranked_chunks = await reranker_service.rerank(query_obj, doc_chunks)
+
+            # Convert back to SearchResult objects
+            reranked_results = []
+            for chunk in reranked_chunks:
+                result = SearchResult(
+                    id=chunk.id,
+                    title=chunk.metadata.get("document_title", "Untitled"),
+                    content=chunk.content,
+                    score=chunk.relevance_score or 0.0,
+                    metadata=chunk.metadata,
+                )
+                reranked_results.append(result)
+
+            # Use the reranked results
+            fused_results = reranked_results
 
         return fused_results[:top_k]
 
@@ -598,7 +648,10 @@ def transform_query(
 ):
     """Transform a query using natural language understanding."""
 
-    llm_service = container.get("llm_service")
+    # Get LLM service using type-based dependency injection
+    from ....domain.services.llm_service import LLMService
+
+    llm_service = container[LLMService]
 
     console.print(f"[bold]Original Query:[/bold] {query_text}")
     console.print()

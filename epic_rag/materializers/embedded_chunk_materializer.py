@@ -178,7 +178,9 @@ class EmbeddedChunkMaterializer(BaseMaterializer):
             "id": data.id,
             "document_id": data.document_id,
             "chunk_index": data.chunk_index,
-            "has_context": data.metadata and "context" in data.metadata and bool(data.metadata["context"]),
+            "has_context": data.metadata
+            and "context" in data.metadata
+            and bool(data.metadata["context"]),
             "content_length": len(data.content) if data.content else 0,
         }
 

@@ -221,17 +221,24 @@ def inspect_document(
 
     async def inspect_doc():
         if not any([document_id, title, epic_id]):
-            console.print("[bold red]Please provide at least one of: --id, --title, or --epic-id[/bold red]")
+            console.print(
+                "[bold red]Please provide at least one of: --id, --title, or --epic-id[/bold red]"
+            )
             return
 
-        document_repository = container.get("document_repository")
+        # Get document repository using type-based dependency injection
+        from ....domain.repositories.document_repository import DocumentRepository
+
+        document_repository = container[DocumentRepository]
         document = None
 
         with console.status("[bold green]Finding document..."):
             if document_id:
                 document = await document_repository.get_document(document_id)
             elif epic_id:
-                document = await document_repository.find_document_by_epic_page_id(epic_id)
+                document = await document_repository.find_document_by_epic_page_id(
+                    epic_id
+                )
             elif title:
                 # Search by title (partial match)
                 filters = {"title": title}
@@ -245,7 +252,9 @@ def inspect_document(
                             f"[yellow]Found {len(documents)} documents matching '{title}':[/yellow]"
                         )
                         for i, doc in enumerate(documents, 1):
-                            console.print(f"{i}. [cyan]{doc.title}[/cyan] (ID: {doc.id})")
+                            console.print(
+                                f"{i}. [cyan]{doc.title}[/cyan] (ID: {doc.id})"
+                            )
 
                         # Let user choose one
                         try:
@@ -304,7 +313,11 @@ def inspect_document(
                 if metadata and chunk.metadata:
                     console.print("[bold]Chunk Metadata:[/bold]")
                     for key, value in chunk.metadata.items():
-                        if key == "context" and isinstance(value, str) and len(value) > 100:
+                        if (
+                            key == "context"
+                            and isinstance(value, str)
+                            and len(value) > 100
+                        ):
                             # Truncate long context values
                             console.print(f"  [cyan]{key}:[/cyan] {value[:100]}...")
                         else:
@@ -332,64 +345,87 @@ def list_documents(
     ),
 ):
     """List documents in the database."""
-    
+
     async def list_docs():
-        document_repository = container.get("document_repository")
-        
+        # Get document repository using type-based dependency injection
+        from ....domain.repositories.document_repository import DocumentRepository
+
+        document_repository = container[DocumentRepository]
+
         # Set up filters if search is provided
         filters = {}
         if search:
             filters["title"] = search
-            
-        # Set up sort order
-        sort_order = "DESC" if descending else "ASC"
-        
+
         # Validate sort_by field
         valid_sort_fields = ["id", "title", "created_at", "updated_at", "word_count"]
         if sort_by not in valid_sort_fields:
-            console.print(f"[bold red]Invalid sort field. Valid options are: {', '.join(valid_sort_fields)}[/bold red]")
+            console.print(
+                f"[bold red]Invalid sort field. Valid options are: {', '.join(valid_sort_fields)}[/bold red]"
+            )
             return
-            
+
         with console.status("[bold green]Retrieving documents...[/bold green]"):
             documents = await document_repository.list_documents(
-                limit=limit,
-                offset=offset,
-                sort_by=sort_by,
-                sort_order=sort_order,
-                filters=filters
+                limit=limit, offset=offset, filters=filters
             )
-            
+
+            # Sort the documents in memory based on sort_by field
+            if sort_by == "title":
+                documents.sort(key=lambda d: d.title or "", reverse=descending)
+            elif sort_by == "created_at":
+                documents.sort(key=lambda d: d.created_at, reverse=descending)
+            elif sort_by == "updated_at":
+                documents.sort(key=lambda d: d.updated_at, reverse=descending)
+            elif sort_by == "word_count":
+                documents.sort(
+                    key=lambda d: d.metadata.get("word_count", 0) if d.metadata else 0,
+                    reverse=descending,
+                )
+            elif sort_by == "id":
+                documents.sort(key=lambda d: d.id or "", reverse=descending)
+
         if not documents:
             console.print("[yellow]No documents found[/yellow]")
             return
-            
+
         # Display document count
         console.print(f"[bold]Documents:[/bold] {len(documents)} results")
         console.print()
-        
+
         # Create a table to display the documents
         from rich.table import Table
+
         table = Table(show_header=True, header_style="bold")
         table.add_column("ID", style="dim", width=36)
         table.add_column("Title")
         table.add_column("Created", width=20)
         table.add_column("Word Count", justify="right")
-        
+
         for doc in documents:
             # Format the created_at timestamp
-            created_at = doc.created_at.split(" ")[0] if doc.created_at else "N/A"
-            
-            # Get the word count or use N/A
-            word_count = str(doc.word_count) if doc.word_count else "N/A"
-            
+            if isinstance(doc.created_at, str):
+                created_at = doc.created_at.split(" ")[0] if doc.created_at else "N/A"
+            else:
+                created_at = (
+                    doc.created_at.strftime("%Y-%m-%d") if doc.created_at else "N/A"
+                )
+
+            # Get the word count from metadata or use N/A
+            word_count = (
+                str(doc.metadata.get("word_count", "N/A")) if doc.metadata else "N/A"
+            )
+
             table.add_row(doc.id, doc.title, created_at, word_count)
-            
+
         console.print(table)
-        
+
         # Show pagination info
         if len(documents) == limit:
-            console.print(f"\n[dim]Use --offset {offset + limit} to see the next page[/dim]")
-    
+            console.print(
+                f"\n[dim]Use --offset {offset + limit} to see the next page[/dim]"
+            )
+
     # Run the async function
     asyncio.run(list_docs())
 

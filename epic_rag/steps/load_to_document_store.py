@@ -32,8 +32,10 @@ def load_to_document_store(
     # Initialize container
     setup_container()
 
-    # Get document repository
-    document_repository = container.get("document_repository")
+    # Get document repository using type-based dependency injection
+    from epic_rag.domain.repositories.document_repository import DocumentRepository
+
+    document_repository = container[DocumentRepository]
 
     # Create an async function to process all documents
     async def process_all_documents():

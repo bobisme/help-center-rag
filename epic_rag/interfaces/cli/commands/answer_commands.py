@@ -51,8 +51,10 @@ def ask(
     This command uses RAG to search for relevant context and then
     generates an answer based on that context.
     """
-    # Get the answer question use case
-    answer_use_case = container.get("answer_question_use_case")
+    # Get the answer question use case using type-based dependency injection
+    from ....application.use_cases.answer_question import AnswerQuestionUseCase
+
+    answer_use_case = container[AnswerQuestionUseCase]
 
     # Print the question
     console.print(f"[bold purple]Question:[/bold purple] {question}")

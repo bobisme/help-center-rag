@@ -35,8 +35,10 @@ def chunk_document(
     # Initialize container
     setup_container()
 
-    # Get chunking service
-    chunking_service = container.get("chunking_service")
+    # Get chunking service using type-based dependency injection
+    from epic_rag.domain.services.chunking_service import ChunkingService
+
+    chunking_service = container[ChunkingService]
 
     # Create an async function to process all documents
     async def process_all_documents():

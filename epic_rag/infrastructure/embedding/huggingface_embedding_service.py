@@ -178,11 +178,11 @@ class HuggingFaceEmbeddingService(EmbeddingService):
             # First convert to numpy array, then to Python list of lists
             numpy_array = embeddings.cpu().numpy()
             result: List[List[float]] = []
-            
+
             for vec in numpy_array:
                 float_list: List[float] = [float(x) for x in vec]
                 result.append(float_list)
-                
+
             return result
 
     async def embed_text(self, text: str, is_query: bool = False) -> List[float]:

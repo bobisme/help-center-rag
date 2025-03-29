@@ -34,16 +34,16 @@ def callback():
 
 # Add ingest commands for processing Help Center JSON data
 app.add_typer(
-    ingest_app, 
-    name="ingest", 
-    help="Process Help Center JSON data with specialized pipeline"
+    ingest_app,
+    name="ingest",
+    help="Process Help Center JSON data with specialized pipeline",
 )
 
 # Add document commands for managing general documents
 app.add_typer(
-    document_app, 
-    name="documents", 
-    help="Manage and view documents already in the system"
+    document_app,
+    name="documents",
+    help="Manage and view documents already in the system",
 )
 
 # Add search and question answering commands

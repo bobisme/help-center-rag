@@ -35,8 +35,10 @@ async def generate_evaluation_dataset(
     with open(input_file_path, "r", encoding="utf-8") as f:
         content = f.read()
 
-    # Get services
-    chunking_service = container.get("chunking_service")
+    # Get services using type-based dependency injection
+    from ....domain.services.chunking_service import ChunkingService
+
+    chunking_service = container[ChunkingService]
 
     # Create a document
     document = Document(
@@ -60,7 +62,9 @@ async def generate_evaluation_dataset(
     print(f"Document chunked into {len(chunks)} chunks")
 
     # Now use LLM to generate queries and relevant chunks
-    llm_service = container.get("llm_service")
+    from ....domain.services.llm_service import LLMService
+
+    llm_service = container[LLMService]
 
     # Format chunks for the prompt
     chunks_text = "\n\n".join(

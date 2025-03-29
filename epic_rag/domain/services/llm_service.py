@@ -1,13 +1,12 @@
 """LLM service for text generation and transformation."""
 
-from abc import ABC, abstractmethod
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Protocol, runtime_checkable
 
 
-class LLMService(ABC):
+@runtime_checkable
+class LLMService(Protocol):
     """Service for generating text and transformations using language models."""
 
-    @abstractmethod
     async def generate_text(self, prompt: str, **kwargs) -> str:
         """Generate text response from prompt.
 
@@ -18,8 +17,8 @@ class LLMService(ABC):
         Returns:
             Generated text response
         """
+        ...
 
-    @abstractmethod
     async def transform_query(self, query: str) -> str:
         """Transform a user query to better match document corpus.
 
@@ -29,8 +28,8 @@ class LLMService(ABC):
         Returns:
             Transformed query optimized for retrieval
         """
+        ...
 
-    @abstractmethod
     async def answer_question(
         self, question: str, context_chunks: List[Dict[str, Any]], **kwargs
     ) -> str:
@@ -44,8 +43,9 @@ class LLMService(ABC):
         Returns:
             Generated answer based on the context
         """
+        ...
 
     @property
-    @abstractmethod
     def model_name(self) -> str:
         """Get the name of the language model being used."""
+        ...
