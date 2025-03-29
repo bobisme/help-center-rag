@@ -108,7 +108,7 @@ def convert_to_markdown(
             document = Document(
                 title=title,
                 content=final_content,
-                epic_page_id=page_id,
+                epic_page_id=str(page_id) if page_id is not None else None,
                 metadata={
                     "category": category,
                     "updated_at": updated_at,

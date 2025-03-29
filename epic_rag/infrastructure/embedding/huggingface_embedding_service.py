@@ -174,8 +174,16 @@ class HuggingFaceEmbeddingService(EmbeddingService):
             # Normalize embeddings
             embeddings = F.normalize(embeddings, p=2, dim=1)
 
-        # Convert to list format
-        return embeddings.cpu().numpy().tolist()
+            # Convert to list format with explicit type annotation
+            # First convert to numpy array, then to Python list of lists
+            numpy_array = embeddings.cpu().numpy()
+            result: List[List[float]] = []
+            
+            for vec in numpy_array:
+                float_list: List[float] = [float(x) for x in vec]
+                result.append(float_list)
+                
+            return result
 
     async def embed_text(self, text: str, is_query: bool = False) -> List[float]:
         """Generate an embedding vector for a text string.
@@ -192,9 +200,10 @@ class HuggingFaceEmbeddingService(EmbeddingService):
         try:
             # Run in a thread to avoid blocking the event loop
             loop = asyncio.get_event_loop()
-            result = await loop.run_in_executor(
-                None, lambda: self._embed_batch([text], is_query=is_query)[0]
+            batch_result = await loop.run_in_executor(
+                None, lambda: self._embed_batch([text], is_query=is_query)
             )
+            result = batch_result[0] if batch_result else [0.0] * self._dimensions
             return result
         except Exception as e:
             logger.error(f"Error generating embedding: {e}")

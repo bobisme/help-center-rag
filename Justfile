@@ -46,83 +46,83 @@ transform-vinlink:
 
 # Test full query with transformed queries
 query q:
-    python -m epic_rag.interfaces.cli.main query "{{q}}" --show-details
+    ./rag query "{{q}}" --show-details
 
 # Test BM25 search
 bm25 q:
-    python -m epic_rag.interfaces.cli.main bm25 "{{q}}"
+    ./rag query "{{q}}" --bm25-only
 
 # Test BM25 search with full content display
 bm25-full q:
-    python -m epic_rag.interfaces.cli.main bm25 "{{q}}" --full-content
+    ./rag query "{{q}}" --bm25-only --full-content
 
 # Test hybrid search with both BM25 and vector search
 hybrid q:
-    python -m epic_rag.interfaces.cli.main hybrid-search "{{q}}" --rerank
+    ./rag query "{{q}}" --rerank
 
 # Test hybrid search with detailed output
 hybrid-full q:
-    python -m epic_rag.interfaces.cli.main hybrid-search "{{q}}" --show-separate --full-content
+    ./rag query "{{q}}" --full-content --show-details
 
 # Test hybrid search with custom weights
 hybrid-weights q b v:
-    python -m epic_rag.interfaces.cli.main hybrid-search "{{q}}" --bm25-weight {{b}} --vector-weight {{v}}
+    ./rag query "{{q}}" --bm25-weight {{b}} --vector-weight {{v}}
 
-# Benchmark BM25 implementations
+# Benchmark BM25 implementations (using query with BM25 option)
 benchmark-bm25 q:
-    python -m epic_rag.interfaces.cli.main benchmark-bm25 "{{q}}" --iterations 20 --documents 100
+    ./rag query "{{q}}" --bm25-only
 
 # Benchmark BM25 implementations with custom parameters
 benchmark-bm25-custom q iters docs:
-    python -m epic_rag.interfaces.cli.main benchmark-bm25 "{{q}}" --iterations {{iters}} --documents {{docs}}
+    ./rag query "{{q}}" --bm25-only --top-k {{docs}}
 
 # Show system information
 info:
-    python -m epic_rag.interfaces.cli.main info
+    ./rag info
     
 # Show database statistics
 db-info:
-    python -m epic_rag.interfaces.cli.main db info
+    ./rag db info
     
 # Clean up orphaned chunks
 db-cleanup:
-    python -m epic_rag.interfaces.cli.main db cleanup-orphans
+    ./rag db cleanup-orphans
     
 # Backup database
 db-backup:
-    python -m epic_rag.interfaces.cli.main db backup
+    ./rag db backup
     
 # Vacuum database
 db-vacuum:
-    python -m epic_rag.interfaces.cli.main db vacuum
+    ./rag db vacuum
 
 # List all documents
 db-list:
-    python -m epic_rag.interfaces.cli.main list-help-center
+    ./rag db list-documents
 
 # Inspect a document by title
 db-inspect title:
-    python -m epic_rag.interfaces.cli.main db inspect-document --title "{{title}}" --chunks --metadata
+    ./rag db inspect-document --title "{{title}}" --chunks --metadata
 
-# Test document processing pipeline with contextual enrichment
-zenml-docs-enriched:
-    python -m epic_rag.interfaces.cli.main zenml-run --source-dir test/samples --pipeline document_processing --limit 5 --apply-enrichment
+# Process test samples with documents ingest command
+process-samples-enriched:
+    ./rag documents ingest --source-dir test/samples --limit 5 --dynamic-chunking
 
-# Test document processing pipeline without contextual enrichment
-zenml-docs-plain:
-    python -m epic_rag.interfaces.cli.main zenml-run --source-dir test/samples --pipeline document_processing --limit 5 --skip-enrichment
+# Process test samples with fixed chunking
+process-samples-fixed:
+    ./rag documents ingest --source-dir test/samples --limit 5 --fixed-chunking
 
-# Test orchestration pipeline with contextual enrichment
-zenml-orchestration-enriched:
-    python -m epic_rag.interfaces.cli.main zenml-run --source-dir test/samples --pipeline orchestration --limit 3 --apply-enrichment
+# Process test samples with different chunk sizes
+process-samples-custom:
+    ./rag documents ingest --source-dir test/samples --limit 3 --min-chunk-size 400 --max-chunk-size 1000
 
-# Process all sample documents with contextual enrichment
+# Process all sample documents
 process-samples:
     #!/usr/bin/env bash
-    echo "Processing sample documents with contextual enrichment..."
+    echo "Processing all sample documents..."
     
-    # Run the document processing pipeline with enrichment enabled on all samples
-    python -m epic_rag.interfaces.cli.main zenml-run --source-dir test/samples --pipeline document_processing --apply-enrichment
+    # Run the document ingest command on all samples
+    ./rag documents ingest --source-dir test/samples
 
 # Simple test that directly shows enrichment results
 enrich-simple:
@@ -242,35 +242,35 @@ zenml-help-center-no-enrichment count="10":
 
 # Test query against help center documents
 query-help-center q:
-    python -m epic_rag.interfaces.cli.main query "{{q}}" --show-details
+    ./rag query "{{q}}" --show-details
 
 # BM25 search help center documents
 bm25-help-center q:
-    python -m epic_rag.interfaces.cli.main bm25 "{{q}}" --full-content
+    ./rag query "{{q}}" --bm25-only --full-content
 
 # Ask a question and get an answer using RAG
 ask q:
-    python -m epic_rag.interfaces.cli.main ask "{{q}}"
+    ./rag ask "{{q}}"
 
 # Ask a question and see the context used
 ask-with-context q:
-    python -m epic_rag.interfaces.cli.main ask "{{q}}" --show-context
+    ./rag ask "{{q}}" --show-context
 
 # Ask a question and see detailed metrics
 ask-with-metrics q:
-    python -m epic_rag.interfaces.cli.main ask "{{q}}" --show-metrics
+    ./rag ask "{{q}}" --show-metrics
 
 # Ask a question with custom temperature
 ask-temp q temp="0.5":
-    python -m epic_rag.interfaces.cli.main ask "{{q}}" --temperature {{temp}}
+    ./rag ask "{{q}}" --temperature {{temp}}
     
 # Ask with lower relevance threshold to get more context
 ask-broad q:
-    python -m epic_rag.interfaces.cli.main ask "{{q}}" --min-relevance 0.3 --top-k 8
+    ./rag ask "{{q}}" --min-relevance 0.3 --top-k 8
 
 # Ask with verbose output to see what's happening
 ask-debug q:
-    python -m epic_rag.interfaces.cli.main ask "{{q}}" --verbose --show-metrics --min-relevance 0.3
+    ./rag ask "{{q}}" --verbose --show-metrics --min-relevance 0.3
 
 # Test help center pipeline with a small sample using non-ZenML implementation
 test-help-center:

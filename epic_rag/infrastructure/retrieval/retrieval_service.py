@@ -38,7 +38,7 @@ class ContextualRetrievalService(RetrievalService):
         rank_fusion_service: Optional[RankFusionService] = None,
         llm_service: Optional[LLMService] = None,
         reranker_service: Optional["RerankerService"] = None,
-        settings: Settings = None,
+        settings: Optional[Settings] = None,
     ):
         """Initialize the retrieval service.
 
@@ -87,8 +87,8 @@ class ContextualRetrievalService(RetrievalService):
 
         # If BM25 is enabled, run BM25 search and combine with vector results
         if (
-            self.settings
-            and self.settings.retrieval.enable_bm25
+            self.settings is not None
+            and getattr(self.settings.retrieval, 'enable_bm25', False)
             and self.bm25_service
             and self.rank_fusion_service
         ):
@@ -201,7 +201,8 @@ class ContextualRetrievalService(RetrievalService):
         """
         if (
             not self.llm_service
-            or not self.settings.retrieval.enable_query_transformation
+            or self.settings is None
+            or not getattr(self.settings.retrieval, 'enable_query_transformation', False)
         ):
             logger.info(
                 f"Query transformation disabled. Using original query: {query.text}"
@@ -434,12 +435,15 @@ class ContextualRetrievalService(RetrievalService):
         )
 
         # Step 3.5: Apply reranking if enabled
-        if self.reranker_service and self.settings.retrieval.reranker.enabled:
+        if (self.reranker_service 
+            and self.settings is not None 
+            and getattr(self.settings.retrieval, 'reranker', None) is not None 
+            and getattr(self.settings.retrieval.reranker, 'enabled', False)):
             logger.info(f"Applying reranking to {len(relevant_chunks)} chunks")
             reranked_chunks = await self.reranker_service.rerank(
                 query=request.query,
                 chunks=relevant_chunks,
-                top_k=self.settings.retrieval.reranker.top_k,
+                top_k=getattr(self.settings.retrieval.reranker, 'top_k', 5),
             )
             relevant_chunks = reranked_chunks
             logger.info(f"Reranking returned {len(relevant_chunks)} chunks")
@@ -449,7 +453,7 @@ class ContextualRetrievalService(RetrievalService):
             # Combine related chunks for better context
             merged_chunks = await self.merge_related_chunks(
                 chunks=relevant_chunks,
-                max_merged_size=self.settings.retrieval.max_merged_chunk_size,
+                max_merged_size=getattr(self.settings.retrieval, 'max_merged_chunk_size', 1500) if self.settings is not None else 1500,
             )
             result.final_chunks = merged_chunks
 

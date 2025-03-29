@@ -26,6 +26,11 @@ class DocumentChunk:
 
     # For contextual retrieval
     relevance_score: Optional[float] = None
+    
+    # Temporary attribute for vector database ID - won't be persisted in base class
+    # Only used for type checking purposes - implementation in EmbeddedChunk
+    # Declare this property to allow pyright to pass type checking
+    vector_id: Optional[str] = None
 
 
 @dataclass
@@ -56,9 +61,12 @@ class Document:
 class EmbeddedChunk(DocumentChunk):
     """A document chunk with embedding data."""
 
-    # Override to make embedding required
-    embedding: List[float] = field(default_factory=list)
-
     # Vector database metadata
     vector_id: Optional[str] = None
     indexed_at: Optional[datetime] = None
+    
+    def __post_init__(self):
+        """Initialize default values."""
+        # Ensure embedding is not None
+        if self.embedding is None:
+            self.embedding = []

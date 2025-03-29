@@ -116,7 +116,7 @@ def prepare_document_variations(
             dynamic_chunking=True,
             min_chunk_size=200,
             max_chunk_size=500,
-            apply_contextual_enrichment=False,
+            apply_enrichment=False,
         )
 
         # Process enriched document
@@ -127,7 +127,7 @@ def prepare_document_variations(
                 dynamic_chunking=True,
                 min_chunk_size=200,
                 max_chunk_size=500,
-                apply_contextual_enrichment=True,
+                apply_enrichment=True,
             )
         else:
             print(
@@ -196,8 +196,7 @@ def evaluate_query(
             min_relevance_score=0.0,  # No filtering for evaluation
             use_query_transformation=False,  # Raw query
             merge_related_chunks=False,  # No merging for fair comparison
-            document_filter={"id": document_ids["base_document_id"]},
-            max_results=max_results,
+            filter_metadata={"document_id": document_ids["base_document_id"]},
         )
 
         # Process the query against the enriched document
@@ -208,8 +207,7 @@ def evaluate_query(
             min_relevance_score=0.0,  # No filtering for evaluation
             use_query_transformation=False,  # Raw query
             merge_related_chunks=False,  # No merging for fair comparison
-            document_filter={"id": document_ids["enriched_document_id"]},
-            max_results=max_results,
+            filter_metadata={"document_id": document_ids["enriched_document_id"]},
         )
 
         return base_result, enriched_result
@@ -425,7 +423,7 @@ def analyze_evaluation_results(
     return summary
 
 
-@pipeline(enable_cache=False)
+@pipeline(enable_cache=False) # type: ignore
 def contextual_enrichment_evaluation_pipeline(
     dataset_path: str,
     document_path: str,

@@ -4,11 +4,12 @@ import asyncio
 import base64
 import os
 import re
-from typing import Dict, List, Tuple
+from typing import Dict, List, Tuple, Optional, Union
 from PIL import Image
 
 import httpx
 from ...domain.services.image_description_service import ImageDescriptionService
+from ...domain.models.document import DocumentChunk
 from ..config.settings import LLMSettings
 
 

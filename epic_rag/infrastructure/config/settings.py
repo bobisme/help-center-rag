@@ -132,9 +132,6 @@ class RetrievalSettings:
 
     # BM25 and rank fusion settings
     enable_bm25: bool = True  # Whether to use BM25 search
-    # Use bm25s implementation from huggingface for better performance on
-    # larger document collections
-    bm25_implementation: Literal["bm25", "bm25s"] = "bm25s"
     bm25_weight: float = 0.4  # Weight for BM25 results in fusion (0.0-1.0)
     vector_weight: float = 0.6  # Weight for vector results in fusion (0.0-1.0)
     fusion_k: float = 60.0  # Constant in RRF formula to mitigate impact of top results

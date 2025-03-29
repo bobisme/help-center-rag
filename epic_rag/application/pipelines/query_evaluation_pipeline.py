@@ -159,7 +159,7 @@ def evaluate_all_queries(
     }
 
 
-@pipeline(enable_cache=True)
+@pipeline(enable_cache=True) # type: ignore
 def query_evaluation_pipeline(
     query_file: str = "data/test_queries.txt",
     first_stage_k: int = 20,

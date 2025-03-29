@@ -216,8 +216,6 @@ async def test_retrieval():
 async def main():
     """Run all tests."""
     print("Testing Epic Documentation RAG System\n")
-    print(f"OpenAI API Key available: {'Yes' if settings.openai_api_key else 'No'}")
-    print(f"Gemini API Key available: {'Yes' if settings.gemini_api_key else 'No'}")
     print(
         f"HuggingFace available: {'Yes (using CUDA)' if torch.cuda.is_available() else 'Yes (using CPU)'}"
     )
@@ -228,14 +226,6 @@ async def main():
     try:
         # Test HuggingFace embedding (local)
         await test_embedding("huggingface")
-
-        # Test OpenAI embedding if available
-        if settings.openai_api_key:
-            await test_embedding("openai")
-
-        # Test Gemini embedding if available
-        if settings.gemini_api_key:
-            await test_embedding("gemini")
 
         # Test document ingestion (uses whatever provider is set in settings)
         await test_document_ingestion()

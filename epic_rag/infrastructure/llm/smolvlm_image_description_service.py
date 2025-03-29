@@ -3,13 +3,14 @@
 import asyncio
 import os
 import re
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, Union
 from PIL import Image
 
 import torch
 from transformers import AutoProcessor, AutoModelForVision2Seq
 
 from ...domain.services.image_description_service import ImageDescriptionService
+from ...domain.models.document import DocumentChunk
 from ..config.settings import LLMSettings
 
 

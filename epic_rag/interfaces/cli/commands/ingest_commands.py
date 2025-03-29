@@ -3,6 +3,7 @@
 import asyncio
 import json
 import os
+from typing import Optional, List
 import typer
 from rich.panel import Panel
 from rich.syntax import Syntax
@@ -20,7 +21,7 @@ ingest_app = typer.Typer(
 
 
 def load_documents_from_json(
-    index: int = None, offset: int = 0, limit: int = None, all_docs: bool = False
+    index: Optional[int] = None, offset: int = 0, limit: Optional[int] = None, all_docs: bool = False
 ) -> list:
     """Load documents from the epic-docs.json file.
 
@@ -117,7 +118,7 @@ def load_documents_from_json(
             document = Document(
                 title=title,
                 content=final_content,
-                epic_page_id=page_id,
+                epic_page_id=str(page_id) if page_id is not None else None,
                 metadata={
                     "category": category,
                     "updated_at": updated_at,

@@ -90,7 +90,7 @@ class CachedEmbeddingService(EmbeddingService):
                 return cached_embedding
 
         # Generate embedding with wrapped service
-        embedding = await self._wrapped.embed_text(text, is_query)
+        embedding = await self._wrapped.embed_text(text, is_query=is_query)
 
         # Store in cache
         if self._cache_enabled and self._cache and embedding:

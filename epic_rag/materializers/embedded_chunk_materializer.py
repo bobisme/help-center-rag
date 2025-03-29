@@ -83,9 +83,9 @@ class EmbeddedChunkMaterializer(BaseMaterializer):
             vector_id=vector_id,
         )
 
-        # Set context if available
+        # Set context in metadata if available
         if context:
-            chunk.context = context
+            chunk.metadata["context"] = context
 
         return chunk
 
@@ -110,9 +110,9 @@ class EmbeddedChunkMaterializer(BaseMaterializer):
             "relevance_score": getattr(data, "relevance_score", None),
         }
 
-        # Add contextual enrichment if present
-        if hasattr(data, "context") and data.context:
-            metadata["context"] = data.context
+        # Add contextual enrichment if present in metadata
+        if data.metadata and "context" in data.metadata:
+            metadata["context"] = data.metadata["context"]
 
         # Add custom metadata
         if data.metadata:
@@ -128,7 +128,7 @@ class EmbeddedChunkMaterializer(BaseMaterializer):
             with self.artifact_store.open(self.embedding_path, "wb") as f:
                 np.save(f, data.embedding)
 
-    def save_visualizations(self, data: EmbeddedChunk) -> Dict[str, str]:
+    def save_visualizations(self, data: EmbeddedChunk) -> Dict[str, Any]:
         """Save visualizations for the embedded chunk.
 
         Args:
@@ -149,8 +149,8 @@ class EmbeddedChunkMaterializer(BaseMaterializer):
                 f.write(f"First 5 Values: {data.embedding[:5]}\n")
                 f.write(f"Last 5 Values: {data.embedding[-5:]}\n")
 
-            if hasattr(data, "context") and data.context:
-                f.write(f"\nContext: {data.context}\n")
+            if data.metadata and "context" in data.metadata:
+                f.write(f"\nContext: {data.metadata['context']}\n")
 
             if data.metadata:
                 f.write("\nMetadata:\n")
@@ -178,7 +178,7 @@ class EmbeddedChunkMaterializer(BaseMaterializer):
             "id": data.id,
             "document_id": data.document_id,
             "chunk_index": data.chunk_index,
-            "has_context": hasattr(data, "context") and bool(data.context),
+            "has_context": data.metadata and "context" in data.metadata and bool(data.metadata["context"]),
             "content_length": len(data.content) if data.content else 0,
         }
 
@@ -192,7 +192,7 @@ class EmbeddedChunkMaterializer(BaseMaterializer):
             metadata["embedding_max"] = float(np.max(data.embedding))
 
         # Add vector ID if available
-        if hasattr(data, "vector_id") and data.vector_id:
+        if getattr(data, "vector_id", None) is not None:
             metadata["vector_id"] = data.vector_id
 
         # Add relevance score if available

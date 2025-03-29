@@ -135,7 +135,7 @@ class DocumentMaterializer(BaseMaterializer):
             with self.artifact_store.open(self.chunks_path, "w") as f:
                 json.dump(chunks_data, f, indent=2)
 
-    def save_visualizations(self, data: Document) -> Dict[str, str]:
+    def save_visualizations(self, data: Document) -> Dict[str, Any]:
         """Save visualizations for the document.
 
         Args:

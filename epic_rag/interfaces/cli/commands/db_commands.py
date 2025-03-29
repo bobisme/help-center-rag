@@ -12,8 +12,10 @@ from pathlib import Path
 
 import typer
 from rich.prompt import Confirm
+from rich.panel import Panel
 
 from ....infrastructure.config.settings import settings
+from ....infrastructure.container import container
 from .common import console
 
 db_app = typer.Typer(pretty_exceptions_enable=False)
@@ -24,7 +26,7 @@ def db_info():
     """Display information about the database."""
 
     async def get_db_info():
-        db_path = settings.sqlite_db_path
+        db_path = settings.database.path
 
         # Check if the database exists
         if not os.path.exists(db_path):
@@ -91,7 +93,7 @@ def backup_db(
     )
 ):
     """Backup the SQLite database."""
-    db_path = settings.sqlite_db_path
+    db_path = settings.database.path
 
     # Create the backup directory if it doesn't exist
     os.makedirs(backup_dir, exist_ok=True)
@@ -114,7 +116,7 @@ def vacuum_db():
     """Optimize the SQLite database by running VACUUM."""
 
     async def vacuum_database():
-        db_path = settings.sqlite_db_path
+        db_path = settings.database.path
 
         # Get the database size before vacuum
         db_size_before = os.path.getsize(db_path)
@@ -150,7 +152,7 @@ def cleanup_orphans():
     """Remove orphaned chunks (chunks with no parent document)."""
 
     async def cleanup_orphaned_chunks():
-        db_path = settings.sqlite_db_path
+        db_path = settings.database.path
 
         # Connect to the database
         async with aiosqlite.connect(db_path) as conn:
@@ -164,6 +166,8 @@ def cleanup_orphans():
                 """
             ) as cursor:
                 orphaned_chunks = await cursor.fetchall()
+                # Convert to list to ensure we can get its length
+                orphaned_chunks = list(orphaned_chunks)
 
             if not orphaned_chunks:
                 console.print("[bold green]No orphaned chunks found[/bold green]")
@@ -205,37 +209,109 @@ def inspect_document(
     title: Optional[str] = typer.Option(
         None, "--title", "-t", help="Document title to inspect"
     ),
+    epic_id: Optional[str] = typer.Option(
+        None, "--epic-id", help="Epic page ID to search for"
+    ),
     chunks: bool = typer.Option(False, "--chunks", "-c", help="Show document chunks"),
     metadata: bool = typer.Option(
         False, "--metadata", "-m", help="Show document metadata"
     ),
 ):
     """Inspect a document in the database."""
-    # This command had hanging issues - use a subprocess to run the actual command
-    # in a separate process to avoid event loop issues
 
-    # Pass arguments to the subprocess
-    script_path = Path(settings.project_root) / "db_inspect_document.py"
-    args = [sys.executable, str(script_path)]
+    async def inspect_doc():
+        if not any([document_id, title, epic_id]):
+            console.print("[bold red]Please provide at least one of: --id, --title, or --epic-id[/bold red]")
+            return
 
-    if document_id:
-        args.extend(["--id", document_id])
-    if title:
-        args.extend(["--title", title])
-    if chunks:
-        args.append("--chunks")
-    if metadata:
-        args.append("--metadata")
+        document_repository = container.get("document_repository")
+        document = None
 
-    # Run the subprocess
-    try:
-        subprocess.run(args, check=True)
-    except subprocess.CalledProcessError:
-        console.print("[bold red]Error inspecting document[/bold red]")
-    except FileNotFoundError:
-        console.print(
-            "[bold red]Error: The helper script db_inspect_document.py was not found[/bold red]"
-        )
+        with console.status("[bold green]Finding document..."):
+            if document_id:
+                document = await document_repository.get_document(document_id)
+            elif epic_id:
+                document = await document_repository.find_document_by_epic_page_id(epic_id)
+            elif title:
+                # Search by title (partial match)
+                filters = {"title": title}
+                documents = await document_repository.list_documents(
+                    limit=10, filters=filters
+                )
+                if documents:
+                    if len(documents) > 1:
+                        # Show list of matching documents
+                        console.print(
+                            f"[yellow]Found {len(documents)} documents matching '{title}':[/yellow]"
+                        )
+                        for i, doc in enumerate(documents, 1):
+                            console.print(f"{i}. [cyan]{doc.title}[/cyan] (ID: {doc.id})")
+
+                        # Let user choose one
+                        try:
+                            idx = int(input("Select document number: ")) - 1
+                            if 0 <= idx < len(documents):
+                                document = documents[idx]
+                            else:
+                                console.print("[red]Invalid selection[/red]")
+                                return
+                        except (ValueError, EOFError):
+                            # Use first document as fallback on error
+                            document = documents[0]
+                    else:
+                        document = documents[0]
+
+        if not document:
+            console.print("[yellow]No matching document found[/yellow]")
+            return
+
+        # Display document info
+        console.print(f"[bold green]Document:[/bold green] {document.title}")
+        console.print(f"[bold]ID:[/bold] {document.id}")
+        console.print(f"[bold]Epic Page ID:[/bold] {document.epic_page_id or 'N/A'}")
+        console.print(f"[bold]Epic Path:[/bold] {document.epic_path or 'N/A'}")
+        console.print(f"[bold]Created:[/bold] {document.created_at}")
+        console.print(f"[bold]Updated:[/bold] {document.updated_at}")
+
+        # Show detailed metadata if requested
+        if metadata:
+            console.print("\n[bold]Metadata:[/bold]")
+            if document.metadata:
+                for key, value in document.metadata.items():
+                    console.print(f"  [cyan]{key}:[/cyan] {value}")
+            else:
+                console.print("  [italic]No metadata available[/italic]")
+
+        # Show chunks if requested
+        if chunks:
+            doc_chunks = await document_repository.get_document_chunks(document.id)
+            console.print(f"\n[bold]Chunks:[/bold] {len(doc_chunks)} total")
+
+            for i, chunk in enumerate(doc_chunks, 1):
+                console.print(
+                    f"\n[bold cyan]Chunk {i}/{len(doc_chunks)}[/bold cyan] (ID: {chunk.id})"
+                )
+                console.print(f"[dim]Index: {chunk.chunk_index}[/dim]")
+
+                # Only show the first 200 characters of content with ellipsis
+                content_preview = chunk.content[:200] + (
+                    "..." if len(chunk.content) > 200 else ""
+                )
+                console.print(
+                    Panel(content_preview, title=f"Content Preview", expand=False)
+                )
+
+                if metadata and chunk.metadata:
+                    console.print("[bold]Chunk Metadata:[/bold]")
+                    for key, value in chunk.metadata.items():
+                        if key == "context" and isinstance(value, str) and len(value) > 100:
+                            # Truncate long context values
+                            console.print(f"  [cyan]{key}:[/cyan] {value[:100]}...")
+                        else:
+                            console.print(f"  [cyan]{key}:[/cyan] {value}")
+
+    # Run the async function using asyncio
+    asyncio.run(inspect_doc())
 
 
 @db_app.command("list-documents")
@@ -251,31 +327,71 @@ def list_documents(
     descending: bool = typer.Option(
         True, "--desc/--asc", help="Sort in descending or ascending order"
     ),
+    search: Optional[str] = typer.Option(
+        None, "--search", help="Search in document titles"
+    ),
 ):
     """List documents in the database."""
-    # This command had hanging issues - use a subprocess to run the actual command
-    # in a separate process to avoid event loop issues
-
-    # Pass arguments to the subprocess
-    script_path = Path(settings.project_root) / "db_list_documents.py"
-    args = [sys.executable, str(script_path)]
-
-    args.extend(["--limit", str(limit)])
-    args.extend(["--offset", str(offset)])
-    args.extend(["--sort-by", sort_by])
-
-    if not descending:
-        args.append("--asc")
-
-    # Run the subprocess
-    try:
-        subprocess.run(args, check=True)
-    except subprocess.CalledProcessError:
-        console.print("[bold red]Error listing documents[/bold red]")
-    except FileNotFoundError:
-        console.print(
-            "[bold red]Error: The helper script db_list_documents.py was not found[/bold red]"
-        )
+    
+    async def list_docs():
+        document_repository = container.get("document_repository")
+        
+        # Set up filters if search is provided
+        filters = {}
+        if search:
+            filters["title"] = search
+            
+        # Set up sort order
+        sort_order = "DESC" if descending else "ASC"
+        
+        # Validate sort_by field
+        valid_sort_fields = ["id", "title", "created_at", "updated_at", "word_count"]
+        if sort_by not in valid_sort_fields:
+            console.print(f"[bold red]Invalid sort field. Valid options are: {', '.join(valid_sort_fields)}[/bold red]")
+            return
+            
+        with console.status("[bold green]Retrieving documents...[/bold green]"):
+            documents = await document_repository.list_documents(
+                limit=limit,
+                offset=offset,
+                sort_by=sort_by,
+                sort_order=sort_order,
+                filters=filters
+            )
+            
+        if not documents:
+            console.print("[yellow]No documents found[/yellow]")
+            return
+            
+        # Display document count
+        console.print(f"[bold]Documents:[/bold] {len(documents)} results")
+        console.print()
+        
+        # Create a table to display the documents
+        from rich.table import Table
+        table = Table(show_header=True, header_style="bold")
+        table.add_column("ID", style="dim", width=36)
+        table.add_column("Title")
+        table.add_column("Created", width=20)
+        table.add_column("Word Count", justify="right")
+        
+        for doc in documents:
+            # Format the created_at timestamp
+            created_at = doc.created_at.split(" ")[0] if doc.created_at else "N/A"
+            
+            # Get the word count or use N/A
+            word_count = str(doc.word_count) if doc.word_count else "N/A"
+            
+            table.add_row(doc.id, doc.title, created_at, word_count)
+            
+        console.print(table)
+        
+        # Show pagination info
+        if len(documents) == limit:
+            console.print(f"\n[dim]Use --offset {offset + limit} to see the next page[/dim]")
+    
+    # Run the async function
+    asyncio.run(list_docs())
 
 
 def register_commands(app: typer.Typer):

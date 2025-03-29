@@ -90,7 +90,7 @@ def ingest_documents(
             document = Document(
                 title=title,
                 content=content,
-                source_path=file_path,
+                metadata={"source_path": file_path},
             )
 
             # Ingest the document

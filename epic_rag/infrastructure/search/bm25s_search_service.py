@@ -274,8 +274,11 @@ class BM25SSearchService(LexicalSearchService):
 
         # Fetch all chunks from repository
         all_chunks = await self.document_repository.get_all_chunks()
+        
+        # Convert to list to ensure proper length calculation
+        all_chunks_list = list(all_chunks)
 
         # Index all documents
-        await self.index_documents(all_chunks)
+        await self.index_documents(all_chunks_list)
 
-        logger.info(f"Reindexed all documents: {len(all_chunks)} chunks in BM25S index")
+        logger.info(f"Reindexed all documents: {len(all_chunks_list)} chunks in BM25S index")

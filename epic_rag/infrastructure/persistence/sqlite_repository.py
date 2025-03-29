@@ -537,7 +537,8 @@ class SQLiteDocumentRepository(DocumentRepository):
                             "SELECT COUNT(*) FROM chunks WHERE document_id = ?",
                             (existing_doc_id,),
                         ) as count_cursor:
-                            chunk_count = (await count_cursor.fetchone())[0]
+                            result = await count_cursor.fetchone()
+                            chunk_count = result[0] if result else 0
 
                         logger.info(
                             f"Found existing document with id: {existing_doc_id} and {chunk_count} chunks"
@@ -660,10 +661,12 @@ class SQLiteDocumentRepository(DocumentRepository):
         async with aiosqlite.connect(self.db_path) as db:
             # Get database size before vacuum
             async with db.execute("PRAGMA page_count") as cursor:
-                page_count_before = (await cursor.fetchone())[0]
+                result = await cursor.fetchone()
+                page_count_before = result[0] if result else 0
 
             async with db.execute("PRAGMA page_size") as cursor:
-                page_size = (await cursor.fetchone())[0]
+                result = await cursor.fetchone()
+                page_size = result[0] if result else 0
 
             size_before = page_count_before * page_size / (1024 * 1024)  # in MB
             logger.info(f"Database size before vacuum: {size_before:.2f} MB")
@@ -673,7 +676,8 @@ class SQLiteDocumentRepository(DocumentRepository):
 
             # Get database size after vacuum
             async with db.execute("PRAGMA page_count") as cursor:
-                page_count_after = (await cursor.fetchone())[0]
+                result = await cursor.fetchone()
+                page_count_after = result[0] if result else 0
 
             size_after = page_count_after * page_size / (1024 * 1024)  # in MB
             logger.info(f"Database size after vacuum: {size_after:.2f} MB")

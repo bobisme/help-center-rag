@@ -154,8 +154,7 @@ def setup_container():
         ImageEnhancedEnrichmentService,
     )
 
-    # Import BM25 search services
-    from epic_rag.infrastructure.search.bm25_search_service import BM25SearchService
+    # Import BM25 search service
     from epic_rag.infrastructure.search.bm25s_search_service import BM25SSearchService
 
     # Import Rank Fusion service
@@ -207,21 +206,13 @@ def setup_container():
             ),
         )
 
-    # Register BM25 search service based on configuration
-    if settings.retrieval.bm25_implementation.lower() == "bm25s":
-        container.register_factory(
-            "bm25_search_service",
-            lambda c: BM25SSearchService(
-                document_repository=c.get("document_repository")
-            ),
-        )
-    else:
-        container.register_factory(
-            "bm25_search_service",
-            lambda c: BM25SearchService(
-                document_repository=c.get("document_repository")
-            ),
-        )
+    # Register BM25S search service
+    container.register_factory(
+        "bm25_search_service",
+        lambda c: BM25SSearchService(
+            document_repository=c.get("document_repository")
+        ),
+    )
 
     # Register Rank Fusion service
     container.register_factory(
@@ -366,10 +357,9 @@ def setup_container():
     container.register_factory(
         "embedding_cache",
         lambda c: EmbeddingCache(
-            provider_name=settings.embedding.provider,
-            model_name=settings.embedding.model,
-            cache_dir=settings.embedding.cache.directory,
-            max_days=settings.embedding.cache.expiration_days,
+            settings=settings,
+            memory_cache_size=settings.embedding.cache.memory_size,
+            cache_expiration_days=settings.embedding.cache.expiration_days,
         ),
     )
 

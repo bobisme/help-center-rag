@@ -39,11 +39,12 @@ class OpenAIEmbeddingService(EmbeddingService):
         self._client = AsyncOpenAI(api_key=settings.openai_api_key)
         logger.info(f"Initialized OpenAI embedding service with model {model}")
 
-    async def embed_text(self, text: str) -> List[float]:
+    async def embed_text(self, text: str, is_query: bool = False) -> List[float]:
         """Generate an embedding vector for a text string.
 
         Args:
             text: The text to embed
+            is_query: Whether the text is a query or document (ignored in OpenAI)
 
         Returns:
             Vector embedding as a list of floats

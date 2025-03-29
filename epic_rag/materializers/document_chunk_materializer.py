@@ -2,7 +2,7 @@
 
 import json
 import os
-from typing import Dict, Type, Any, Optional
+from typing import Dict, Type, Any, Optional, Mapping
 
 from zenml.enums import ArtifactType
 from zenml.materializers.base_materializer import BaseMaterializer
@@ -77,9 +77,9 @@ class DocumentChunkMaterializer(BaseMaterializer):
         if vector_id is not None:
             chunk.metadata["vector_id"] = vector_id
 
-        # Set context if available
+        # Set context in metadata if available
         if context:
-            chunk.context = context
+            chunk.metadata["context"] = context
 
         return chunk
 
@@ -103,13 +103,16 @@ class DocumentChunkMaterializer(BaseMaterializer):
             "relevance_score": getattr(data, "relevance_score", None),
         }
 
-        # Check if vector_id is in metadata
+        # Check if vector_id is in metadata or as an attribute
         if data.metadata and "vector_id" in data.metadata:
             metadata["vector_id"] = data.metadata["vector_id"]
+        # For EmbeddedChunk that has vector_id attribute directly
+        elif hasattr(data, "vector_id") and getattr(data, "vector_id") is not None:
+            metadata["vector_id"] = getattr(data, "vector_id")
 
-        # Add contextual enrichment if present
-        if hasattr(data, "context") and data.context:
-            metadata["context"] = data.context
+        # Add contextual enrichment if present in metadata
+        if data.metadata and "context" in data.metadata:
+            metadata["context"] = data.metadata["context"]
 
         # Add custom metadata
         if data.metadata:
@@ -120,7 +123,7 @@ class DocumentChunkMaterializer(BaseMaterializer):
         with self.artifact_store.open(self.metadata_path, "w") as f:
             json.dump(metadata, f, indent=2)
 
-    def save_visualizations(self, data: DocumentChunk) -> Dict[str, str]:
+    def save_visualizations(self, data: DocumentChunk) -> Dict[str, Any]:
         """Save visualizations for the document chunk.
 
         Args:
@@ -135,8 +138,8 @@ class DocumentChunkMaterializer(BaseMaterializer):
             f.write("-" * 80 + "\n")
             f.write(f"Document ID: {data.document_id}\n")
             f.write(f"Chunk Index: {data.chunk_index}\n")
-            if hasattr(data, "context") and data.context:
-                f.write(f"\nContext: {data.context}\n")
+            if data.metadata and "context" in data.metadata:
+                f.write(f"\nContext: {data.metadata['context']}\n")
             if data.metadata:
                 f.write("\nMetadata:\n")
                 for key, value in data.metadata.items():
@@ -162,14 +165,14 @@ class DocumentChunkMaterializer(BaseMaterializer):
             "id": data.id,
             "document_id": data.document_id,
             "chunk_index": data.chunk_index,
-            "has_context": hasattr(data, "context") and bool(data.context),
+            "has_context": data.metadata and "context" in data.metadata and bool(data.metadata["context"]),
             "has_embedding": hasattr(data, "embedding") and data.embedding is not None,
             "content_length": len(data.content) if data.content else 0,
         }
 
-        # Add vector ID if available
-        if hasattr(data, "vector_id") and data.vector_id:
-            metadata["vector_id"] = data.vector_id
+        # Add vector ID if available in metadata
+        if data.metadata and "vector_id" in data.metadata:
+            metadata["vector_id"] = data.metadata["vector_id"]
 
         # Add relevance score if available
         if hasattr(data, "relevance_score") and data.relevance_score is not None:

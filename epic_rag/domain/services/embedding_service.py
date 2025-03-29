@@ -11,11 +11,12 @@ class EmbeddingService(ABC):
     """Service for generating and managing vector embeddings."""
 
     @abstractmethod
-    async def embed_text(self, text: str) -> List[float]:
+    async def embed_text(self, text: str, is_query: bool = False) -> List[float]:
         """Generate an embedding vector for a text string.
 
         Args:
             text: The text to embed
+            is_query: Whether the text is a query (True) or document (False)
 
         Returns:
             Vector embedding as a list of floats

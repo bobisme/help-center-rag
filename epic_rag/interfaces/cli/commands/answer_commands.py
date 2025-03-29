@@ -72,7 +72,7 @@ def ask(
             max_context_chunks=max_context_chunks,
         )
     )
-    time.time() - start_time
+    elapsed_time = time.time() - start_time
 
     # Extract the answer and metrics
     answer = result["answer"]

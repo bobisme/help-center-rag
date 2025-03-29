@@ -1,33 +1,134 @@
-# Epic Documentation Tools
+# Epic Documentation RAG System
 
-This project contains tools for working with Applied Epic insurance agency management system documentation:
+This project contains tools for working with Applied Epic insurance agency management system documentation, with a focus on providing a powerful retrieval-augmented generation (RAG) system based on Anthropic's Contextual Retrieval methodology.
 
-1. **Epic Documentation CLI**: A tool to crawl Epic docs and convert to Markdown
-2. **HTML to Markdown Converter**: A Python tool for preprocessing HTML docs
-3. **Epic Documentation RAG System**: A retrieval system based on Anthropic's Contextual Retrieval methodology
+Applied Epic is a comprehensive insurance agency management system used by insurance agencies and brokerages to manage:
+1. Client and policy information
+2. Quotes and proposals
+3. Certificates and proofs of insurance
+4. Agency communications (email, fax)
+5. Accounting and billing operations
 
-Applied Epic is a comprehensive insurance agency management system used by insurance agencies and brokerages to manage client information, policies, quotes, certificates, agency communications, and financial operations.
+The primary components of this system are:
 
-## Documentation CLI Features
+1. **HTML to Markdown Converter**: A Python tool for preprocessing HTML docs
+2. **Epic Documentation RAG System**: A retrieval system with contextual enrichment
+3. **CLI Interface**: A command-line interface for interacting with the system
 
-- Crawls the Epic documentation website
-- Extracts all documentation content
-- Downloads screenshots and images, saving them locally
-- Converts HTML to clean Markdown with local image references
-- Preserves document structure and hierarchy
-- Generates a comprehensive table of contents
-- Outputs everything to a single searchable markdown file
-- Condenses markdown to fit in LLM context windows
-- Estimates token counts for different LLM models
+## Features
 
-## HTML to Markdown Converter Features
+- **Data Ingestion Pipeline**: Converts HTML to Markdown, chunks documents, and stores them in databases
+- **Contextual Enrichment**: LLM-based context description generation to enhance retrieval
+- **Hybrid Search**: Combines vector and lexical search for better results
+- **Rank Fusion**: Merges results from different search techniques
+- **Reranking**: Fine-tunes result ordering with cross-encoders
 
-- Specialized HTML cleanup for Epic documentation
-- Fixes nested list structures for proper Markdown conversion
-- Converts inline styles to semantic HTML (bold/italic)
-- Handles image path resolution and processing
-- Well-structured Python package design
-- Command-line interface with Typer and Rich
+## Architecture Overview
+
+The system is built on Domain-Driven Design principles with distinct layers:
+
+1. **Domain Layer**: Core models and interface definitions
+2. **Application Layer**: Use cases and business logic
+3. **Infrastructure Layer**: Technical implementations of the domain interfaces
+4. **Interface Layer**: CLI and API interfaces for user interaction
+
+```mermaid
+flowchart TD
+    A[User Query] --> B{Query Transformation}
+    B -->|Optional LLM transform| C[Transformed Query]
+    B -->|Direct| D[Original Query]
+    
+    subgraph "Parallel Search"
+        E[Vector Search]
+        F[BM25 Lexical Search]
+    end
+    
+    C --> E
+    C --> F
+    D --> E
+    D --> F
+    
+    E --> G[Vector Results]
+    F --> H[BM25 Results]
+    
+    G --> I[Rank Fusion]
+    H --> I
+    
+    I --> J[Fused Results]
+    J --> K{Reranking}
+    K -->|Enabled| L[Cross-Encoder Reranking]
+    K -->|Disabled| M[Final Results]
+    L --> M
+    
+    M --> N[Display Results with Metrics]
+```
+
+## Contextual Enrichment
+
+This system uses Anthropic's contextual enrichment technique to improve retrieval quality. When a document is ingested:
+
+1. The document is chunked into manageable segments
+2. For each chunk, an LLM generates a short context description
+3. This context is added to both the chunk metadata and prepended to the content
+4. The enriched chunks are then embedded and stored in the vector database
+
+Benefits of contextual enrichment:
+- Improved retrieval quality, especially for natural language queries
+- Better understanding of document structure and relationships
+- Enhanced semantic matching between queries and documents
+
+## CLI Commands
+
+The system provides a comprehensive CLI interface for interacting with the RAG system:
+
+```bash
+# Basic query with default settings (hybrid search)
+./rag query "How do I access my email in Epic?"
+
+# Ask a question and get an answer using RAG
+./rag ask "How do I set up faxing in Epic?"
+
+# Show database statistics
+./rag db info
+
+# List documents in the database
+./rag db list-documents
+
+# View a specific document
+./rag db inspect-document --title "Email"
+
+# Ingest new documents
+./rag documents ingest --source-dir ./data/markdown
+```
+
+## Installation and Setup
+
+1. Install Python dependencies:
+   ```bash
+   uv install -e .
+   ```
+
+2. Install TypeScript dependencies (for the HTML to MD converter):
+   ```bash
+   bun install
+   ```
+
+3. Set up environment variables:
+   ```bash
+   export EPIC_RAG_EMBEDDING_PROVIDER=huggingface
+   export EPIC_RAG_LLM_PROVIDER=ollama
+   export EPIC_RAG_LLM_MODEL=llama3.1
+   ```
+
+4. Reset the database (if needed):
+   ```bash
+   just reset
+   ```
+
+5. Run the CLI:
+   ```bash
+   ./rag --help
+   ```
 
 ## RAG System Features
 
@@ -360,7 +461,7 @@ EPIC_RAG_FIRST_STAGE_K=20  # Number of results in first stage
 EPIC_RAG_SECOND_STAGE_K=5  # Number of results in second stage
 EPIC_RAG_MIN_RELEVANCE_SCORE=0.7  # Minimum relevance score for filtering
 EPIC_RAG_ENABLE_BM25=true  # Enable BM25 search
-EPIC_RAG_BM25_IMPLEMENTATION=bm25s  # BM25 implementation to use ("bm25" or "bm25s")
+# Using BM25S for lexical search (Huggingface's optimized implementation)
 EPIC_RAG_BM25_WEIGHT=0.4  # Weight for BM25 results in hybrid search
 EPIC_RAG_VECTOR_WEIGHT=0.6  # Weight for vector results in hybrid search
 EPIC_RAG_ENABLE_QUERY_TRANSFORMATION=true  # Enable query transformation
