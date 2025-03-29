@@ -32,17 +32,31 @@ def callback():
 
 
 # Register the core commands that appear in the main help
-app.add_typer(ingest_app, name="ingest")
+
+# Add ingest commands for processing Help Center JSON data
+app.add_typer(
+    ingest_app, 
+    name="ingest", 
+    help="Process Help Center JSON data with specialized pipeline"
+)
+
+# Add document commands for managing general documents
+app.add_typer(
+    document_app, 
+    name="documents", 
+    help="Manage and view documents already in the system"
+)
+
+# Add search and question answering commands
 app.command("query")(query)
-app.command("info")(show_info)
-app.command("pipeline-feature-engineering")(run_feature_engineering)
 app.command("ask")(ask)
 
-# Add database commands under the db subcommand
-app.add_typer(db_app, name="db")
+# Add database management commands
+app.add_typer(db_app, name="db", help="Database maintenance and inspection tools")
 
-# Add document commands
-app.add_typer(document_app, name="documents")
+# Add utility commands
+app.command("info")(show_info)
+app.command("pipeline-feature-engineering")(run_feature_engineering)
 
 
 def main():
