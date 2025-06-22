@@ -1,4 +1,6 @@
 /output
+.venv
+.zen
 
 # Based on https://raw.githubusercontent.com/github/gitignore/main/Node.gitignore
 
@@ -178,3 +180,7 @@ dist
 
 # Python stuff
 *.pyc
+
+# Database
+data/
+qdrant_data/

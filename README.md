@@ -1,18 +1,151 @@
-# Epic Documentation CLI
+# Epic Documentation RAG System
 
-A command-line tool to crawl the Applied Systems Epic documentation and compile it into a single markdown file.
+This project contains tools for working with Applied Epic insurance agency management system documentation, with a focus on providing a powerful retrieval-augmented generation (RAG) system based on Anthropic's Contextual Retrieval methodology.
+
+Applied Epic is a comprehensive insurance agency management system used by insurance agencies and brokerages to manage:
+1. Client and policy information
+2. Quotes and proposals
+3. Certificates and proofs of insurance
+4. Agency communications (email, fax)
+5. Accounting and billing operations
+
+The primary components of this system are:
+
+1. **HTML to Markdown Converter**: A Python tool for preprocessing HTML docs
+2. **Epic Documentation RAG System**: A retrieval system with contextual enrichment
+3. **CLI Interface**: A command-line interface for interacting with the system
 
 ## Features
 
-- Crawls the Epic documentation website
-- Extracts all documentation content
-- Downloads screenshots and images, saving them locally
-- Converts HTML to clean Markdown with local image references
-- Preserves document structure and hierarchy
-- Generates a comprehensive table of contents
-- Outputs everything to a single searchable markdown file
-- Condenses markdown to fit in LLM context windows
-- Estimates token counts for different LLM models
+- **Data Ingestion Pipeline**: Converts HTML to Markdown, chunks documents, and stores them in databases
+- **Contextual Enrichment**: LLM-based context description generation to enhance retrieval
+- **Hybrid Search**: Combines vector and lexical search for better results
+- **Rank Fusion**: Merges results from different search techniques
+- **Reranking**: Fine-tunes result ordering with cross-encoders
+
+## Architecture Overview
+
+The system is built on Domain-Driven Design principles with distinct layers:
+
+1. **Domain Layer**: Core models and interface definitions
+2. **Application Layer**: Use cases and business logic
+3. **Infrastructure Layer**: Technical implementations of the domain interfaces
+4. **Interface Layer**: CLI and API interfaces for user interaction
+
+```mermaid
+flowchart TD
+    A[User Query] --> B{Query Transformation}
+    B -->|Optional LLM transform| C[Transformed Query]
+    B -->|Direct| D[Original Query]
+    
+    subgraph "Parallel Search"
+        E[Vector Search]
+        F[BM25 Lexical Search]
+    end
+    
+    C --> E
+    C --> F
+    D --> E
+    D --> F
+    
+    E --> G[Vector Results]
+    F --> H[BM25 Results]
+    
+    G --> I[Rank Fusion]
+    H --> I
+    
+    I --> J[Fused Results]
+    J --> K{Reranking}
+    K -->|Enabled| L[Cross-Encoder Reranking]
+    K -->|Disabled| M[Final Results]
+    L --> M
+    
+    M --> N[Display Results with Metrics]
+```
+
+## Contextual Enrichment
+
+This system uses Anthropic's contextual enrichment technique to improve retrieval quality. When a document is ingested:
+
+1. The document is chunked into manageable segments
+2. For each chunk, an LLM generates a short context description
+3. This context is added to both the chunk metadata and prepended to the content
+4. The enriched chunks are then embedded and stored in the vector database
+
+Benefits of contextual enrichment:
+- Improved retrieval quality, especially for natural language queries
+- Better understanding of document structure and relationships
+- Enhanced semantic matching between queries and documents
+
+## CLI Commands
+
+The system provides a comprehensive CLI interface for interacting with the RAG system:
+
+```bash
+# Basic query with default settings (hybrid search)
+./rag query "How do I access my email in Epic?"
+
+# Ask a question and get an answer using RAG
+./rag ask "How do I set up faxing in Epic?"
+
+# Show database statistics
+./rag db info
+
+# List documents in the database
+./rag db list-documents
+
+# View a specific document
+./rag db inspect-document --title "Email"
+
+# Ingest new documents
+./rag documents ingest --source-dir ./data/markdown
+```
+
+## Installation and Setup
+
+1. Install Python dependencies:
+   ```bash
+   uv install -e .
+   ```
+
+2. Install TypeScript dependencies (for the HTML to MD converter):
+   ```bash
+   bun install
+   ```
+
+3. Set up environment variables:
+   ```bash
+   export EPIC_RAG_EMBEDDING_PROVIDER=huggingface
+   export EPIC_RAG_LLM_PROVIDER=ollama
+   export EPIC_RAG_LLM_MODEL=llama3.1
+   ```
+
+4. Reset the database (if needed):
+   ```bash
+   just reset
+   ```
+
+5. Run the CLI:
+   ```bash
+   ./rag --help
+   ```
+
+## RAG System Features
+
+- Retrieval-Augmented Generation using Anthropic's Contextual Retrieval methodology
+- Domain-driven design with clean architecture
+- Dynamic document chunking optimized for context retrieval
+- Two-stage retrieval process for better query accuracy
+- Hybrid search combining BM25 (lexical) and vector (semantic) search with rank fusion
+- Multiple BM25 implementations (rank-bm25 and Huggingface's bm25s)
+- Cross-encoder reranking for improved result relevance scoring (mixedbread-ai/mxbai-rerank-large-v1)
+- Query transformation using local LLMs (Ollama integration with gemma3:27b)
+- Multiple embedding providers (HuggingFace E5-large-v2, OpenAI, Google Gemini)
+- Efficient two-level embedding caching (memory + disk)
+- Qdrant vector database integration
+- SQLite document store with JSON support
+- ZenML pipeline orchestration
+- Command-line interface with Rich formatting
 
 ## Installation
 
@@ -148,6 +281,296 @@ epic-help count <file-path>
 - Typecheck: `bun x tsc --noEmit`
 - Format: `bun x prettier --write "**/*.{ts,js,json}"`
 - Lint: `bun run lint`
+
+## HTML to Markdown Converter Usage
+
+The HTML to Markdown converter is optimized for Epic documentation structure.
+
+```bash
+# Basic conversion from a JSON file
+python -m html2md convert --file path/to/epic/docs.json
+
+# Convert a specific page by ID
+python -m html2md convert --file path/to/epic/docs.json --page-id 12345
+
+# List available pages in the JSON file
+python -m html2md list --file path/to/epic/docs.json
+
+# Show tool information
+python -m html2md info
+```
+
+The converter provides special preprocessing for:
+- Nested lists (fixing indentation issues)
+- Inline styles (converting to semantic HTML)
+- Image paths (resolving to local references)
+- Link handling (processing local references)
+
+## RAG System Usage
+
+The RAG system builds on the converted documentation to provide intelligent retrieval of Epic documentation.
+
+### Project Structure
+
+```
+epic_rag/
+├── domain/                 # Core business logic and entities
+│   ├── models/             # Domain entities
+│   ├── repositories/       # Data access interfaces
+│   └── services/           # Business logic interfaces
+├── application/            # Use cases and orchestration
+│   ├── pipelines/          # ZenML pipelines
+│   └── use_cases/          # Application use cases
+├── infrastructure/         # Technical implementations
+│   ├── config/             # Configuration
+│   ├── embedding/          # Vector database implementations
+│   └── persistence/        # Data persistence implementations
+└── interfaces/             # User interfaces
+    └── cli/                # Command-line interface
+```
+
+### Contextual Retrieval Methodology
+
+This system implements Anthropic's Contextual Retrieval approach, which improves upon standard RAG systems by:
+
+1. **Two-Stage Retrieval**: Initial broader retrieval followed by a more focused retrieval
+2. **BM25 + Vector Hybrid Search**: Combining lexical (exact keyword) and semantic (vector) search with rank fusion
+3. **Cross-Encoder Reranking**: Using a dedicated reranker model to improve result relevance scoring
+4. **Dynamic Chunk Sizing**: Intelligently determining chunk sizes based on content
+5. **Context-Aware Merging**: Combining retrieved chunks based on semantic relatedness
+6. **Relevance Filtering**: Using similarity scores to filter retrieved chunks by relevance
+7. **Query Transformation**: Rewriting queries to better match document corpus semantics using LLMs
+8. **Contextual Enrichment**: Using LLMs to generate context for chunks before embedding
+
+### Basic Usage
+
+```bash
+# Install the RAG system
+pip install -e .
+
+# Ingest documents
+epic-rag ingest --source-dir data/markdown
+
+# Query the system
+epic-rag query "How do I set up faxing for my agency?"
+
+# Show system information
+epic-rag info
+
+# Test the embedding service
+epic-rag test-embed "How do I renew a certificate in Epic?"
+
+# Compare text similarity
+epic-rag test-embed "How do I compare quotes?" --compare "What's the process for generating a proposal?"
+
+# Visualize document chunks
+epic-rag chunks --file data/markdown/email.md --dynamic
+```
+
+### Testing Database and Embeddings
+
+```bash
+# Test the database
+epic-rag test-db
+
+# Test with the default embedding provider (HuggingFace)
+epic-rag test-embed "This is a test of the embedding service"
+
+# Test with local HuggingFace model on GPU
+epic-rag test-embed "This is a test of the embedding service" --provider huggingface
+
+# Test with a specific provider (OpenAI)
+epic-rag test-embed "This is a test of the embedding service" --provider openai
+
+# Test with Gemini embeddings
+epic-rag test-embed "This is a test of the embedding service" --provider gemini
+
+# Test query transformation using local LLM
+epic-rag transform-query "How do I access my email in Epic?"
+
+# Test query transformation with a specific model
+epic-rag transform-query "How do I compare insurance quotes for a client?" --model gemma3:27b
+
+# Test BM25 search (lexical/keyword search)
+epic-rag bm25 "renew certificate insurance client"
+
+# Test BM25 search with full content display
+epic-rag bm25 "faxing setup configuration" --full-content
+
+# Test hybrid search combining BM25 and vector search
+epic-rag hybrid-search "How do I configure VINlink Decoder for my account?"
+
+# Test hybrid search with detailed output
+epic-rag hybrid-search "How do I prepare an insurance proposal with multiple carriers?" --show-separate
+
+# Test hybrid search with custom weights
+epic-rag hybrid-search "quote results comparison carrier" --bm25-weight 0.6 --vector-weight 0.4
+
+# Test with reranking enabled
+epic-rag hybrid-search "How do I set up faxing for my agency?" --rerank
+
+# Compare semantic similarity between texts using local model
+epic-rag test-embed "Applied Epic is an insurance agency management system" --compare "Applied Epic helps brokers manage policies and clients"
+
+# Compare using Gemini
+epic-rag test-embed "Applied Epic is an insurance agency management system" --compare "Applied Epic helps brokers manage policies and clients" --provider gemini
+
+# Compare using OpenAI
+epic-rag test-embed "Applied Epic is an insurance agency management system" --compare "Applied Epic helps brokers manage policies and clients" --provider openai
+
+# View cache statistics
+epic-rag cache stats
+
+# Clear cache entries older than 7 days
+epic-rag cache clear --days 7
+```
+
+### Environment Variables
+
+The system uses the following environment variables:
+
+```
+# API Keys for embeddings (choose one or both)
+OPENAI_API_KEY=your_openai_api_key
+GEMINI_API_KEY=your_gemini_api_key
+
+# Embedding configuration
+EPIC_RAG_EMBEDDING_PROVIDER=huggingface  # or openai, gemini
+EPIC_RAG_EMBEDDING_API_KEY=your_embedding_api_key  # for cloud providers
+
+# LLM configuration for query transformation
+EPIC_RAG_LLM_PROVIDER=ollama  # Local LLM provider
+EPIC_RAG_LLM_MODEL=gemma3:27b  # Model to use for transformations
+
+# Provider-specific model configuration
+EPIC_RAG_OPENAI_EMBEDDING_MODEL=text-embedding-3-small
+EPIC_RAG_GEMINI_EMBEDDING_MODEL=gemini-embedding-exp-03-07
+EPIC_RAG_HUGGINGFACE_MODEL=intfloat/e5-large-v2
+
+# HuggingFace specific settings (for local embeddings)
+EPIC_RAG_EMBEDDING_DEVICE=cuda  # cuda, cpu, mps
+
+# Embedding cache settings
+EPIC_RAG_CACHE_ENABLED=true  # Enable caching of embeddings
+EPIC_RAG_CACHE_MEMORY_SIZE=1000  # Number of entries to keep in memory
+EPIC_RAG_CACHE_EXPIRATION_DAYS=30  # Embeddings expire after this many days
+EPIC_RAG_CACHE_CLEAR_ON_STARTUP=false  # Whether to clear expired entries on startup
+
+# Retrieval configuration
+EPIC_RAG_FIRST_STAGE_K=20  # Number of results in first stage
+EPIC_RAG_SECOND_STAGE_K=5  # Number of results in second stage
+EPIC_RAG_MIN_RELEVANCE_SCORE=0.7  # Minimum relevance score for filtering
+EPIC_RAG_ENABLE_BM25=true  # Enable BM25 search
+# Using BM25S for lexical search (Huggingface's optimized implementation)
+EPIC_RAG_BM25_WEIGHT=0.4  # Weight for BM25 results in hybrid search
+EPIC_RAG_VECTOR_WEIGHT=0.6  # Weight for vector results in hybrid search
+EPIC_RAG_ENABLE_QUERY_TRANSFORMATION=true  # Enable query transformation
+EPIC_RAG_ENABLE_CHUNK_MERGING=true  # Enable merging of related chunks
+EPIC_RAG_ENABLE_CONTEXTUAL_ENRICHMENT=true  # Enable LLM-based contextual enrichment for chunks
+
+# Reranker configuration
+EPIC_RAG_RERANKER_ENABLED=false  # Enable cross-encoder reranking
+EPIC_RAG_RERANKER_MODEL=mixedbread-ai/mxbai-rerank-large-v1  # Reranker model to use
+EPIC_RAG_RERANKER_TOP_K=10  # Maximum number of results to return after reranking
+
+# Qdrant configuration (optional for remote Qdrant)
+EPIC_RAG_QDRANT_URL=https://your-qdrant-instance.com
+EPIC_RAG_QDRANT_API_KEY=your_qdrant_api_key
+EPIC_RAG_QDRANT_COLLECTION=epic_docs
+```
+
+### ZenML Pipelines
+
+The system uses ZenML for pipeline orchestration, providing several pipelines for different needs:
+
+#### Running Pipelines with CLI
+
+Use the built-in CLI command to run ZenML pipelines:
+
+```bash
+# Run the orchestration pipeline (full workflow)
+epic-rag zenml-run --source-dir data/markdown --pipeline orchestration
+
+# Run only the document processing pipeline
+epic-rag zenml-run --source-dir data/markdown --pipeline document_processing
+
+# Run only the query evaluation pipeline
+epic-rag zenml-run --source-dir data/markdown --query-file data/test_queries.txt --pipeline query_evaluation
+
+# Run with custom parameters
+epic-rag zenml-run --source-dir data/markdown --pattern "**/*.md" --limit 10 --min-chunk-size 400 --max-chunk-size 900
+
+# Run with contextual enrichment disabled
+epic-rag zenml-run --source-dir data/markdown --pipeline document_processing --skip-enrichment
+```
+
+#### Running Pipelines Directly
+
+You can also run the pipelines directly using Python:
+
+```bash
+# Run document processing pipeline
+python -m epic_rag.application.pipelines.document_processing_pipeline \
+  --source-dir data/markdown \
+  --dynamic-chunking
+
+# Run query evaluation pipeline
+python -m epic_rag.application.pipelines.query_evaluation_pipeline \
+  --query-file data/test_queries.txt
+
+# Run orchestration pipeline
+python -m epic_rag.application.pipelines.orchestration_pipeline \
+  --source-dir data/markdown
+```
+
+#### Pipeline Overview
+
+1. **Feature Engineering Pipeline**: End-to-end processing from HTML to vector database
+2. **Document Processing Pipeline**: Handles document loading, preprocessing, chunking, contextual enrichment, and ingestion
+3. **Query Evaluation Pipeline**: Evaluates query performance against a test set
+4. **Orchestration Pipeline**: Combines all steps in an end-to-end workflow
+
+#### Feature Engineering Pipeline
+
+The feature engineering pipeline processes documents directly from the HTML-to-Markdown converter output:
+
+```bash
+# Process all documents with the feature engineering pipeline
+epic-rag pipeline feature-engineering
+
+# Process a single document
+epic-rag pipeline feature-engineering --index 0
+
+# Process a batch of documents
+epic-rag pipeline feature-engineering --offset 0 --limit 10
+
+# Test without saving to database
+epic-rag pipeline feature-engineering --index 0 --dry-run
+
+# Skip contextual enrichment or image descriptions
+epic-rag pipeline feature-engineering --no-enrich --no-images
+```
+
+The pipeline handles these steps:
+1. Converting HTML to Markdown
+2. Chunking documents with dynamic sizing
+3. Adding context for each chunk
+4. Adding image descriptions where applicable
+5. Loading chunks to the document store
+6. Embedding chunks and loading to the vector database
+
+#### Managing ZenML
+
+```bash
+# View pipeline runs
+zenml pipeline runs list
+
+# Get details about a specific run
+zenml pipeline runs describe <run-id>
+
+# View ZenML dashboard (if running with server)
+zenml up
+```
 
 ## License
 

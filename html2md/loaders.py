@@ -1,7 +1,6 @@
 """Loaders for Epic documentation data."""
 
 import json
-import sys
 from typing import Dict, Any, List, Tuple, Optional
 
 
@@ -44,7 +43,7 @@ def load_from_json_file(
         raise ValueError("Invalid JSON structure - 'pages' list not found")
 
     pages = data["pages"]
-    
+
     if index < 0 or index >= len(pages):
         raise ValueError(f"Index {index} out of range (0-{len(pages)-1})")
 

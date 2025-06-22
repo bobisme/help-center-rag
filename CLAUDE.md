@@ -1,7 +1,8 @@
-# Development Guidelines for scrape-epic-docs
+# Development Guidelines for Epic Documentation RAG System
 
 ## Commands
 
+### Bun/TypeScript Commands (HTML to Markdown Conversion)
 - Install: `bun install`
 - Run: `bun run index.ts`
 - Run HTML to Markdown converter: `bun run src/scripts/json-to-markdown.ts`
@@ -13,41 +14,80 @@
   - No images: `bun run src/scripts/parallel-json-crawler.ts --no-images`
 - Typecheck: `bun x tsc --noEmit`
 - Format: `bun x prettier --write "**/*.{ts,js,json}"`
-- Python Format: `black`
+
+### Python RAG System Commands
+- Python Format: `black epic_rag/**/*.py`
+- Python Lint: `flake8 --max-complexity 10 --max-line-length 88 epic_rag/`
 - Python dependencies: `uv add ...`
+- Reset Database: `just reset`
+- Run Evaluation: `just evaluate`
+- Test Enrichment: `just enrich-simple`
+- Generate Insurance Enrichment: `just enrich-insurance`
+- Process Sample Docs: `just process-samples`
+
+### Query Testing Commands
+- Basic Query: `just query "How do I access my email in Epic?"`
+- Hybrid Search: `just hybrid "How do I compare insurance quotes?"`
+- BM25 Search: `just bm25 "How to renew a certificate?"`
+- Full BM25 Output: `just bm25-full "How do I set up faxing?"`
 
 ## Project Structure
 
+### TypeScript Document Processing
 - **src/index.ts**: Main entry point that shows available scripts
-- **src/scripts/**: Contains individual tools for the documentation processing pipeline
+- **src/scripts/**: Contains tools for the documentation processing pipeline
   - **parallel-json-crawler.ts**: Scrapes Epic docs website and outputs to JSON with images
   - **json-to-markdown.ts**: Converts scraped JSON to markdown format with local image references
   - **condense-markdown.ts**: Reduces markdown content to fit within context windows
   - **count-tokens.ts**: Estimates token counts for LLM context windows
 
-## Processing Pipeline
+### Python RAG System
+- **epic_rag/**: Main package for the RAG system
+  - **application/**: Application layer with business logic
+    - **pipelines/**: ZenML pipelines for document processing and evaluation
+    - **use_cases/**: Core application use cases (ingest, retrieve, enrich)
+  - **domain/**: Domain layer with core models and interfaces
+    - **models/**: Domain models (Document, Chunk, etc.)
+    - **repositories/**: Repository interfaces
+    - **services/**: Service interfaces (chunking, embedding, retrieval)
+  - **infrastructure/**: Infrastructure implementations
+    - **config/**: System configuration
+    - **container.py**: Dependency injection container
+    - **document_processing/**: Document processing implementations
+    - **embedding/**: Vector store implementations
+    - **llm/**: LLM service implementations
+  - **interfaces/**: User interfaces
+    - **cli/**: Command line interface
 
-1. **Crawl**: Use parallel-json-crawler to scrape the Epic docs and download images (outputs epic-docs.json and images directory)
-2. **Convert**: Use json-to-markdown to convert HTML to markdown with local image references (outputs epic-docs.md)
-3. **Condense**: Use condense-markdown to reduce content size (outputs epic-docs-condensed.md)
-4. **Count**: Use count-tokens to verify it fits in target context window
+## About Epic Help Documentation
+
+This project is focused on the Applied Epic insurance agency management system documentation. Applied Epic is a comprehensive system used by insurance agencies to manage:
+
+1. Client and policy information
+2. Quotes and proposals
+3. Certificates and proofs of insurance
+4. Agency communications (email, fax)
+5. Accounting and billing operations
+
+The RAG system enhances search and retrieval by adding contextual enrichment to document chunks, improving relevance for natural language queries about insurance operations.
+
+## Contextual Enrichment Approach
+
+Our RAG system implements Anthropic's contextual retrieval methodology:
+
+1. Documents are chunked into manageable segments
+2. LLM generates a context description for each chunk
+3. The context + chunk are embedded and stored in vector database
+4. Retrieval quality is improved, especially for natural language queries
+5. Evaluation shows improved ranking and relevance scores
 
 ## Code Style
 
 - **TypeScript**: Use strict mode with ESNext features
-- **Imports**: Use ESM format (import/export)
-- **Formatting**: 2-space indentation, trailing commas
-- **Naming**: camelCase for variables/functions, PascalCase for classes/types
-- **Error Handling**: Use try/catch blocks for async operations
-- **Types**: Prefer explicit return types on functions
-- **Async**: Use async/await pattern over raw promises
-- **Comments**: JSDoc for public APIs, inline for complex logic
-- **File Structure**: One component/concept per file
-- **Bun APIs**: Utilize Bun-specific APIs for performance when appropriate
-
-## Notes on HTML to Markdown Conversion
-
-- The project uses TurndownService with custom rules for handling complex HTML
-- Special handling has been added for nested lists (bullet points within numbered lists)
-- Additional post-processing is applied to ensure proper markdown formatting
+- **Python**: Follow PEP 8 guidelines with a max line length of 88
+- **Domain-Driven Design**: Organize code by domain concepts with clear boundaries
+- **Asynchronous Programming**: Use async/await patterns in both Python and TypeScript
+- **Dependency Injection**: Use container for service registration and resolution
+- **Error Handling**: Proper exception handling with meaningful error messages
+- **Documentation**: Docstrings for public APIs, inline comments for complex logic
 
