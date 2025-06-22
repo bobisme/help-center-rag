@@ -39,29 +39,35 @@ def is_error_page(markdown: str, title: str) -> bool:
         "This XML file does not appear to have any style information",
         "The document tree is shown below",
         "RequestId",
-        "HostId"
+        "HostId",
     ]
-    
+
     # Check for untitled pages with error content
-    if title.lower() in ["untitled", "untitled page"] and any(indicator in markdown for indicator in error_indicators):
+    if title.lower() in ["untitled", "untitled page"] and any(
+        indicator in markdown for indicator in error_indicators
+    ):
         return True
-    
+
     # Check for pages that are mostly error content
     error_count = sum(1 for indicator in error_indicators if indicator in markdown)
     if error_count >= 3:  # Multiple error indicators suggest it's an error page
         return True
-    
+
     # Check if the page is very short and contains error indicators
-    if len(markdown.strip()) < 500 and any(indicator in markdown for indicator in error_indicators):
+    if len(markdown.strip()) < 500 and any(
+        indicator in markdown for indicator in error_indicators
+    ):
         return True
-    
+
     return False
 
 
 @app.command("convert")
 def convert(
     index: int = typer.Option(0, "--index", "-i", help="Index of the page to convert"),
-    all_pages: bool = typer.Option(False, "--all", help="Convert all pages in the JSON file"),
+    all_pages: bool = typer.Option(
+        False, "--all", help="Convert all pages in the JSON file"
+    ),
     images_dir: str = typer.Option(
         "output/images",
         "--images",
@@ -102,16 +108,30 @@ def convert(
     """Convert HTML to Markdown."""
     # Validate options
     if all_pages and html_file:
-        console.print("[red]Error:[/red] Cannot use --all with --html-file", style="bold red")
+        console.print(
+            "[red]Error:[/red] Cannot use --all with --html-file", style="bold red"
+        )
         raise typer.Exit(code=1)
-    
+
     # When using --all with --output-dir, require output_dir to be specified
-    if all_pages and output_dir and not os.path.exists(os.path.dirname(output_dir) if os.path.dirname(output_dir) else "."):
-        console.print(f"[red]Error:[/red] Parent directory for --output-dir does not exist", style="bold red")
+    if (
+        all_pages
+        and output_dir
+        and not os.path.exists(
+            os.path.dirname(output_dir) if os.path.dirname(output_dir) else "."
+        )
+    ):
+        console.print(
+            f"[red]Error:[/red] Parent directory for --output-dir does not exist",
+            style="bold red",
+        )
         raise typer.Exit(code=1)
-    
+
     if all_pages and output_dir and output_file:
-        console.print("[red]Error:[/red] Cannot use both --output-dir and --output with --all", style="bold red")
+        console.print(
+            "[red]Error:[/red] Cannot use both --output-dir and --output with --all",
+            style="bold red",
+        )
         raise typer.Exit(code=1)
 
     # Check images directory
@@ -131,102 +151,142 @@ def convert(
             # Process all pages
             with open(input_file, "r") as f:
                 data: Dict[str, Any] = json.load(f)
-            
+
             if not data.get("pages") or not isinstance(data["pages"], list):
-                console.print(f"[red]Error:[/red] Invalid JSON structure in {input_file}")
+                console.print(
+                    f"[red]Error:[/red] Invalid JSON structure in {input_file}"
+                )
                 raise typer.Exit(code=1)
-            
+
             pages = data["pages"]
             total_pages = len(pages)
-            
-            console.print(f"Converting [green]{total_pages}[/green] pages from [cyan]{input_file}[/cyan]")
-            
+
+            console.print(
+                f"Converting [green]{total_pages}[/green] pages from [cyan]{input_file}[/cyan]"
+            )
+
             if output_dir:
                 # Individual files output
                 with Progress(console=console) as progress:
-                    task = progress.add_task("[green]Converting pages...", total=total_pages)
-                    
+                    task = progress.add_task(
+                        "[green]Converting pages...", total=total_pages
+                    )
+
                     for i, page in enumerate(pages):
                         try:
                             # Load content for this page
                             raw_html, title, _ = load_from_json_file(input_file, i)
-                            
+
                             # Convert to markdown
                             markdown = convert_html_to_markdown(
-                                raw_html, images_dir=images_dir, heading_style=heading_style, wrap=wrap
+                                raw_html,
+                                images_dir=images_dir,
+                                heading_style=heading_style,
+                                wrap=wrap,
                             )
-                            
+
                             # Skip error pages
                             if is_error_page(markdown, title):
-                                console.print(f"[yellow]Skipping error page:[/yellow] {title}")
+                                console.print(
+                                    f"[yellow]Skipping error page:[/yellow] {title}"
+                                )
                                 progress.update(task, advance=1)
                                 continue
-                            
+
                             # Generate safe filename
-                            safe_title = "".join(c for c in title if c.isalnum() or c in (' ', '-', '_')).rstrip()
-                            safe_title = safe_title.replace(' ', '_')[:50]  # Limit length
+                            safe_title = "".join(
+                                c for c in title if c.isalnum() or c in (" ", "-", "_")
+                            ).rstrip()
+                            safe_title = safe_title.replace(" ", "_")[
+                                :50
+                            ]  # Limit length
                             filename = f"{i:03d}_{safe_title}.md"
                             filepath = os.path.join(output_dir, filename)
-                            
+
                             # Save markdown
                             with open(filepath, "w") as f:
                                 f.write(markdown)
-                            
-                            progress.update(task, advance=1, description=f"[green]Converted: {title[:30]}...")
-                        
+
+                            progress.update(
+                                task,
+                                advance=1,
+                                description=f"[green]Converted: {title[:30]}...",
+                            )
+
                         except Exception as e:
-                            console.print(f"[yellow]Warning:[/yellow] Failed to convert page {i}: {e}")
+                            console.print(
+                                f"[yellow]Warning:[/yellow] Failed to convert page {i}: {e}"
+                            )
                             progress.update(task, advance=1)
                             continue
-                
-                console.print(f"[green]Conversion complete![/green] Files saved to [cyan]{output_dir}[/cyan]")
-            
+
+                console.print(
+                    f"[green]Conversion complete![/green] Files saved to [cyan]{output_dir}[/cyan]"
+                )
+
             else:
                 # Single file output (to file or stdout)
                 all_markdown = []
-                
+
                 with Progress(console=console) as progress:
-                    task = progress.add_task("[green]Converting pages...", total=total_pages)
-                    
+                    task = progress.add_task(
+                        "[green]Converting pages...", total=total_pages
+                    )
+
                     for i, page in enumerate(pages):
                         try:
                             # Load content for this page
                             raw_html, title, _ = load_from_json_file(input_file, i)
-                            
+
                             # Convert to markdown
                             markdown = convert_html_to_markdown(
-                                raw_html, images_dir=images_dir, heading_style=heading_style, wrap=wrap
+                                raw_html,
+                                images_dir=images_dir,
+                                heading_style=heading_style,
+                                wrap=wrap,
                             )
-                            
+
                             # Skip error pages
                             if is_error_page(markdown, title):
-                                console.print(f"[yellow]Skipping error page:[/yellow] {title}")
+                                console.print(
+                                    f"[yellow]Skipping error page:[/yellow] {title}"
+                                )
                                 progress.update(task, advance=1)
                                 continue
-                            
+
                             # Add separator between pages (don't add title since it's already in the markdown)
                             page_markdown = f"{markdown}\n\n---\n\n"
                             all_markdown.append(page_markdown)
-                            
-                            progress.update(task, advance=1, description=f"[green]Converted: {title[:30]}...")
-                        
+
+                            progress.update(
+                                task,
+                                advance=1,
+                                description=f"[green]Converted: {title[:30]}...",
+                            )
+
                         except Exception as e:
-                            console.print(f"[yellow]Warning:[/yellow] Failed to convert page {i}: {e}")
+                            console.print(
+                                f"[yellow]Warning:[/yellow] Failed to convert page {i}: {e}"
+                            )
                             progress.update(task, advance=1)
                             continue
-                
+
                 # Write combined markdown
                 combined_markdown = "".join(all_markdown)
-                
+
                 if output_file:
                     with open(output_file, "w") as f:
                         f.write(combined_markdown)
-                    console.print(f"[green]Conversion complete![/green] Combined file saved to [cyan]{output_file}[/cyan]")
+                    console.print(
+                        f"[green]Conversion complete![/green] Combined file saved to [cyan]{output_file}[/cyan]"
+                    )
                 else:
                     # Print to stdout
                     sys.stdout.write(combined_markdown)
-                    console.print(f"[green]Conversion complete![/green] Combined markdown printed to stdout")
-            
+                    console.print(
+                        f"[green]Conversion complete![/green] Combined markdown printed to stdout"
+                    )
+
         else:
             # Process single page (existing logic)
             with Progress(console=console) as progress:
@@ -239,9 +299,13 @@ def convert(
                     console.print(f"Loading HTML from [cyan]{html_file}[/cyan]")
                 else:
                     raw_html, title, _ = load_from_json_file(input_file, index)
-                    console.print(f"Processing page: [cyan]{title}[/cyan] (index: {index})")
+                    console.print(
+                        f"Processing page: [cyan]{title}[/cyan] (index: {index})"
+                    )
 
-                progress.update(task, advance=1, description="[green]Preprocessing HTML...")
+                progress.update(
+                    task, advance=1, description="[green]Preprocessing HTML..."
+                )
 
                 # Step 2: Preprocess HTML
                 processed_html = preprocess_html(raw_html, images_dir)
@@ -250,7 +314,9 @@ def convert(
                 if save_html:
                     with open(save_html, "w") as f:
                         f.write(processed_html)
-                    console.print(f"Preprocessed HTML saved to [cyan]{save_html}[/cyan]")
+                    console.print(
+                        f"Preprocessed HTML saved to [cyan]{save_html}[/cyan]"
+                    )
 
                 progress.update(
                     task, advance=1, description="[green]Converting to Markdown..."
@@ -258,10 +324,15 @@ def convert(
 
                 # Step 3: Convert to markdown
                 markdown = convert_html_to_markdown(
-                    raw_html, images_dir=images_dir, heading_style=heading_style, wrap=wrap
+                    raw_html,
+                    images_dir=images_dir,
+                    heading_style=heading_style,
+                    wrap=wrap,
                 )
 
-                progress.update(task, advance=1, description="[green]Conversion complete!")
+                progress.update(
+                    task, advance=1, description="[green]Conversion complete!"
+                )
 
             # Output markdown
             if output_file:

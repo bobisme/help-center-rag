@@ -34,6 +34,11 @@ dependencies = [
   "typer>=0.15.2",
   "zenml[server]>=0.80",
   "pyright>=1.1.397",
+  "scikit-learn>=1.6.1",
+  "matplotlib>=3.10.3",
+  "seaborn>=0.13.2",
+  "numpy>=2.2.4",
+  "pandas>=2.3.0",
 ]
 
 [dependency-groups]
