@@ -184,3 +184,4 @@ dist
 # Database
 data/
 qdrant_data/
+analysis_output
