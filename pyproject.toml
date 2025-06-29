@@ -1,7 +1,7 @@
 [project]
-name = "epic-help"
+name = "help-center-rag"
 version = "0.1.0"
-description = "Epic Documentation RAG System using Anthropic's Contextual Retrieval methodology"
+description = "Generic Help Center Documentation RAG System using Anthropic's Contextual Retrieval methodology"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
@@ -53,4 +53,4 @@ dev = [
 ]
 
 # [project.scripts]
-# epic-rag = "epic_rag.interfaces.cli.main:app"
+# help-rag = "help_rag.interfaces.cli.main:app"

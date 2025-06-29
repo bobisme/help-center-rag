@@ -1,10 +1,10 @@
 set shell := ["bash", "-c"]
 
 fmt:
-  black "epic_rag/**/*.py"
+  black "help_rag/**/*.py"
 
 lint:
-  flake8 --max-complexity 10 --max-line-length 88 epic_rag/
+  flake8 --max-complexity 10 --max-line-length 88 help_rag/
 
 # Run all tests
 test:
@@ -22,27 +22,27 @@ test-html2md:
 reset:
     #!/usr/bin/env bash
     echo "Removing existing databases..."
-    rm -rf data/epic_rag.db qdrant_data
+    rm -rf data/help_rag.db qdrant_data
     echo "Creating data directories if they don't exist..."
     mkdir -p data/markdown data/output
     echo "Database reset complete."
 
 # Test query transformation with default model
 transform-test:
-    python -m epic_rag.interfaces.cli.main transform-query "How do I set up faxing for my agency?"
+    python -m help_rag.interfaces.cli.main transform-query "How do I configure notifications?"
 
 # Test various query transformations with different models
 transform-email:
-    python -m epic_rag.interfaces.cli.main transform-query "How do I access my email in Epic?" --model gemma3:27b
+    python -m help_rag.interfaces.cli.main transform-query "How do I access my email?" --model gemma3:27b
 
 transform-quotes:
-    python -m epic_rag.interfaces.cli.main transform-query "How do I compare insurance quotes for a client?" --model gemma3:27b
+    python -m help_rag.interfaces.cli.main transform-query "How do I compare different options?" --model gemma3:27b
 
 transform-certificate:
-    python -m epic_rag.interfaces.cli.main transform-query "What are the steps to renew a certificate?" --model gemma3:27b
+    python -m help_rag.interfaces.cli.main transform-query "What are the steps to renew my subscription?" --model gemma3:27b
 
 transform-vinlink:
-    python -m epic_rag.interfaces.cli.main transform-query "How do I set up VINlink Decoder for my account?" --model gemma3:27b
+    python -m help_rag.interfaces.cli.main transform-query "How do I set up integrations for my account?" --model gemma3:27b
 
 # Test full query with transformed queries
 query q:
@@ -126,7 +126,7 @@ process-samples:
 
 # Simple test that directly shows enrichment results
 enrich-simple:
-    python -m epic_rag.interfaces.cli.main test-enrichment test/samples/email.md
+    python -m help_rag.interfaces.cli.main test-enrichment test/samples/email.md
     
 # Test enrichment on a document by ID (use ID from previous output)
 test-enrichment id:
@@ -134,111 +134,111 @@ test-enrichment id:
 
 # Test enrichment with custom file
 enrich:
-    python -m epic_rag.interfaces.cli.main test-enrichment test/samples/email.md --max-chunks 3
+    python -m help_rag.interfaces.cli.main test-enrichment test/samples/email.md --max-chunks 3
 
 # Evaluate the impact of contextual enrichment on retrieval quality
 evaluate-enrichment:
-    python -m epic_rag.interfaces.cli.main evaluate-enrichment test/samples/quote-results.md
+    python -m help_rag.interfaces.cli.main evaluate-enrichment test/samples/quote-results.md
 
 # Run evaluation of contextual enrichment impact
 evaluate:
-    python -m epic_rag.interfaces.cli.main manual-evaluation
+    python -m help_rag.interfaces.cli.main manual-evaluation
 
-# Generate enriched contexts for sample insurance docs
-enrich-insurance:
-    python -m epic_rag.interfaces.cli.main testing enrichment-demo
+# Generate enriched contexts for sample docs
+enrich-docs:
+    python -m help_rag.interfaces.cli.main testing enrichment-demo
 
 # Run interactive demo of contextual enrichment
 demo:
-    python -m epic_rag.interfaces.cli.main enrichment-demo
+    python -m help_rag.interfaces.cli.main enrichment-demo
 
 # Test image description generation
 image-describe:
-    python -m epic_rag.interfaces.cli.main image-describe --sample-limit 5
+    python -m help_rag.interfaces.cli.main image-describe --sample-limit 5
 
 # Test image description with a specific document
 image-describe-doc doc="test/samples/renew-a-certificate.md":
-    python -m epic_rag.interfaces.cli.main image-describe --doc-path "{{doc}}"
+    python -m help_rag.interfaces.cli.main image-describe --doc-path "{{doc}}"
 
 # Test image-enhanced contextual enrichment
 image-enrich doc="test/samples/renew-a-certificate.md":
-    python -m epic_rag.interfaces.cli.main images describe --doc-path "{{doc}}"
+    python -m help_rag.interfaces.cli.main images describe --doc-path "{{doc}}"
 
 # Test image enrichment with custom image size
 image-enrich-custom doc="test/samples/renew-a-certificate.md" size="128":
-    python -m epic_rag.interfaces.cli.main images describe --doc-path "{{doc}}" --min-size "{{size}}"
+    python -m help_rag.interfaces.cli.main images describe --doc-path "{{doc}}" --min-size "{{size}}"
 
 # Show full enriched chunks for a document
 show-chunks doc="test/samples/renew-a-certificate.md":
-    python -m epic_rag.interfaces.cli.main vis chunks --title "Certificate" --context-only
+    python -m help_rag.interfaces.cli.main vis chunks --title "Certificate" --context-only
 
 # Show full enriched chunks with custom parameters
 show-chunks-custom doc="test/samples/renew-a-certificate.md" chunk_size="600" overlap="50":
-    python -m epic_rag.interfaces.cli.main vis chunks --title "Certificate" --limit 10 --metadata
+    python -m help_rag.interfaces.cli.main vis chunks --title "Certificate" --limit 10 --metadata
 
 # Run standalone image description demo
 image-standalone doc="test/samples/renew-a-certificate.md":
-    python -m epic_rag.interfaces.cli.main images describe --doc-path "{{doc}}"
+    python -m help_rag.interfaces.cli.main images describe --doc-path "{{doc}}"
 
 # Run SmolVLM image description demo
 smolvlm-describe:
-    python -m epic_rag.interfaces.cli.main smolvlm-describe --sample-limit 5
+    python -m help_rag.interfaces.cli.main smolvlm-describe --sample-limit 5
 
 # Run SmolVLM image description with a specific document
 smolvlm-describe-doc doc="test/samples/renew-a-certificate.md":
-    python -m epic_rag.interfaces.cli.main smolvlm-describe --doc-path "{{doc}}"
+    python -m help_rag.interfaces.cli.main smolvlm-describe --doc-path "{{doc}}"
 
 # Compare image descriptions from Gemma and SmolVLM
 compare-descriptions doc="test/samples/renew-a-certificate.md" limit="3":
-    python -m epic_rag.interfaces.cli.main compare-descriptions --doc-path "{{doc}}" --sample-limit {{limit}}
+    python -m help_rag.interfaces.cli.main compare-descriptions --doc-path "{{doc}}" --sample-limit {{limit}}
     
 # Show chunks for a specific document
 show-doc-chunks title:
-    python -m epic_rag.interfaces.cli.main show-doc-chunks "{{title}}"
+    python -m help_rag.interfaces.cli.main show-doc-chunks "{{title}}"
     
 # Show chunks for a document with metadata
 show-doc-chunks-meta title:
-    python -m epic_rag.interfaces.cli.main show-doc-chunks "{{title}}" --metadata
+    python -m help_rag.interfaces.cli.main show-doc-chunks "{{title}}" --metadata
     
 # Show only the context added to chunks for a document
 show-doc-context title:
-    python -m epic_rag.interfaces.cli.main show-doc-chunks "{{title}}" --context-only
+    python -m help_rag.interfaces.cli.main show-doc-chunks "{{title}}" --context-only
     
 # Show specific document by ID
 show-doc-by-id id:
-    python -m epic_rag.interfaces.cli.main show-doc-by-id "{{id}}" --context-only
+    python -m help_rag.interfaces.cli.main show-doc-by-id "{{id}}" --context-only
 
 # Process help center documents using the CLI
 process-help-center count="10":
-    python -m epic_rag.interfaces.cli.main process-help-center --output-dir data/help_center --limit {{count}}
+    python -m help_rag.interfaces.cli.main process-help-center --output-dir data/help_center --limit {{count}}
 
 # List help center documents
 list-help-center limit="20":
-    python -m epic_rag.interfaces.cli.main list-help-center --limit {{limit}}
+    python -m help_rag.interfaces.cli.main list-help-center --limit {{limit}}
 
 # Process all help center documents (this will take a while)
 process-all-help-center:
-    python -m epic_rag.interfaces.cli.main process-help-center --output-dir data/help_center
+    python -m help_rag.interfaces.cli.main process-help-center --output-dir data/help_center
 
 # Process help center documents using pipeline components
 run-help-center count="10":
-    python -m epic_rag.interfaces.cli.main run-help-center --output-dir data/help_center --limit {{count}}
+    python -m help_rag.interfaces.cli.main run-help-center --output-dir data/help_center --limit {{count}}
 
 # Process all help center documents using pipeline components
 run-help-center-all:
-    python -m epic_rag.interfaces.cli.main run-help-center --output-dir data/help_center
+    python -m help_rag.interfaces.cli.main run-help-center --output-dir data/help_center
 
 # Process help center documents without enrichment
 run-help-center-no-enrichment count="10":
-    python -m epic_rag.interfaces.cli.main run-help-center --output-dir data/help_center --limit {{count}} --no-enrichment
+    python -m help_rag.interfaces.cli.main run-help-center --output-dir data/help_center --limit {{count}} --no-enrichment
 
 # Process help center documents using ZenML pipeline
 zenml-help-center count="10":
-    python -m epic_rag.interfaces.cli.main zenml-run --pipeline help_center --limit {{count}} --apply-enrichment
+    python -m help_rag.interfaces.cli.main zenml-run --pipeline help_center --limit {{count}} --apply-enrichment
 
 # Process help center documents using ZenML pipeline without enrichment
 zenml-help-center-no-enrichment count="10":
-    python -m epic_rag.interfaces.cli.main zenml-run --pipeline help_center --limit {{count}} --skip-enrichment
+    python -m help_rag.interfaces.cli.main zenml-run --pipeline help_center --limit {{count}} --skip-enrichment
 
 # Test query against help center documents
 query-help-center q:

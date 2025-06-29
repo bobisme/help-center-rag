@@ -1,18 +1,18 @@
-# Epic Documentation RAG System
+# Help Center Documentation RAG System
 
-This project contains tools for working with Applied Epic insurance agency management system documentation, with a focus on providing a powerful retrieval-augmented generation (RAG) system based on Anthropic's Contextual Retrieval methodology.
+A generic, configurable system for scraping, processing, and searching help center documentation. This project provides a powerful retrieval-augmented generation (RAG) system based on Anthropic's Contextual Retrieval methodology.
 
-Applied Epic is a comprehensive insurance agency management system used by insurance agencies and brokerages to manage:
-1. Client and policy information
-2. Quotes and proposals
-3. Certificates and proofs of insurance
-4. Agency communications (email, fax)
-5. Accounting and billing operations
+This system can be configured to work with any help center or documentation website, providing:
+1. Automated documentation scraping
+2. Intelligent content processing and chunking
+3. Advanced search capabilities
+4. Question-answering through RAG
+5. Flexible configuration for different domains
 
 The primary components of this system are:
 
-1. **HTML to Markdown Converter**: A Python tool for preprocessing HTML docs
-2. **Epic Documentation RAG System**: A retrieval system with contextual enrichment
+1. **Web Scraper**: Configurable scraper for any help center website
+2. **Documentation RAG System**: A retrieval system with contextual enrichment
 3. **CLI Interface**: A command-line interface for interacting with the system
 
 ## Features
@@ -83,10 +83,10 @@ The system provides a comprehensive CLI interface for interacting with the RAG s
 
 ```bash
 # Basic query with default settings (hybrid search)
-./rag query "How do I access my email in Epic?"
+./rag query "How do I reset my password?"
 
 # Ask a question and get an answer using RAG
-./rag ask "How do I set up faxing in Epic?"
+./rag ask "How do I configure notifications?"
 
 # Show database statistics
 ./rag db info
@@ -95,7 +95,7 @@ The system provides a comprehensive CLI interface for interacting with the RAG s
 ./rag db list-documents
 
 # View a specific document
-./rag db inspect-document --title "Email"
+./rag db inspect-document --title "Getting Started"
 
 # Ingest new documents
 ./rag documents ingest --source-dir ./data/markdown
@@ -349,80 +349,80 @@ This system implements Anthropic's Contextual Retrieval approach, which improves
 pip install -e .
 
 # Ingest documents
-epic-rag ingest --source-dir data/markdown
+help-rag ingest --source-dir data/markdown
 
 # Query the system
-epic-rag query "How do I set up faxing for my agency?"
+help-rag query "How do I configure email notifications?"
 
 # Show system information
-epic-rag info
+help-rag info
 
 # Test the embedding service
-epic-rag test-embed "How do I renew a certificate in Epic?"
+help-rag test-embed "How do I export data from the system?"
 
 # Compare text similarity
-epic-rag test-embed "How do I compare quotes?" --compare "What's the process for generating a proposal?"
+help-rag test-embed "How do I compare quotes?" --compare "What's the process for generating a proposal?"
 
 # Visualize document chunks
-epic-rag chunks --file data/markdown/email.md --dynamic
+help-rag chunks --file data/markdown/email.md --dynamic
 ```
 
 ### Testing Database and Embeddings
 
 ```bash
 # Test the database
-epic-rag test-db
+help-rag test-db
 
 # Test with the default embedding provider (HuggingFace)
-epic-rag test-embed "This is a test of the embedding service"
+help-rag test-embed "This is a test of the embedding service"
 
 # Test with local HuggingFace model on GPU
-epic-rag test-embed "This is a test of the embedding service" --provider huggingface
+help-rag test-embed "This is a test of the embedding service" --provider huggingface
 
 # Test with a specific provider (OpenAI)
-epic-rag test-embed "This is a test of the embedding service" --provider openai
+help-rag test-embed "This is a test of the embedding service" --provider openai
 
 # Test with Gemini embeddings
-epic-rag test-embed "This is a test of the embedding service" --provider gemini
+help-rag test-embed "This is a test of the embedding service" --provider gemini
 
 # Test query transformation using local LLM
-epic-rag transform-query "How do I access my email in Epic?"
+help-rag transform-query "How do I access my email in Epic?"
 
 # Test query transformation with a specific model
-epic-rag transform-query "How do I compare insurance quotes for a client?" --model gemma3:27b
+help-rag transform-query "How do I compare different options?" --model gemma3:27b
 
 # Test BM25 search (lexical/keyword search)
-epic-rag bm25 "renew certificate insurance client"
+help-rag bm25 "renew subscription account user"
 
 # Test BM25 search with full content display
-epic-rag bm25 "faxing setup configuration" --full-content
+help-rag bm25 "faxing setup configuration" --full-content
 
 # Test hybrid search combining BM25 and vector search
-epic-rag hybrid-search "How do I configure VINlink Decoder for my account?"
+help-rag hybrid-search "How do I configure VINlink Decoder for my account?"
 
 # Test hybrid search with detailed output
-epic-rag hybrid-search "How do I prepare an insurance proposal with multiple carriers?" --show-separate
+help-rag hybrid-search "How do I prepare a report with multiple data sources?" --show-separate
 
 # Test hybrid search with custom weights
-epic-rag hybrid-search "quote results comparison carrier" --bm25-weight 0.6 --vector-weight 0.4
+help-rag hybrid-search "quote results comparison carrier" --bm25-weight 0.6 --vector-weight 0.4
 
 # Test with reranking enabled
-epic-rag hybrid-search "How do I set up faxing for my agency?" --rerank
+help-rag hybrid-search "How do I set up integrations for my account?" --rerank
 
 # Compare semantic similarity between texts using local model
-epic-rag test-embed "Applied Epic is an insurance agency management system" --compare "Applied Epic helps brokers manage policies and clients"
+help-rag test-embed "This is a help center documentation system" --compare "The system helps users manage documents and queries"
 
 # Compare using Gemini
-epic-rag test-embed "Applied Epic is an insurance agency management system" --compare "Applied Epic helps brokers manage policies and clients" --provider gemini
+help-rag test-embed "This is a help center documentation system" --compare "The system helps users manage documents and queries" --provider gemini
 
 # Compare using OpenAI
-epic-rag test-embed "Applied Epic is an insurance agency management system" --compare "Applied Epic helps brokers manage policies and clients" --provider openai
+help-rag test-embed "This is a help center documentation system" --compare "The system helps users manage documents and queries" --provider openai
 
 # View cache statistics
-epic-rag cache stats
+help-rag cache stats
 
 # Clear cache entries older than 7 days
-epic-rag cache clear --days 7
+help-rag cache clear --days 7
 ```
 
 ### Environment Variables
@@ -489,19 +489,19 @@ Use the built-in CLI command to run ZenML pipelines:
 
 ```bash
 # Run the orchestration pipeline (full workflow)
-epic-rag zenml-run --source-dir data/markdown --pipeline orchestration
+help-rag zenml-run --source-dir data/markdown --pipeline orchestration
 
 # Run only the document processing pipeline
-epic-rag zenml-run --source-dir data/markdown --pipeline document_processing
+help-rag zenml-run --source-dir data/markdown --pipeline document_processing
 
 # Run only the query evaluation pipeline
-epic-rag zenml-run --source-dir data/markdown --query-file data/test_queries.txt --pipeline query_evaluation
+help-rag zenml-run --source-dir data/markdown --query-file data/test_queries.txt --pipeline query_evaluation
 
 # Run with custom parameters
-epic-rag zenml-run --source-dir data/markdown --pattern "**/*.md" --limit 10 --min-chunk-size 400 --max-chunk-size 900
+help-rag zenml-run --source-dir data/markdown --pattern "**/*.md" --limit 10 --min-chunk-size 400 --max-chunk-size 900
 
 # Run with contextual enrichment disabled
-epic-rag zenml-run --source-dir data/markdown --pipeline document_processing --skip-enrichment
+help-rag zenml-run --source-dir data/markdown --pipeline document_processing --skip-enrichment
 ```
 
 #### Running Pipelines Directly
@@ -536,19 +536,19 @@ The feature engineering pipeline processes documents directly from the HTML-to-M
 
 ```bash
 # Process all documents with the feature engineering pipeline
-epic-rag pipeline feature-engineering
+help-rag pipeline feature-engineering
 
 # Process a single document
-epic-rag pipeline feature-engineering --index 0
+help-rag pipeline feature-engineering --index 0
 
 # Process a batch of documents
-epic-rag pipeline feature-engineering --offset 0 --limit 10
+help-rag pipeline feature-engineering --offset 0 --limit 10
 
 # Test without saving to database
-epic-rag pipeline feature-engineering --index 0 --dry-run
+help-rag pipeline feature-engineering --index 0 --dry-run
 
 # Skip contextual enrichment or image descriptions
-epic-rag pipeline feature-engineering --no-enrich --no-images
+help-rag pipeline feature-engineering --no-enrich --no-images
 ```
 
 The pipeline handles these steps:

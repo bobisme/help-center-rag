@@ -23,43 +23,43 @@ interface Command {
 const commands: Record<string, Command> = {
   'crawl': {
     name: 'crawl',
-    description: 'Crawl the Epic docs website and output to JSON with images',
-    usage: 'epic-help crawl [options]',
+    description: 'Crawl the help center website and output to JSON with images',
+    usage: 'help-center-rag crawl [options]',
     examples: [
-      'epic-help crawl',
-      'epic-help crawl --depth 3 --concurrency 4',
-      'epic-help crawl --timeout 5000',
-      'epic-help crawl --no-images',
-      'epic-help crawl --all-images',
+      'help-center-rag crawl',
+      'help-center-rag crawl --depth 3 --concurrency 4',
+      'help-center-rag crawl --timeout 5000',
+      'help-center-rag crawl --no-images',
+      'help-center-rag crawl --all-images',
     ],
     handler: parallelJsonCrawler.main,
   },
   'convert': {
     name: 'convert',
     description: 'Convert scraped JSON to markdown format',
-    usage: 'epic-help convert [options]',
+    usage: 'help-center-rag convert [options]',
     examples: [
-      'epic-help convert',
-      'epic-help convert --input custom-input.json --output custom-output.md',
+      'help-center-rag convert',
+      'help-center-rag convert --input custom-input.json --output custom-output.md',
     ],
     handler: jsonToMarkdown.main,
   },
   'condense': {
     name: 'condense',
     description: 'Reduce markdown content to fit within context windows',
-    usage: 'epic-help condense <input-file> <output-file>',
+    usage: 'help-center-rag condense <input-file> <output-file>',
     examples: [
-      'epic-help condense output/epic-docs.md output/epic-docs-condensed.md',
+      'help-center-rag condense output/scraped-docs.md output/scraped-docs-condensed.md',
     ],
     handler: condenseMarkdown.main,
   },
   'count': {
     name: 'count',
     description: 'Estimate token counts for LLM context windows',
-    usage: 'epic-help count <file-path>',
+    usage: 'help-center-rag count <file-path>',
     examples: [
-      'epic-help count output/epic-docs.md',
-      'epic-help count output/epic-docs-condensed.md',
+      'help-center-rag count output/scraped-docs.md',
+      'help-center-rag count output/scraped-docs-condensed.md',
     ],
     handler: countTokens.main,
   },
@@ -71,7 +71,7 @@ const commands: Record<string, Command> = {
 function printHelp(commandName?: string) {
   if (commandName && commands[commandName]) {
     const cmd = commands[commandName];
-    console.log(`Epic Documentation Processing Toolkit - ${cmd.name}`);
+    console.log(`Help Center Documentation Processing Toolkit - ${cmd.name}`);
     console.log('='.repeat(40));
     console.log(`\nDescription: ${cmd.description}`);
     console.log(`\nUsage: ${cmd.usage}`);
@@ -82,10 +82,10 @@ function printHelp(commandName?: string) {
     return;
   }
 
-  console.log('Epic Documentation Processing Toolkit');
-  console.log('===================================');
-  console.log('\nA CLI tool to crawl and process Applied Systems Epic documentation');
-  console.log('\nUsage: epic-help <command> [options]');
+  console.log('Help Center Documentation Processing Toolkit');
+  console.log('==========================================');
+  console.log('\nA CLI tool to crawl and process help center documentation');
+  console.log('\nUsage: help-center-rag <command> [options]');
   console.log('\nAvailable commands:');
   
   Object.values(commands).forEach((cmd) => {
@@ -93,8 +93,8 @@ function printHelp(commandName?: string) {
   });
   
   console.log('\nFor help with a specific command:');
-  console.log('  epic-help help <command>');
-  console.log('  epic-help <command> --help');
+  console.log('  help-center-rag help <command>');
+  console.log('  help-center-rag <command> --help');
 }
 
 /**

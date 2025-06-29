@@ -667,20 +667,20 @@ export async function main(args: string[] = []): Promise<void> {
 
   // Check for help flag
   if (args.includes('--help') || args.includes('-h')) {
-    console.log('Usage: epic-help condense <input-file> <output-file> [options]');
+    console.log('Usage: help-center-rag condense <input-file> <output-file> [options]');
     console.log('Options:');
     console.log('  --abbreviate         Enable abbreviations for greater reduction');
     console.log('  --summarize          Enable aggressive content summarization');
     console.log('');
-    console.log('Example: epic-help condense output/epic-docs.md output/epic-docs-condensed.md --abbreviate');
+    console.log('Example: help-center-rag condense output/scraped-docs.md output/scraped-docs-condensed.md --abbreviate');
     return;
   }
 
   // Check for required arguments
   if (args.length < 2) {
     console.log('Error: Missing required arguments');
-    console.log('Usage: epic-help condense <input-file> <output-file>');
-    console.log('Run "epic-help condense --help" for more information');
+    console.log('Usage: help-center-rag condense <input-file> <output-file>');
+    console.log('Run "help-center-rag condense --help" for more information');
     throw new Error('Missing required arguments');
   }
 

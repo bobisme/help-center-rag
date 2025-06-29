@@ -17,7 +17,7 @@ export async function main(args: string[] = []): Promise<void> {
   if (args.includes('--help') || args.includes('-h')) {
     console.log('Usage: bun run src/scripts/count-tokens.ts <file-path> [--model <model-name>]');
     console.log('Models: gpt-4o, gpt-4o-mini, claude-3.5-sonnet, claude-4, gemini-1.5-pro, gemini-2.5-pro');
-    console.log('Example: bun run src/scripts/count-tokens.ts output/epic-docs.md');
+    console.log('Example: bun run src/scripts/count-tokens.ts output/scraped-docs.md');
     return;
   }
 

@@ -1,4 +1,4 @@
-// Configuration options for the Epic documentation scraper
+// Configuration options for the help center documentation scraper
 
 export interface ScraperConfig {
   // Base URL of the documentation site to scrape
@@ -25,10 +25,10 @@ export interface ScraperConfig {
 
 // Default configuration
 export const defaultConfig: ScraperConfig = {
-  baseUrl: 'https://help.appliedsystems.com/Help/Epic/2023.2en-US/epichelp.htm',
+  baseUrl: process.env.HELP_CENTER_URL || '',
   maxDepth: 5,
   concurrency: 2,
-  outputPath: 'output/epic-docs.md',
+  outputPath: 'output/scraped-docs.md',
   headless: true,
   pageTimeout: 5000, // 5 seconds timeout for page loads
   waitTime: 500, // 500ms waiting time for dynamic content

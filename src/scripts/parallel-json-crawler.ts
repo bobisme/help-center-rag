@@ -5,8 +5,8 @@ import path from 'node:path';
 
 // Configuration
 const CONFIG = {
-  baseUrl: 'https://help.appliedsystems.com/Help/Epic/2023.2en-US',
-  outputJsonFile: path.join(process.cwd(), 'output', 'epic-docs.json'),
+  baseUrl: process.env.HELP_CENTER_URL || '',
+  outputJsonFile: path.join(process.cwd(), 'output', 'scraped-docs.json'),
   imagesDir: path.join(process.cwd(), 'output', 'images'),
   concurrency: 8, // Number of parallel workers
   maxDepth: 3, // Maximum crawl depth
@@ -108,7 +108,7 @@ export async function main(args: string[] = []): Promise<void> {
     } else if (arg === '--autosave') {
       crawlerConfig.autosaveInterval = parseInt(args[++i], 10);
     } else if (arg === '--help' || arg === '-h') {
-      console.log('Usage: epic-help crawl [options]');
+      console.log('Usage: help-center-rag crawl [options]');
       console.log('Options:');
       console.log('  --url, -u <url>           Base URL to crawl');
       console.log('  --output, -o <file>       Output JSON file path');

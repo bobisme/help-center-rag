@@ -1,4 +1,4 @@
-# Development Guidelines for Epic Documentation RAG System
+# Development Guidelines for Help Center Documentation RAG System
 
 ## Commands
 
@@ -16,33 +16,33 @@
 - Format: `bun x prettier --write "**/*.{ts,js,json}"`
 
 ### Python RAG System Commands
-- Python Format: `black epic_rag/**/*.py`
-- Python Lint: `flake8 --max-complexity 10 --max-line-length 88 epic_rag/`
+- Python Format: `black help_rag/**/*.py`
+- Python Lint: `flake8 --max-complexity 10 --max-line-length 88 help_rag/`
 - Python dependencies: `uv add ...`
 - Reset Database: `just reset`
 - Run Evaluation: `just evaluate`
 - Test Enrichment: `just enrich-simple`
-- Generate Insurance Enrichment: `just enrich-insurance`
+- Generate Document Enrichment: `just enrich-docs`
 - Process Sample Docs: `just process-samples`
 
 ### Query Testing Commands
-- Basic Query: `just query "How do I access my email in Epic?"`
-- Hybrid Search: `just hybrid "How do I compare insurance quotes?"`
-- BM25 Search: `just bm25 "How to renew a certificate?"`
-- Full BM25 Output: `just bm25-full "How do I set up faxing?"`
+- Basic Query: `just query "How do I reset my password?"`
+- Hybrid Search: `just hybrid "How do I configure settings?"`
+- BM25 Search: `just bm25 "How to export data?"`
+- Full BM25 Output: `just bm25-full "How do I create a new account?"`
 
 ## Project Structure
 
 ### TypeScript Document Processing
 - **src/index.ts**: Main entry point that shows available scripts
 - **src/scripts/**: Contains tools for the documentation processing pipeline
-  - **parallel-json-crawler.ts**: Scrapes Epic docs website and outputs to JSON with images
+  - **parallel-json-crawler.ts**: Scrapes help documentation website and outputs to JSON with images
   - **json-to-markdown.ts**: Converts scraped JSON to markdown format with local image references
   - **condense-markdown.ts**: Reduces markdown content to fit within context windows
   - **count-tokens.ts**: Estimates token counts for LLM context windows
 
 ### Python RAG System
-- **epic_rag/**: Main package for the RAG system
+- **help_rag/**: Main package for the RAG system
   - **application/**: Application layer with business logic
     - **pipelines/**: ZenML pipelines for document processing and evaluation
     - **use_cases/**: Core application use cases (ingest, retrieve, enrich)
@@ -59,17 +59,17 @@
   - **interfaces/**: User interfaces
     - **cli/**: Command line interface
 
-## About Epic Help Documentation
+## About Help Center Documentation
 
-This project is focused on the Applied Epic insurance agency management system documentation. Applied Epic is a comprehensive system used by insurance agencies to manage:
+This project provides a generic system for processing help center documentation from any website. It can be configured to scrape, process, and search through:
 
-1. Client and policy information
-2. Quotes and proposals
-3. Certificates and proofs of insurance
-4. Agency communications (email, fax)
-5. Accounting and billing operations
+1. User guides and tutorials
+2. API documentation
+3. Troubleshooting guides
+4. Feature documentation
+5. Configuration and setup instructions
 
-The RAG system enhances search and retrieval by adding contextual enrichment to document chunks, improving relevance for natural language queries about insurance operations.
+The RAG system enhances search and retrieval by adding contextual enrichment to document chunks, improving relevance for natural language queries about any domain.
 
 ## Contextual Enrichment Approach
 

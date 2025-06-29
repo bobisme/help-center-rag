@@ -1,10 +1,10 @@
-# Applied Epic Documentation RAG System Plan
+# Help Center Documentation RAG System Plan
 
-This document outlines the plan for building a Retrieval-Augmented Generation (RAG) system based on Applied Epic insurance agency management system documentation using Anthropic's Contextual Retrieval methodology.
+This document outlines the plan for building a generic Retrieval-Augmented Generation (RAG) system for any help center documentation using Anthropic's Contextual Retrieval methodology.
 
 ## System Overview
 
-The system will process the converted Applied Epic documentation (from HTML to Markdown) and create a retrieval system that can provide accurate, contextual responses to queries about insurance agency operations, policy management, quoting, certificates, and other insurance workflows. The architecture follows domain-driven design principles to ensure maintainability and separation of concerns.
+The system will process help center documentation (converted from HTML to Markdown) and create a retrieval system that can provide accurate, contextual responses to queries about any domain. The architecture follows domain-driven design principles to ensure maintainability and separation of concerns.
 
 ### Key Components
 
@@ -85,10 +85,10 @@ The system implements Anthropic's Contextual Retrieval approach, which improves 
 - [x] Design evaluation metrics (e.g., retrieval precision, relevance scoring)
   - [x] Implement Recall@k, Precision@k, MRR, and NDCG metrics
   - [x] Add Anthropic's failure rate reduction metric (1 - recall@20)
-- [x] Create test query dataset from Applied Epic insurance documentation
-  - [x] Develop LLM-based dataset generator for insurance-related query-document pairs
+- [x] Create test query dataset from help documentation
+  - [x] Develop LLM-based dataset generator for domain-specific query-document pairs
   - [x] Implement ground truth tracking for evaluation
-  - [x] Update evaluation to use real insurance agency system documents
+  - [x] Update evaluation to use real help center documents
 - [x] Implement evaluation pipeline
   - [x] Create comparative evaluation of standard vs. enriched retrieval
   - [x] Build detailed metrics reporting and visualization
@@ -148,19 +148,19 @@ The system implements Anthropic's Contextual Retrieval approach, which improves 
   - [x] Add caching and rich progress reporting
 - [ ] Optimize retrieval for Help Center content
   - [ ] Add domain-specific query transformation prompts
-  - [ ] Calibrate BM25 and vector weights for insurance documentation
+  - [ ] Calibrate BM25 and vector weights for help documentation
   - [ ] Implement result filtering based on document categories
   - [ ] Add metadata boosts for query-relevant document types
 - [ ] Add evaluation metrics for Help Center content
-  - [ ] Create test query set based on common insurance agency questions
-  - [ ] Implement relevance scoring specific to insurance documentation
+  - [ ] Create test query set based on common help center questions
+  - [ ] Implement relevance scoring specific to help documentation
   - [ ] Compare retrieval with and without image enrichment
   - [ ] Generate benchmarks for retrieval performance
 
 ### Phase 8: Data Management and Versioning
 
 - [x] Implement document overwrite functionality in pipeline
-  - [x] Add logic to detect existing documents by epic_page_id
+  - [x] Add logic to detect existing documents by source_page_id
   - [x] Create functionality to delete old document versions before saving new ones
   - [x] Update the ingest step to handle document replacement
   - [x] Ensure all associated chunks are properly cleaned up during replacement

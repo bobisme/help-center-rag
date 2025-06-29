@@ -1,9 +1,10 @@
 {
-  "name": "epic-help",
+  "name": "help-center-rag",
+  "description": "Generic Help Center Documentation RAG System",
   "module": "src/index.ts",
   "type": "module",
   "bin": {
-    "epic-help": "./src/index.ts"
+    "help-center-rag": "./src/index.ts"
   },
   "scripts": {
     "start": "bun src/index.ts",

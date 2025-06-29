@@ -5,11 +5,11 @@ import asyncio
 from datetime import datetime
 import torch
 
-from epic_rag.domain.models.document import Document
-from epic_rag.domain.models.retrieval import Query, ContextualRetrievalRequest
-from epic_rag.infrastructure.config.settings import settings
-from epic_rag.infrastructure.container import container, setup_container
-from epic_rag.application.use_cases.ingest_document import IngestDocumentUseCase
+from help_rag.domain.models.document import Document
+from help_rag.domain.models.retrieval import Query, ContextualRetrievalRequest
+from help_rag.infrastructure.config.settings import settings
+from help_rag.infrastructure.container import container, setup_container
+from help_rag.application.use_cases.ingest_document import IngestDocumentUseCase
 
 
 async def test_embedding(provider="huggingface"):

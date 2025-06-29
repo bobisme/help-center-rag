@@ -6,7 +6,7 @@ from rich.console import Console
 from rich.panel import Panel
 
 sys.path.insert(0, os.getcwd())
-from epic_rag.infrastructure.container import container, setup_container
+from help_rag.infrastructure.container import container, setup_container
 
 setup_container()
 
