@@ -115,9 +115,9 @@ The system provides a comprehensive CLI interface for interacting with the RAG s
 
 3. Set up environment variables:
    ```bash
-   export EPIC_RAG_EMBEDDING_PROVIDER=huggingface
-   export EPIC_RAG_LLM_PROVIDER=ollama
-   export EPIC_RAG_LLM_MODEL=llama3.1
+   export HELP_RAG_EMBEDDING_PROVIDER=huggingface
+   export HELP_RAG_LLM_PROVIDER=ollama
+   export HELP_RAG_LLM_MODEL=llama3.1
    ```
 
 4. Reset the database (if needed):
@@ -435,48 +435,48 @@ OPENAI_API_KEY=your_openai_api_key
 GEMINI_API_KEY=your_gemini_api_key
 
 # Embedding configuration
-EPIC_RAG_EMBEDDING_PROVIDER=huggingface  # or openai, gemini
-EPIC_RAG_EMBEDDING_API_KEY=your_embedding_api_key  # for cloud providers
+HELP_RAG_EMBEDDING_PROVIDER=huggingface  # or openai, gemini
+HELP_RAG_EMBEDDING_API_KEY=your_embedding_api_key  # for cloud providers
 
 # LLM configuration for query transformation
-EPIC_RAG_LLM_PROVIDER=ollama  # Local LLM provider
-EPIC_RAG_LLM_MODEL=gemma3:27b  # Model to use for transformations
+HELP_RAG_LLM_PROVIDER=ollama  # Local LLM provider
+HELP_RAG_LLM_MODEL=gemma3:27b  # Model to use for transformations
 
 # Provider-specific model configuration
-EPIC_RAG_OPENAI_EMBEDDING_MODEL=text-embedding-3-small
-EPIC_RAG_GEMINI_EMBEDDING_MODEL=gemini-embedding-exp-03-07
-EPIC_RAG_HUGGINGFACE_MODEL=intfloat/e5-large-v2
+HELP_RAG_OPENAI_EMBEDDING_MODEL=text-embedding-3-small
+HELP_RAG_GEMINI_EMBEDDING_MODEL=gemini-embedding-exp-03-07
+HELP_RAG_HUGGINGFACE_MODEL=intfloat/e5-large-v2
 
 # HuggingFace specific settings (for local embeddings)
-EPIC_RAG_EMBEDDING_DEVICE=cuda  # cuda, cpu, mps
+HELP_RAG_EMBEDDING_DEVICE=cuda  # cuda, cpu, mps
 
 # Embedding cache settings
-EPIC_RAG_CACHE_ENABLED=true  # Enable caching of embeddings
-EPIC_RAG_CACHE_MEMORY_SIZE=1000  # Number of entries to keep in memory
-EPIC_RAG_CACHE_EXPIRATION_DAYS=30  # Embeddings expire after this many days
-EPIC_RAG_CACHE_CLEAR_ON_STARTUP=false  # Whether to clear expired entries on startup
+HELP_RAG_CACHE_ENABLED=true  # Enable caching of embeddings
+HELP_RAG_CACHE_MEMORY_SIZE=1000  # Number of entries to keep in memory
+HELP_RAG_CACHE_EXPIRATION_DAYS=30  # Embeddings expire after this many days
+HELP_RAG_CACHE_CLEAR_ON_STARTUP=false  # Whether to clear expired entries on startup
 
 # Retrieval configuration
-EPIC_RAG_FIRST_STAGE_K=20  # Number of results in first stage
-EPIC_RAG_SECOND_STAGE_K=5  # Number of results in second stage
-EPIC_RAG_MIN_RELEVANCE_SCORE=0.7  # Minimum relevance score for filtering
-EPIC_RAG_ENABLE_BM25=true  # Enable BM25 search
+HELP_RAG_FIRST_STAGE_K=20  # Number of results in first stage
+HELP_RAG_SECOND_STAGE_K=5  # Number of results in second stage
+HELP_RAG_MIN_RELEVANCE_SCORE=0.7  # Minimum relevance score for filtering
+HELP_RAG_ENABLE_BM25=true  # Enable BM25 search
 # Using BM25S for lexical search (Huggingface's optimized implementation)
-EPIC_RAG_BM25_WEIGHT=0.4  # Weight for BM25 results in hybrid search
-EPIC_RAG_VECTOR_WEIGHT=0.6  # Weight for vector results in hybrid search
-EPIC_RAG_ENABLE_QUERY_TRANSFORMATION=true  # Enable query transformation
-EPIC_RAG_ENABLE_CHUNK_MERGING=true  # Enable merging of related chunks
-EPIC_RAG_ENABLE_CONTEXTUAL_ENRICHMENT=true  # Enable LLM-based contextual enrichment for chunks
+HELP_RAG_BM25_WEIGHT=0.4  # Weight for BM25 results in hybrid search
+HELP_RAG_VECTOR_WEIGHT=0.6  # Weight for vector results in hybrid search
+HELP_RAG_ENABLE_QUERY_TRANSFORMATION=true  # Enable query transformation
+HELP_RAG_ENABLE_CHUNK_MERGING=true  # Enable merging of related chunks
+HELP_RAG_ENABLE_CONTEXTUAL_ENRICHMENT=true  # Enable LLM-based contextual enrichment for chunks
 
 # Reranker configuration
-EPIC_RAG_RERANKER_ENABLED=false  # Enable cross-encoder reranking
-EPIC_RAG_RERANKER_MODEL=mixedbread-ai/mxbai-rerank-large-v1  # Reranker model to use
-EPIC_RAG_RERANKER_TOP_K=10  # Maximum number of results to return after reranking
+HELP_RAG_RERANKER_ENABLED=false  # Enable cross-encoder reranking
+HELP_RAG_RERANKER_MODEL=mixedbread-ai/mxbai-rerank-large-v1  # Reranker model to use
+HELP_RAG_RERANKER_TOP_K=10  # Maximum number of results to return after reranking
 
 # Qdrant configuration (optional for remote Qdrant)
-EPIC_RAG_QDRANT_URL=https://your-qdrant-instance.com
-EPIC_RAG_QDRANT_API_KEY=your_qdrant_api_key
-EPIC_RAG_QDRANT_COLLECTION=epic_docs
+HELP_RAG_QDRANT_URL=https://your-qdrant-instance.com
+HELP_RAG_QDRANT_API_KEY=your_qdrant_api_key
+HELP_RAG_QDRANT_COLLECTION=help_docs
 ```
 
 ### ZenML Pipelines

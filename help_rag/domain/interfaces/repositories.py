@@ -35,14 +35,14 @@ class DocumentRepository(Protocol):
         """Update an existing document."""
         ...
 
-    async def find_document_by_epic_page_id(
-        self, epic_page_id: str
+    async def find_document_by_source_page_id(
+        self, source_page_id: str
     ) -> Optional[Document]:
-        """Find a document by its Epic page ID."""
+        """Find a document by its source page ID."""
         ...
 
     async def replace_document(self, document: Document) -> Document:
-        """Replace a document by its Epic page ID, deleting all existing chunks."""
+        """Replace a document by its source page ID, deleting all existing chunks."""
         ...
 
     async def save_chunk(self, chunk: DocumentChunk) -> DocumentChunk:

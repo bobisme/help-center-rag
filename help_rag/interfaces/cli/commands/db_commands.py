@@ -209,8 +209,8 @@ def inspect_document(
     title: Optional[str] = typer.Option(
         None, "--title", "-t", help="Document title to inspect"
     ),
-    epic_id: Optional[str] = typer.Option(
-        None, "--epic-id", help="Epic page ID to search for"
+    source_id: Optional[str] = typer.Option(
+        None, "--source-id", help="Source page ID to search for"
     ),
     chunks: bool = typer.Option(False, "--chunks", "-c", help="Show document chunks"),
     metadata: bool = typer.Option(
@@ -220,9 +220,9 @@ def inspect_document(
     """Inspect a document in the database."""
 
     async def inspect_doc():
-        if not any([document_id, title, epic_id]):
+        if not any([document_id, title, source_id]):
             console.print(
-                "[bold red]Please provide at least one of: --id, --title, or --epic-id[/bold red]"
+                "[bold red]Please provide at least one of: --id, --title, or --source-id[/bold red]"
             )
             return
 
@@ -235,9 +235,9 @@ def inspect_document(
         with console.status("[bold green]Finding document..."):
             if document_id:
                 document = await document_repository.get_document(document_id)
-            elif epic_id:
+            elif source_id:
                 document = await document_repository.find_document_by_source_page_id(
-                    epic_id
+                    source_id
                 )
             elif title:
                 # Search by title (partial match)

@@ -20,7 +20,7 @@ async def main():
     parser = argparse.ArgumentParser(description="Inspect a document and its metadata")
     parser.add_argument("--id", help="Document ID to inspect")
     parser.add_argument("--title", help="Document title to search for")
-    parser.add_argument("--epic-id", help="Epic page ID to search for")
+    parser.add_argument("--source-id", help="Source page ID to search for")
     parser.add_argument(
         "--chunks", "-c", action="store_true", help="Show document chunks"
     )
@@ -29,8 +29,8 @@ async def main():
     )
     args = parser.parse_args()
 
-    if not any([args.id, args.title, args.epic_id]):
-        print("Please provide at least one of: --id, --title, or --epic-id")
+    if not any([args.id, args.title, args.source_id]):
+        print("Please provide at least one of: --id, --title, or --source-id")
         return
 
     document_repository = container.get("document_repository")
@@ -39,9 +39,9 @@ async def main():
     with console.status("[bold green]Finding document..."):
         if args.id:
             document = await document_repository.get_document(args.id)
-        elif args.epic_id:
-            document = await document_repository.find_document_by_epic_page_id(
-                args.epic_id
+        elif args.source_id:
+            document = await document_repository.find_document_by_source_page_id(
+                args.source_id
             )
         elif args.title:
             # Search by title (partial match)
@@ -79,8 +79,8 @@ async def main():
     # Display document info
     console.print(f"[bold green]Document:[/bold green] {document.title}")
     console.print(f"[bold]ID:[/bold] {document.id}")
-    console.print(f"[bold]Epic Page ID:[/bold] {document.epic_page_id or 'N/A'}")
-    console.print(f"[bold]Epic Path:[/bold] {document.epic_path or 'N/A'}")
+    console.print(f"[bold]Source Page ID:[/bold] {document.source_page_id or 'N/A'}")
+    console.print(f"[bold]Source Path:[/bold] {document.source_path or 'N/A'}")
     console.print(f"[bold]Created:[/bold] {document.created_at}")
     console.print(f"[bold]Updated:[/bold] {document.updated_at}")
 

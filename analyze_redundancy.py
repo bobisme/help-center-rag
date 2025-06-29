@@ -29,9 +29,9 @@ def analyze_repetitive_patterns(content: str) -> Dict[str, int]:
         "access_patterns": len(
             re.findall(r"To\s+access\s+.*?:", content, re.IGNORECASE)
         ),
-        # Common Epic-specific patterns
-        "epic_help_file": len(
-            re.findall(r"Applied Epic.*?Help File", content, re.IGNORECASE)
+        # Common help center patterns
+        "help_file_reference": len(
+            re.findall(r".*?Help File", content, re.IGNORECASE)
         ),
         "full_context": len(
             re.findall(
